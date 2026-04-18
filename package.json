@@ -37,6 +37,11 @@
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">= 22.11.0"
+    "node": ">= 18.0.0"
+  },
+  "resolutions": {
+    "metro": "0.80.0",
+    "metro-config": "0.80.0",
+    "metro-core": "0.80.0"
   }
 }

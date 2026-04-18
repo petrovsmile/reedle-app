@@ -22,7 +22,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '22'
         cache: 'npm'
 
     - name: Install dependencies
@@ -55,6 +55,11 @@ jobs:
         export LC_ALL=en_US.UTF-8
         bundle exec pod install --repo-update
 
+    - name: Clean build folder
+      run: |
+        cd ios
+        xcodebuild clean -workspace reedle.xcworkspace -scheme reedle
+
     - name: Decode API Key
       env:
         APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
@@ -66,31 +71,47 @@ jobs:
       run: |
         cd ios
         xcodebuild \
-          -workspace read_en.xcworkspace \
-          -scheme read_en \
+          -workspace reedle.xcworkspace \
+          -scheme reedle \
           -configuration Release \
           -derivedDataPath build \
           -arch arm64 \
-          -allowProvisioningUpdates
+          -allowProvisioningUpdates \
+          -allowProvisioningDeviceRegistration
 
     - name: Create Archive
       run: |
         cd ios
         xcodebuild \
-          -workspace read_en.xcworkspace \
-          -scheme read_en \
+          -workspace reedle.xcworkspace \
+          -scheme reedle \
           -configuration Release \
-          -archivePath build/read_en.xcarchive \
+          -archivePath build/reedle.xcarchive \
           -allowProvisioningUpdates \
+          -allowProvisioningDeviceRegistration \
           archive
 
-    - name: Export IPA using Fastlane
-      env:
-        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    - name: Export IPA from Archive
       run: |
         cd ios
-        fastlane build_testflight
+        cat > /tmp/export-options.plist << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>method</key>
+          <string>app-store</string>
+          <key>signingStyle</key>
+          <string>automatic</string>
+          <key>stripSwiftSymbols</key>
+          <true/>
+        </dict>
+        </plist>
+        EOF
+        xcodebuild -exportArchive \
+          -archivePath build/reedle.xcarchive \
+          -exportPath build \
+          -exportOptionsPlist /tmp/export-options.plist
 
     - name: Upload to TestFlight
       env:
@@ -111,6 +132,14 @@ jobs:
             repo: context.repo.repo,
             body: '✅ Build uploaded to TestFlight\n\nYou can now download it from App Store Connect TestFlight tab.'
           })
+
+    - name: Upload Podfile.lock
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: podfile-lock
+        path: ios/Podfile.lock
+        retention-days: 7
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4

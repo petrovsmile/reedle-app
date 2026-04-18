@@ -11,6 +11,8 @@ platform :ios do
       configuration: "Release",
       derived_data_path: "build",
       export_method: "app-store",
+      code_signing_identity: "",
+      provisioning_profile_specifier: "",
       export_options: {
         method: "app-store",
         signingStyle: "automatic",
@@ -19,6 +21,9 @@ platform :ios do
       },
       output_directory: "build",
       output_name: "reedle.ipa",
+      skip_package_ipa: false,
+      skip_package_pkg: true,
+      destination: "generic/platform=iOS",
       silent: false,
       suppress_xcode_output: false
     )
@@ -39,6 +44,31 @@ platform :ios do
       ipa: "build/reedle.ipa",
       skip_waiting_for_build_processing: false,
       distribute_external: false
+    )
+  end
+
+  desc "Export IPA from existing archive"
+  lane :build_ipa_from_archive do
+    setup_ci if is_ci
+
+    build_app(
+      workspace: "reedle.xcworkspace",
+      scheme: "reedle",
+      configuration: "Release",
+      archive_path: "build/reedle.xcarchive",
+      export_method: "app-store",
+      skip_codesigning: true,
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        stripSwiftSymbols: true
+      },
+      output_directory: "build",
+      output_name: "reedle.ipa",
+      skip_build_archive: true,
+      skip_package_ipa: false,
+      skip_package_pkg: true,
+      suppress_xcode_output: false
     )
   end
 
