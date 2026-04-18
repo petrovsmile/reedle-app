@@ -1,0 +1,120 @@
+name: iOS Build & Upload to TestFlight
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: macos-latest
+
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: false
+        working-directory: ios
+
+    - name: Bundle install
+      run: |
+        cd ios
+        export LANG=en_US.UTF-8
+        export LC_ALL=en_US.UTF-8
+        bundle install
+
+    - name: Clear CocoaPods cache
+      run: |
+        rm -rf ~/Library/Caches/CocoaPods
+        rm -rf ~/.cocoapods/repos/master
+        rm -rf ~/.cocoapods/repos/trunk
+
+    - name: Install Pods
+      run: |
+        cd ios
+        export LANG=en_US.UTF-8
+        export LC_ALL=en_US.UTF-8
+        bundle exec pod install --repo-update
+
+    - name: Decode API Key
+      env:
+        APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      run: |
+        mkdir -p ~/.appstoreconnect/private_keys
+        echo $APP_STORE_CONNECT_API_KEY | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+
+    - name: Build iOS app
+      run: |
+        cd ios
+        xcodebuild \
+          -workspace read_en.xcworkspace \
+          -scheme read_en \
+          -configuration Release \
+          -derivedDataPath build \
+          -arch arm64 \
+          -allowProvisioningUpdates
+
+    - name: Create Archive
+      run: |
+        cd ios
+        xcodebuild \
+          -workspace read_en.xcworkspace \
+          -scheme read_en \
+          -configuration Release \
+          -archivePath build/read_en.xcarchive \
+          -allowProvisioningUpdates \
+          archive
+
+    - name: Export IPA using Fastlane
+      env:
+        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      run: |
+        cd ios
+        fastlane build_testflight
+
+    - name: Upload to TestFlight
+      env:
+        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      run: |
+        cd ios
+        fastlane upload_testflight
+
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Build uploaded to TestFlight\n\nYou can now download it from App Store Connect TestFlight tab.'
+          })
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-ipa
+        path: ios/build/*.ipa
+        retention-days: 30
