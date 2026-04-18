@@ -1,0 +1,4 @@
+app_identifier("com.example.reedle") # Замени на твой Bundle Identifier
+apple_id("your-apple-id@example.com") # Замени на свой Apple ID
+team_id("YOUR_TEAM_ID") # Замени на твой Team ID (найди в Apple Developer)
+itc_team_id("YOUR_ITC_TEAM_ID") # Замени на твой App Store Connect Team ID

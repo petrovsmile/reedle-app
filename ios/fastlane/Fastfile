@@ -1,0 +1,50 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build app for TestFlight"
+  lane :build_testflight do
+    setup_ci if is_ci
+
+    build_app(
+      workspace: "reedle.xcworkspace",
+      scheme: "reedle",
+      configuration: "Release",
+      derived_data_path: "build",
+      export_method: "app-store",
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        stripSwiftSymbols: true,
+        teamID: ENV["FASTLANE_TEAM_ID"]
+      },
+      output_directory: "build",
+      output_name: "reedle.ipa",
+      silent: false,
+      suppress_xcode_output: false
+    )
+  end
+
+  desc "Upload app to TestFlight"
+  lane :upload_testflight do
+    setup_ci if is_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_filepath: File.expand_path("~/.appstoreconnect/private_keys/AuthKey_#{ENV['APP_STORE_CONNECT_API_KEY_ID']}.p8")
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: "build/reedle.ipa",
+      skip_waiting_for_build_processing: false,
+      distribute_external: false
+    )
+  end
+
+  desc "Build and upload to TestFlight (combined)"
+  lane :build_and_upload_testflight do
+    build_testflight
+    upload_testflight
+  end
+end
