@@ -11,13 +11,16 @@ platform :ios do
       configuration: "Release",
       derived_data_path: "build",
       export_method: "app-store",
-      code_signing_identity: "",
-      provisioning_profile_specifier: "",
+      code_signing_identity: "Apple Distribution",
+      provisioning_profile_specifier: "read-en.ru",
       export_options: {
         method: "app-store",
-        signingStyle: "automatic",
+        signingStyle: "manual",
         stripSwiftSymbols: true,
-        teamID: ENV["FASTLANE_TEAM_ID"]
+        teamID: "244U6W36E7",
+        provisioningProfiles: {
+          "read-en.ru" => "read-en.ru"
+        }
       },
       output_directory: "build",
       output_name: "reedle.ipa",

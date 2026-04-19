@@ -272,7 +272,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "read-en";
+				PRODUCT_BUNDLE_IDENTIFIER = "read-en.ru";
 				PRODUCT_NAME = reedle;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -302,7 +302,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "read-en";
+				PRODUCT_BUNDLE_IDENTIFIER = "read-en.ru";
 				PRODUCT_NAME = reedle;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
