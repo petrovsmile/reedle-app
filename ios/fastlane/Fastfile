@@ -5,30 +5,29 @@ platform :ios do
   lane :build_testflight do
     setup_ci if is_ci
 
+    profile_uuid = ENV["PROVISIONING_PROFILE_SPECIFIER"]
+    bundle_id = "read-en.ru"
+
+    xcargs_string = "-allowProvisioningUpdates CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE='#{profile_uuid}'"
+
     build_app(
       workspace: "reedle.xcworkspace",
       scheme: "reedle",
       configuration: "Release",
       derived_data_path: "build",
       export_method: "app-store",
-      code_signing_identity: "Apple Distribution",
-      provisioning_profile_specifier: "read-en.ru",
+      xcargs: xcargs_string,
       export_options: {
         method: "app-store",
         signingStyle: "manual",
         stripSwiftSymbols: true,
         teamID: "244U6W36E7",
         provisioningProfiles: {
-          "read-en.ru" => "read-en.ru"
+          bundle_id => profile_uuid
         }
       },
       output_directory: "build",
-      output_name: "reedle.ipa",
-      skip_package_ipa: false,
-      skip_package_pkg: true,
-      destination: "generic/platform=iOS",
-      silent: false,
-      suppress_xcode_output: false
+      output_name: "reedle.ipa"
     )
   end
 
