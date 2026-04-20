@@ -9,6 +9,10 @@ jobs:
     name: Build & Upload to TestFlight
     runs-on: macos-14
 
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,179 +34,125 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
+          ruby-version: '3.3'
           bundler-cache: false
           working-directory: ios
 
-      - name: Bundle install
+      - name: Install Bundler & Gems
         run: |
           cd ios
-          bundle install
+          gem install bundler -v "~> 2.6"
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 4 --retry 3
 
       - name: Install CocoaPods
         run: |
           cd ios
-          pod install --repo-update
+          bundle exec pod install --repo-update
 
-      - name: Setup Keychain
+      # ⚙️ Fastlane setup_ci создаст временный keychain ПРАВИЛЬНО:
+      # - создаст fastlane_tmp_keychain
+      # - сделает его default
+      # - добавит к существующим (НЕ заменит)
+      # - разблокирует с правильными настройками
+      - name: Setup Fastlane CI Keychain
         run: |
-          security delete-keychain build.keychain 2>/dev/null || true
-          security create-keychain -p "" build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "" build.keychain
-
-          # Add to search list
-          security list-keychains -s ~/Library/Keychains/build.keychain-db
+          cd ios
+          bundle exec fastlane run setup_ci
 
       - name: Import Code-Signing Certificate
         run: |
+          cd ios
+          # Декодируем сертификат
           echo "${{ secrets.CERTIFICATES_P12 }}" | base64 --decode > /tmp/certs.p12
 
-          # Import to login keychain first (standard practice)
-          security import /tmp/certs.p12 \
-            -k ~/Library/Keychains/login.keychain-db \
-            -P "${{ secrets.CERTIFICATES_P12_PASSWORD }}" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security \
-            -T /usr/bin/xcodebuild \
-            -A
+          # Импортируем в fastlane keychain (созданный setup_ci)
+          bundle exec fastlane run import_certificate \
+            certificate_path:/tmp/certs.p12 \
+            certificate_password:"${{ secrets.CERTIFICATES_P12_PASSWORD }}" \
+            keychain_name:fastlane_tmp_keychain \
+            keychain_password:""
 
           rm /tmp/certs.p12
 
-          echo "=== Login Keychain Certificates ==="
+          echo ""
+          echo "=== Imported Certificates ==="
           security find-identity -v -p codesigning
 
-          echo ""
-          echo "=== Certificate Details ==="
-          security find-identity -v -p codesigning | grep -i distribution || echo "No distribution cert found"
-
-      - name: Import Provisioning Profile
+      - name: Download Provisioning Profile
         uses: apple-actions/download-provisioning-profiles@v1
         with:
           bundle-id: 'read-en.ru'
+          profile-type: 'IOS_APP_STORE'
           issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
 
-      - name: Check Provisioning Profiles
+      - name: Verify Profile & Extract UUID
         run: |
           echo "=== Installed Provisioning Profiles ==="
-          ls -lah ~/Library/MobileDevice/Provisioning\ Profiles/ || echo "No profiles found"
-          echo ""
-          echo "=== Extract Profile UUID ==="
+          ls -lah ~/Library/MobileDevice/Provisioning\ Profiles/ || (echo "✗ No profiles!" && exit 1)
+
           PROFILE_PATH=$(find ~/Library/MobileDevice/Provisioning\ Profiles/ -name "*.mobileprovision" | head -1)
           if [ -z "$PROFILE_PATH" ]; then
             echo "✗ ERROR: No provisioning profiles found!"
             exit 1
           fi
-          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | plutil -extract UUID raw - 2>/dev/null)
-          if [ -z "$PROFILE_UUID" ]; then
-            echo "✗ ERROR: Failed to extract UUID from provisioning profile!"
-            exit 1
-          fi
-          echo "✓ Profile UUID: $PROFILE_UUID"
-          echo "PROVISIONING_PROFILE_UUID=$PROFILE_UUID" >> $GITHUB_ENV
 
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
+          PROFILE_TEAM=$(security cms -D -i "$PROFILE_PATH" | plutil -extract TeamIdentifier.0 raw -)
+          PROFILE_BUNDLE=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Entitlements.application-identifier raw -)
+
+          echo "✓ Profile UUID:      $PROFILE_UUID"
+          echo "✓ Profile Name:      $PROFILE_NAME"
+          echo "✓ Profile Team ID:   $PROFILE_TEAM"
+          echo "✓ Profile Bundle ID: $PROFILE_BUNDLE"
           echo ""
-          echo "=== Profile Details ==="
-          TEAM_ID=$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | plutil -extract TeamIdentifier.0 raw - 2>/dev/null)
-          BUNDLE_ID=$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | plutil -extract Entitlements.application-identifier raw - 2>/dev/null)
-          echo "Team ID in profile: $TEAM_ID"
-          echo "Bundle ID in profile: $BUNDLE_ID"
           echo "Expected Team ID: ${{ secrets.APPLE_TEAM_ID }}"
-          echo ""
-          echo "=== Available Certificates ==="
-          security find-identity -v -p codesigning 2>/dev/null || echo "No certificates found"
 
-      - name: Build & Archive
+          # Сохраняем для fastlane
+          echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID" >> $GITHUB_ENV
+
+      - name: Build via Fastlane
+        env:
+          PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}
         run: |
           cd ios
-
-          # Allow codesign to use keychain without prompting
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" ~/Library/Keychains/login.keychain-db || true
-
-          echo "=== Starting Build ==="
-          xcodebuild archive \
-            -workspace reedle.xcworkspace \
-            -scheme reedle \
-            -configuration Release \
-            -archivePath $RUNNER_TEMP/reedle.xcarchive \
-            -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            PROVISIONING_PROFILE_SPECIFIER=${{ env.PROVISIONING_PROFILE_UUID }} \
-            -verbose 2>&1 | tee build.log
-
-          BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "✗ Build failed with exit code: $BUILD_EXIT_CODE"
-            echo ""
-            echo "=== Build Errors ==="
-            grep -i "error:" ios/build.log | head -20
-            exit $BUILD_EXIT_CODE
-          fi
-          echo "✓ Build succeeded"
-
-      - name: Show Build Log on Failure
-        if: failure()
-        run: |
-          echo "=== Build Log (Last 100 lines) ==="
-          tail -100 ios/build.log || echo "Log file not found"
-          echo ""
-          echo "=== All Errors ==="
-          grep -i "error:" ios/build.log || echo "No errors found in log"
-
-      - name: Verify Archive Exists
-        run: |
-          echo "Archive path: $RUNNER_TEMP/reedle.xcarchive"
-          if [ -d "$RUNNER_TEMP/reedle.xcarchive" ]; then
-            echo "✓ Archive found"
-            du -sh "$RUNNER_TEMP/reedle.xcarchive"
-            ls -lah "$RUNNER_TEMP/reedle.xcarchive" | head -20
-          else
-            echo "✗ Archive NOT found at $RUNNER_TEMP/reedle.xcarchive"
-            echo ""
-            echo "=== Checking $RUNNER_TEMP ==="
-            ls -lah "$RUNNER_TEMP" || echo "Cannot list RUNNER_TEMP"
-            exit 1
-          fi
-
-      - name: Export IPA
-        run: |
-          cd ios
-          echo "Starting IPA export..."
-          xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/reedle.xcarchive \
-            -exportPath $RUNNER_TEMP/export \
-            -exportOptionsPlist ExportOptions.plist \
-            -verbose 2>&1 | tee export.log
-
-          EXPORT_EXIT_CODE=${PIPESTATUS[0]}
-          if [ $EXPORT_EXIT_CODE -ne 0 ]; then
-            echo "✗ Export failed with exit code: $EXPORT_EXIT_CODE"
-            echo ""
-            echo "=== Export Error Details ==="
-            grep -i "error\|failed\|exception" ios/export.log || echo "No error patterns found"
-            exit $EXPORT_EXIT_CODE
-          fi
-          echo "✓ Export succeeded"
-          ls -lah $RUNNER_TEMP/export/
-
-      - name: Show Export Log on Failure
-        if: failure()
-        run: |
-          echo "=== Last 50 lines of export.log ==="
-          if [ -f ios/export.log ]; then
-            tail -50 ios/export.log
-          else
-            echo "export.log not found at ios/export.log"
-            find . -name "export.log" -type f 2>/dev/null || echo "No export.log found anywhere"
-          fi
+          bundle exec fastlane build_testflight
 
       - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@v1
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          # Создаем директорию для API ключа (нужно Fastfile)
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APPSTORE_PRIVATE_KEY }}" > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+
+          cd ios
+          bundle exec fastlane upload_testflight
+
+      - name: Show Logs on Failure
+        if: failure()
+        run: |
+          echo "=== Fastlane Logs ==="
+          ls -la ios/fastlane/report.xml 2>/dev/null && cat ios/fastlane/report.xml || echo "No report.xml"
+          echo ""
+          echo "=== Build Logs ==="
+          find ~/Library/Logs/gym -type f -name "*.log" 2>/dev/null | head -5 | while read log; do
+            echo "--- $log ---"
+            tail -100 "$log"
+          done
+
+      - name: Upload Build Artifacts on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          app-path: ${{ runner.temp }}/export/reedle.ipa
-          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
-          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
-          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          name: build-logs
+          path: |
+            ios/fastlane/report.xml
+            ~/Library/Logs/gym/*.log
+          retention-days: 7
+          if-no-files-found: ignore
