@@ -1,0 +1,81 @@
+Инструкция по переносу:
+
+--- Перенос файлов
+gulpfile.js
+app.js
+babel.config.js
+
+
+--- Gulp
+npm install --global gulp-cli
+npm install gulp
+npm install gulp-concat
+
+--- react-navigation
+npm install @react-navigation/native
+npm install @react-navigation/drawer
+npm install @react-navigation/stack
+npm install react-native-screens
+npm install react-native-reanimated 
+npm install react-native-gesture-handler 
+npm install react-native-safe-area-context 
+
+npm install react-native-webview
+
+npm install react-native-swipe-list-view
+
+npm install moment
+
+npm install react-native-fs
+
+npm install axios
+
+npm install @react-native-async-storage/async-storage
+
+npm install @react-native-community/slider
+
+npm install @react-native-community/netinfo
+
+npm install react-native-restart
+
+npm install react-native-circular-progress
+
+npm install react-native-iap
+
+npm install react-native-tracking-transparency
+
+npm install react-native-svg
+
+npm install metro-react-native-babel-preset
+
+npm install react-native-appodeal
+https://github.com/appodeal/react-native-appodeal
+
+Не забудь pod install
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
