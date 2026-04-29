@@ -91,17 +91,12 @@ setTimeout(async () => {
   // (функция pickDefaultVoice), чтобы логика не дублировалась.
 }, 1000);
 
-MobileAds.initialize();
-
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
   Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
 }
 
 let adSize = null;
-(async () => {
-  adSize = await BannerAdSize.inlineSize(300, 250);
-})();
 
 // import {
 //   Appodeal,
@@ -5051,6 +5046,8 @@ class RootApp extends React.Component {
   }
 
   async componentDidMount() {
+    this.initAds();
+
     var current_user = await new Storage().get('current_user');
 
     if (current_user != undefined) {
@@ -5097,6 +5094,17 @@ class RootApp extends React.Component {
       this._unsubNet();
     }
     clearTimeout(this.notification_timer);
+  }
+
+  async initAds() {
+    if (Platform.OS === 'ios') {
+      try {
+        await requestTrackingPermission();
+      } catch (e) {}
+    }
+    await MobileAds.initialize();
+    adSize = await BannerAdSize.inlineSize(300, 250);
+    this.forceUpdate();
   }
 
   async check_location() {

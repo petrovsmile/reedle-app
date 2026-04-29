@@ -91,17 +91,12 @@ setTimeout(async () => {
   // (функция pickDefaultVoice), чтобы логика не дублировалась.
 }, 1000);
 
-MobileAds.initialize();
-
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
   Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
 }
 
 let adSize = null;
-(async () => {
-  adSize = await BannerAdSize.inlineSize(300, 250);
-})();
 
 // import {
 //   Appodeal,
