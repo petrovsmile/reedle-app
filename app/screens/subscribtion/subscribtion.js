@@ -17,22 +17,6 @@ const Subscription = observer(class Subscription extends React.Component {
     this.read_forever = 2490;
   }
 
-  async componentDidMount() {
-    try {
-      await RNIap.initConnection();
-    } catch (error) {
-      console.warn('Error initializing IAP connection:', error);
-    }
-  }
-
-  async componentWillUnmount() {
-    try {
-      await RNIap.endConnection();
-    } catch (error) {
-      console.warn('Error ending IAP connection:', error);
-    }
-  }
-
   cancelSubscription() {
     new Storage().set('has_subscription', 'false');
     this.props.root.setState({
@@ -82,58 +66,32 @@ const Subscription = observer(class Subscription extends React.Component {
   async payByStore(subscription_id) {
     try {
       if (this.state.load_payment_button == false) {
-        this.setState({
-          load_payment_button: true
-        });
+        this.setState({ load_payment_button: true });
 
-        if (subscription_id == 1) {
-          var productId = 'read_1_month';
-          var type = 'subscription';
+        if (subscription_id == 1) var productId = 'read_1_month';
+        if (subscription_id == 2) var productId = 'read_6_month';
+        if (subscription_id == 3) var productId = 'read_1_year';
+        if (subscription_id == 4) var productId = 'read_forever';
+
+        const products = await Purchases.getProducts([productId]);
+        if (!products || products.length === 0) {
+          throw new Error('Product not found: ' + productId);
         }
-        if (subscription_id == 2) {
-          var productId = 'read_6_month';
-          var type = 'subscription';
-        }
-        if (subscription_id == 3) {
-          var productId = 'read_1_year';
-          var type = 'subscription';
-        }
-        if (subscription_id == 4) {
-          var productId = 'read_forever';
-          var type = 'product';
+        const { customerInfo } = await Purchases.purchaseStoreProduct(products[0]);
+
+        const proEntitlement = customerInfo.entitlements.active['pro'];
+        if (!proEntitlement) {
+          throw new Error('Purchase completed but entitlement not active');
         }
 
-        if (type == 'subscription') {
-          var purchase = await RNIap.requestSubscription({ sku: productId });
-          var time_subsription = moment.unix(parseInt(purchase.transactionDate) / 1000);
-        }
+        const end_date = proEntitlement.expirationDate
+          ? moment(proEntitlement.expirationDate)
+          : moment().add(200, 'years');
 
-        if (type == 'product') {
-          var purchase = await RNIap.requestPurchase({ sku: productId });
-          var time_subsription = moment.unix(parseInt(purchase.transactionDate) / 1000);
-        }
-
-        if (purchase.productId == 'read_1_month') {
-          var end_date = time_subsription.clone().add(1, 'months');
-          var subscription_id = 1;
-        }
-        if (purchase.productId == 'read_6_month') {
-          var end_date = time_subsription.clone().add(6, 'months');
-          var subscription_id = 2;
-        }
-        if (purchase.productId == 'read_1_year') {
-          var end_date = time_subsription.clone().add(1, 'years');
-          var subscription_id = 3;
-        }
-        if (purchase.productId == 'read_forever') {
-          var end_date = time_subsription.clone().add(200, 'years');
-          var subscription_id = 4;
-        }
-
-        var subscription_info = {
+        const subscription_info = {
           end_date: end_date.format('YYYY-MM-DD HH:MM'),
-          subscription_id: subscription_id
-        }
+          subscription_id: subscription_id,
+        };
 
         await new Storage().set('has_subscription', 'true');
         await new Storage().set('subscription_info', JSON.stringify(subscription_info));
@@ -152,26 +110,15 @@ const Subscription = observer(class Subscription extends React.Component {
         }
 
         this.checkSubscription();
-
-        this.setState({
-          load_payment_button: false
-        });
+        this.setState({ load_payment_button: false });
       }
     } catch (error) {
-      this.setState({
-        load_payment_button: false
-      });
-
-      // Handle react-native-iap 15.2.0 specific errors
-      if (error.code === 'E_USER_CANCELLED') {
+      this.setState({ load_payment_button: false });
+      if (error.userCancelled) {
         console.log('User cancelled the purchase');
-      } else if (error.code === 'E_NETWORK_ERROR') {
-        Alert.alert('Ошибка сети', 'Проверьте подключение к интернету');
-      } else if (error.code === 'E_UNKNOWN') {
-        console.warn('Unknown IAP error:', error.message);
-        Alert.alert('Ошибка', 'Ошибка при обработке покупки. Попробуйте позже.');
       } else {
         console.warn('IAP error:', error);
+        Alert.alert('Ошибка', 'Ошибка при обработке покупки. Попробуйте позже.');
       }
     }
   }

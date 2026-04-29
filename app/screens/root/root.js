@@ -22,14 +22,6 @@ class RootApp extends React.Component {
   }
 
   async componentDidMount() {
-    if (Platform.OS == 'ios') {
-      RNIap.setup({ storekitMode: 'STOREKIT_HYBRID_MODE' })
-
-      await RNIap.initConnection();
-      await RNIap.getSubscriptions({ skus: ['read_1_month', 'read_6_month', 'read_1_year'] });
-      await RNIap.getProducts({ skus: ['read_forever'] });
-    }
-
     var current_user = await new Storage().get('current_user');
 
     if (current_user != undefined) {
@@ -119,44 +111,28 @@ class RootApp extends React.Component {
     appStore.setSubscription(has_subscription == 'true');
     appStore.setSubscriptionInfo(subscription_info);
 
-    if (this.type_payment == 'by_store') {
-      var purchases = await RNIap.getPurchaseHistory({ skus: ['read_1_month', 'read_6_month', 'read_1_year', 'read_forever'] });
-      if (purchases.length != 0) {
-        purchases.sort(function (a, b) {
-          var keyA = new Date(a.transactionDate),
-            keyB = new Date(b.transactionDate);
-          // Compare the 2 dates
-          if (keyA > keyB) return -1;
-          if (keyA < keyB) return 1;
-          return 0;
-        });
+    if (this.state.type_payment == 'by_store') {
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        const proEntitlement = customerInfo.entitlements.active['pro'];
 
-        var purchase = purchases[0];
+        if (proEntitlement) {
+          const productId = proEntitlement.productIdentifier;
+          let subscription_id;
+          if (productId === 'read_1_month') subscription_id = 1;
+          else if (productId === 'read_6_month') subscription_id = 2;
+          else if (productId === 'read_1_year') subscription_id = 3;
+          else if (productId === 'read_forever') subscription_id = 4;
+          else subscription_id = 3;
 
-        var time_subsription = moment.unix(parseInt(purchase.transactionDate) / 1000);
+          const end_date = proEntitlement.expirationDate
+            ? moment(proEntitlement.expirationDate)
+            : moment().add(200, 'years');
 
-        if (purchase.productId == 'read_1_month') {
-          var end_date = time_subsription.clone().add(1, 'months');
-          var subscription_id = 1;
-        }
-        if (purchase.productId == 'read_6_month') {
-          var end_date = time_subsription.clone().add(6, 'months');
-          var subscription_id = 2;
-        }
-        if (purchase.productId == 'read_1_year') {
-          var end_date = time_subsription.clone().add(1, 'years');
-          var subscription_id = 3;
-        }
-        if (purchase.productId == 'read_forever') {
-          var end_date = time_subsription.clone().add(200, 'years');
-          var subscription_id = 4;
-        }
-
-        if (moment() < end_date) {
-          var subscription_info = {
+          const subscription_info = {
             end_date: end_date.format('YYYY-MM-DD HH:MM'),
-            subscription_id: subscription_id
-          }
+            subscription_id: subscription_id,
+          };
 
           await new Storage().set('has_subscription', 'true');
           await new Storage().set('subscription_info', JSON.stringify(subscription_info));
@@ -177,12 +153,11 @@ class RootApp extends React.Component {
           }
         } else {
           await new Storage().set('has_subscription', 'false');
-
-          await this.setState({
-            has_subscription: false
-          });
+          await this.setState({ has_subscription: false });
           appStore.setSubscription(false);
         }
+      } catch (e) {
+        console.warn('Error checking subscription via RevenueCat:', e);
       }
     }
 

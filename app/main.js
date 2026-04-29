@@ -54,7 +54,7 @@ import RNRestart from 'react-native-restart';
 
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 
-import * as RNIap from 'react-native-iap';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 
 import { requestTrackingPermission } from 'react-native-tracking-transparency';
 
@@ -92,6 +92,11 @@ setTimeout(async () => {
 }, 1000);
 
 MobileAds.initialize();
+
+if (Platform.OS === 'ios') {
+  Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+  Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
+}
 
 let adSize = null;
 (async () => {
