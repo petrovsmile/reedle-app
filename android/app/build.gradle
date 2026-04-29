@@ -123,7 +123,19 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation(project(":appmetrica_react-native-analytics"))
 
-    implementation 'com.yandex.android:mobileads-mediation:8.0.0.0'
+    implementation 'com.yandex.ads.mediation:mobileads-applovin:13.5.1.0'
+    implementation 'com.yandex.ads.mediation:mobileads-appnext:2.7.6.473.20'
+    implementation 'com.yandex.ads.mediation:mobileads-bigoads:5.7.0.0'
+    implementation 'com.yandex.ads.mediation:mobileads-chartboost:9.3.1.28'
+    implementation 'com.yandex.ads.mediation:mobileads-inmobi:11.0.0.0'
+    implementation 'com.yandex.ads.mediation:mobileads-ironsource:9.2.0.0'
+    implementation 'com.yandex.ads.mediation:mobileads-mintegral:17.0.41.0'
+    implementation 'com.yandex.ads.mediation:mobileads-mytarget:5.45.3.1'
+    implementation 'com.yandex.ads.mediation:mobileads-pangle:7.8.0.7.0'
+    implementation 'com.yandex.ads.mediation:mobileads-startapp:5.0.2.20'
+    implementation 'com.yandex.ads.mediation:mobileads-tapjoy:14.3.1.9'
+    implementation 'com.yandex.ads.mediation:mobileads-unityads:4.16.5.0'
+    implementation 'com.yandex.ads.mediation:mobileads-vungle:7.7.0.0'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
