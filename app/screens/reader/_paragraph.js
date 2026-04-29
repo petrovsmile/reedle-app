@@ -43,38 +43,35 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     // Если нажали на уже играющее предложение — остановить
     if (this.isSpeaking(sentenceIndex)) {
-      Tts.stop();
+      Speech.stop();
       readerStore.setCurrentSpeaking(null);
       this.stopPulseAnimation();
       return;
     }
 
     // Остановить текущую озвучку и запустить новую.
-    Tts.stop();
+    Speech.stop();
     readerStore.setCurrentSpeaking({ p: this.props.data['name'], i: sentenceIndex });
     this.startPulseAnimation();
 
     var applyAndSpeak = function () {
-      try { Tts.speak(text.trim()); } catch (e) {}
+      try { Speech.speak(text.trim()); } catch (e) {}
     };
 
-    // setDefaultVoice вызываем ОДИН РАЗ на голос:
-    //  — либо сразу после смены голоса в настройках,
-    //  — либо при самом первом speak после загрузки читалки.
-    // Флаг ttsVoiceApplied сбрасывается в false при setTtsVoice() и после
-    // того, как движок успешно применил голос — остаётся true до следующей смены.
+    // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
     if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
-      Tts.setDefaultVoice(readerStore.ttsVoice).then(function () {
+      try {
+        Speech.configure({ voiceId: readerStore.ttsVoice });
         readerStore.setTtsVoiceApplied(true);
-        applyAndSpeak();
-      }, applyAndSpeak);
+      } catch (e) {}
+      applyAndSpeak();
     } else {
       applyAndSpeak();
     }
   }
 
   async componentDidMount() {
-    this._ttsFinish = Tts.addEventListener('tts-finish', () => {
+    this._ttsFinish = Speech.onFinish(() => {
       readerStore.setCurrentSpeaking(null);
     });
     var paragraph_translate = [];
@@ -96,7 +93,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     if (this.props.current_user == false) {
       this.props.openAuthModal();
     } else {
-      YandexMetrica.sendEvent('addBookmark', { bookmark: 'bookmark_' + this.props.book_id + '_' + this.props.data['name'] });
+      AppMetrica.reportEvent('addBookmark', { bookmark: 'bookmark_' + this.props.book_id + '_' + this.props.data['name'] });
 
       if (readerStore.bookmark == this.props.data['name']) {
         this.props.setBookmark(false);
@@ -171,7 +168,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     var word = readerStore.list_words[word_id];
 
-    YandexMetrica.sendEvent('translateWord', { word: word });
+    AppMetrica.reportEvent('translateWord', { word: word });
 
     var transcription = word.ts;
 
@@ -191,7 +188,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   translateText(translate) {
-    YandexMetrica.sendEvent('translateText', { platform: Platform.OS });
+    AppMetrica.reportEvent('translateText', { platform: Platform.OS });
 
     this.props.openTranslateSentence(translate);
   }

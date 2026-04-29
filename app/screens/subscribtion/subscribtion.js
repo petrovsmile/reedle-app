@@ -63,7 +63,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async initPayment(subscription_id) {
-    YandexMetrica.sendEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
+    AppMetrica.reportEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
     if (appStore.type_payment == 'by_store') {
       this.payByStore(subscription_id);
     } else {

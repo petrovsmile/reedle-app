@@ -20,7 +20,7 @@ class Show extends React.Component {
         if (book.id == this.props.stack.route.params.book_id) {
           var have_file = await new Storage().get('have_file_' + book.id, 'false');
 
-          YandexMetrica.sendEvent('openDetail', {
+          AppMetrica.reportEvent('openDetail', {
             book_name: book.name
           });
           

@@ -58,9 +58,16 @@ import * as RNIap from 'react-native-iap';
 
 import { requestTrackingPermission } from 'react-native-tracking-transparency';
 
-import { NativeModules } from 'react-native';
-const { YandexMetrica } = NativeModules;
+import AppMetrica from '@appmetrica/react-native-analytics';
+
+AppMetrica.activate({
+  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
+  sessionTimeout: 120,
+  firstActivationAsUpdate: false,
+});
+
 var Sound = require('react-native-sound');
+Sound = Sound.default || Sound;
 Sound.setCategory('Playback');
 
 import * as StoreReview from 'react-native-store-review';
@@ -68,12 +75,14 @@ import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
-import Tts from 'react-native-tts';
+import Speech from '@mhpdev/react-native-speech';
 import Svg, { Path, Circle } from 'react-native-svg';
+
+import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 
 setTimeout(async () => {
   try {
-    await Tts.setDefaultEngine('com.google.android.tts');
+    await Speech.setEngine('com.google.android.tts');
     console.log('Google TTS engine activated');
   } catch (err) {
     console.warn('Google TTS not available, using default engine', err);
@@ -81,6 +90,13 @@ setTimeout(async () => {
   // Выбор голоса по умолчанию выполняется в одном месте — в reader.js
   // (функция pickDefaultVoice), чтобы логика не дублировалась.
 }, 1000);
+
+MobileAds.initialize();
+
+let adSize = null;
+(async () => {
+  adSize = await BannerAdSize.inlineSize(300, 250);
+})();
 
 // import {
 //   Appodeal,

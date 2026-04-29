@@ -59,13 +59,13 @@ class RootApp extends React.Component {
     if (await new Storage().get('openAppFirst') == undefined) {
       new Storage().set('openAppFirst', 'true');
 
-      YandexMetrica.sendEvent('openAppFirst', {
+      AppMetrica.reportEvent('openAppFirst', {
         platform: Platform.OS,
       });
     } else {
       //this.check_location();
 
-      YandexMetrica.sendEvent('openAppNotFirst', {
+      AppMetrica.reportEvent('openAppNotFirst', {
         platform: Platform.OS,
       });
     }

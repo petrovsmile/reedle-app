@@ -15,18 +15,13 @@ var MALE_IOS_NAMES = [
   'jorge', 'diego', 'juan', 'luca', 'reed'
 ];
 
-function isOfflineVoice(v) {
-  return v && v.networkConnectionRequired !== true;
-}
 function isEnglishVoice(v) {
-  return v && v.language && v.language.toLowerCase().startsWith('en') && v.notInstalled !== true;
+  return v && v.language && v.language.toLowerCase().startsWith('en');
 }
 function isMaleVoice(v) {
   if (!v) return false;
-  // Явное поле gender (на некоторых платформах приходит)
-  if (v.gender && String(v.gender).toLowerCase() === 'male') return true;
-  // Android Google TTS: id вида "en-us-x-tpf-local"
-  var id = (v.id || '').toLowerCase();
+  // Android Google TTS: identifier вида "en-us-x-tpf-local"
+  var id = (v.identifier || '').toLowerCase();
   var parts = id.split('-');
   if (parts.length >= 4 && MALE_ANDROID_CODES.indexOf(parts[3]) !== -1) return true;
   // iOS: человекочитаемое имя
@@ -42,20 +37,17 @@ function pickDefaultVoice(voices) {
   var english = voices.filter(isEnglishVoice);
   if (!english.length) return null;
 
-  var isOnline = function (v) { return v && v.networkConnectionRequired === true; };
+  // 1. Мужской Enhanced (оффлайн высокого качества)
+  var maleEnhanced = english.filter(function (v) { return v.quality === 'Enhanced' && isMaleVoice(v); });
+  if (maleEnhanced.length) return maleEnhanced[0];
 
-  // 1. Мужской + онлайн (список в настройках показывает только онлайн,
-  //    хотим, чтобы дефолт был из того же набора)
-  var maleOnline = english.filter(function (v) { return isOnline(v) && isMaleVoice(v); });
-  if (maleOnline.length) return maleOnline[0];
-
-  // 2. Любой мужской (offline как fallback)
+  // 2. Любой мужской
   var male = english.filter(isMaleVoice);
   if (male.length) return male[0];
 
-  // 3. Любой онлайн английский
-  var online = english.filter(isOnline);
-  if (online.length) return online[0];
+  // 3. Enhanced английский
+  var enhanced = english.filter(function (v) { return v.quality === 'Enhanced'; });
+  if (enhanced.length) return enhanced[0];
 
   // 4. Хоть какой-то английский
   return english[0];
@@ -130,7 +122,7 @@ class Reader extends React.Component {
       }
     });
 
-    YandexMetrica.sendEvent('openReader', {
+    AppMetrica.reportEvent('openReader', {
       book_name: this.book_name
     });
 
@@ -164,12 +156,12 @@ class Reader extends React.Component {
 
     if (!ttsVoice) {
       try {
-        var allVoices = await Tts.voices();
+        var allVoices = await Speech.getAvailableVoices();
         var picked = pickDefaultVoice(allVoices);
         if (picked) {
-          ttsVoice = picked.id;
+          ttsVoice = picked.identifier;
           try {
-            await Tts.setDefaultVoice(ttsVoice);
+            Speech.configure({ voiceId: ttsVoice });
             ttsVoiceApplied = true;
           } catch (e) {}
           new Storage().set('ttsVoice', ttsVoice);
@@ -395,7 +387,7 @@ class Reader extends React.Component {
   }
 
   showAdInfo() {
-    YandexMetrica.sendEvent('showAdInfo', { platform: Platform.OS });
+    AppMetrica.reportEvent('showAdInfo', { platform: Platform.OS });
 
     this.setState({
       showAdInfo: true,
@@ -435,9 +427,13 @@ class Reader extends React.Component {
       showAdOpacity: true,
     });
 
-    RewardedAdManager.showAd('R-M-1281415-13')
-      .then((resp) => {
+    try {
+      const loader = await RewardedAdLoader.create();
+      const rewardedAd = await loader.loadAd({
+        adUnitId: 'R-M-1281415-13',
+      });
 
+      rewardedAd.onAdDismissed = () => {
         if (this.state.showAdOpacity == true) {
           this.setState({
             showAdOpacity: false,
@@ -445,10 +441,9 @@ class Reader extends React.Component {
           new Storage().set('time_ad', moment().format());
           this.openPage(false);
         }
+      };
 
-      })
-      .catch((error: any) => {
-
+      rewardedAd.onAdFailedToShow = () => {
         if (this.state.showAdOpacity == true) {
           this.setState({
             showAdOpacity: false,
@@ -460,8 +455,23 @@ class Reader extends React.Component {
           }
           this.openPage(false);
         }
+      };
 
-      });
+      await rewardedAd.show();
+    } catch (error) {
+      console.error('Failed to show rewarded ad:', error);
+      if (this.state.showAdOpacity == true) {
+        this.setState({
+          showAdOpacity: false,
+        });
+        if (this.state.showNoAd == false) {
+          this.setState({
+            showNoAd: true,
+          });
+        }
+        this.openPage(false);
+      }
+    }
   }
 
   closeTraining() {
@@ -482,7 +492,7 @@ class Reader extends React.Component {
 
   async onSlidingComplete() {
 
-    YandexMetrica.sendEvent('slidingPage', { platform: Platform.OS });
+    AppMetrica.reportEvent('slidingPage', { platform: Platform.OS });
 
     this.checkAd();
   }
@@ -563,7 +573,7 @@ class Reader extends React.Component {
 
   openThemeSetting() {
 
-    YandexMetrica.sendEvent('openThemeSetting', { open: !this.state.showThemeSetting });
+    AppMetrica.reportEvent('openThemeSetting', { open: !this.state.showThemeSetting });
 
     this.setState({
       showThemeSetting: !this.state.showThemeSetting,
@@ -579,7 +589,7 @@ class Reader extends React.Component {
         settings = JSON.parse(settings);
         settings['fontFamily'] = fontFamily;
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
-          YandexMetrica.sendEvent('changeProperty', { fontFamily: fontFamily });
+          AppMetrica.reportEvent('changeProperty', { fontFamily: fontFamily });
           this.setState({
             fontFamily: fontFamily,
             show_list: true,
@@ -602,7 +612,7 @@ class Reader extends React.Component {
         settings['textColorTheme'] = textColor;
         settings['secondColorTheme'] = secondColor;
 
-        YandexMetrica.sendEvent('changeProperty', { colorTheme: backgroundColor });
+        AppMetrica.reportEvent('changeProperty', { colorTheme: backgroundColor });
 
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
           this.setState({
@@ -646,7 +656,7 @@ class Reader extends React.Component {
 
         settings['textAlign'] = nowTextAlign;
 
-        YandexMetrica.sendEvent('changeProperty', { textAlign: nowTextAlign });
+        AppMetrica.reportEvent('changeProperty', { textAlign: nowTextAlign });
 
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
 
@@ -672,7 +682,7 @@ class Reader extends React.Component {
         var newFontSize = this.state.fontSize - 2;
       }
 
-      YandexMetrica.sendEvent('changeProperty', { fontSize: newFontSize });
+      AppMetrica.reportEvent('changeProperty', { fontSize: newFontSize });
 
       if (newFontSize == 14) {
         var translate_icon_size = 18;
@@ -737,20 +747,16 @@ class Reader extends React.Component {
 
   async changeVoice(voice) {
     // Принимаем как объект voice, так и строку (id) для обратной совместимости
-    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.id);
+    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.identifier);
     if (!voiceId) return;
 
     // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Tts.stop(); } catch (e) {}
+    try { Speech.stop(); } catch (e) {}
     readerStore.setCurrentSpeaking(null);
 
-    // Только setDefaultVoice — он сам подтянет нужную локаль из voice object.
-    // Если сначала вызвать setDefaultLanguage, Android TTS сбрасывает voice
-    // на женский дефолт для этого языка, и следующий setDefaultVoice
-    // в некоторых прошивках не успевает применить -> отсюда «все голоса женские».
     var applied = false;
     try {
-      await Tts.setDefaultVoice(voiceId);
+      Speech.configure({ voiceId: voiceId });
       applied = true;
     } catch (e) {}
 
@@ -770,10 +776,13 @@ class Reader extends React.Component {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
-          <BannerView
-            adUnitId={'R-M-1281415-12'}
-            size="BANNER_300x250"
-          />
+          {adSize && (
+            <BannerView
+              adUnitId={'R-M-1281415-12'}
+              size={adSize}
+              adRequest={{}}
+            />
+          )}
         </View>
       );
     }

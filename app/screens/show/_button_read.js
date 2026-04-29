@@ -69,8 +69,8 @@ class ButtonRead extends React.Component {
         this.loadFiles(ar_files, index, count, book_id);
       } else {
 
-        YandexMetrica.sendEvent('loader',{status: 'finish'});
-        YandexMetrica.sendEvent('loader',{progress: 100});
+        AppMetrica.reportEvent('loader',{status: 'finish'});
+        AppMetrica.reportEvent('loader',{progress: 100});
 
         await this.setState({
           progress: 100,
@@ -95,7 +95,7 @@ class ButtonRead extends React.Component {
 
   async openBook(book_id) {
     if (this.state.have_file == false) {
-      YandexMetrica.sendEvent('loader',{status: 'start'});
+      AppMetrica.reportEvent('loader',{status: 'start'});
 
       await this.setState({
         show_load_status: true,

@@ -22,3 +22,5 @@ gulp.task('js', function () {
 gulp.task('watch', function () {
   gulp.watch('./app/**/**/*.js', gulp.parallel('js'));
 });
+
+gulp.task('default', gulp.series('js', 'watch'));

@@ -67,7 +67,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   async voice_word(original) {
-    YandexMetrica.sendEvent('Voiceover', {
+    AppMetrica.reportEvent('Voiceover', {
       original: original
     });
 
@@ -131,7 +131,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     if (this.props.current_user == false) {
       this.props.openAuthModal();
     } else {
-      YandexMetrica.sendEvent('addWordToDictionary', { word: this.props.original });
+      AppMetrica.reportEvent('addWordToDictionary', { word: this.props.original });
 
       var add_to_server = await new Request('/api/v1/dictionary/words', {
         original: this.props.original,
@@ -217,7 +217,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <TouchableWithoutFeedback>
-            <React.Fragment>
+            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
               <View style={{
                 margin: 20,
                 backgroundColor: readerStore.backgroundColorTheme,
@@ -349,14 +349,17 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
               </View>
 
               {this.props.has_subscription == false &&
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000' }}>
-                  <BannerView
-                    adUnitId={'R-M-1281415-12'}
-                    size="BANNER_320x50"
-                  />
+                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                  {adSize && (
+                    <BannerView
+                      adUnitId={'R-M-1281415-12'}
+                      size={adSize}
+                      adRequest={{}}
+                    />
+                  )}
                 </View>
               }
-            </React.Fragment>
+            </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
       </Modal >

@@ -181,7 +181,7 @@ class Home extends React.Component {
       var range_time = (now_time - time_show_review) / 1000 / 60;
 
       if (range_time > 7200) { //7200
-        YandexMetrica.sendEvent('reviewShow', { show: true });
+        AppMetrica.reportEvent('reviewShow', { show: true });
         await new Storage().set('review_showed', 'true');
         StoreReview.requestReview();
       }
@@ -199,7 +199,7 @@ class Home extends React.Component {
 
   setLevel(level) {
 
-    YandexMetrica.sendEvent('setLevel', { level: level });
+    AppMetrica.reportEvent('setLevel', { level: level });
 
     this.setState({
       level: level,
@@ -209,7 +209,7 @@ class Home extends React.Component {
   }
   openProperty() {
 
-    YandexMetrica.sendEvent('openProperty', { show: !this.state.open_property });
+    AppMetrica.reportEvent('openProperty', { show: !this.state.open_property });
 
     this.setState({
       open_property: !this.state.open_property,
@@ -218,7 +218,7 @@ class Home extends React.Component {
 
   setPropertyShowRead() {
 
-    YandexMetrica.sendEvent('notShowRead', { value: !this.state.not_show_read });
+    AppMetrica.reportEvent('notShowRead', { value: !this.state.not_show_read });
 
     AsyncStorage.setItem('not_show_read', (!this.state.not_show_read).toString()).then(() => {
       this.setState({
@@ -232,7 +232,7 @@ class Home extends React.Component {
   }
   setPropertySortNewBook() {
 
-    YandexMetrica.sendEvent('sortNewBook', { value: !this.state.sort_new_book });
+    AppMetrica.reportEvent('sortNewBook', { value: !this.state.sort_new_book });
 
     AsyncStorage.setItem('sort_new_book', (!this.state.sort_new_book).toString()).then(() => {
       this.setState({
@@ -245,7 +245,7 @@ class Home extends React.Component {
 
   setPropertyShowOnlyLoaded() {
 
-    YandexMetrica.sendEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
+    AppMetrica.reportEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
 
     AsyncStorage.setItem('show_only_loaded', (!this.state.show_only_loaded).toString()).then(() => {
       this.setState({

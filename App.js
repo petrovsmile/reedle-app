@@ -58,9 +58,16 @@ import * as RNIap from 'react-native-iap';
 
 import { requestTrackingPermission } from 'react-native-tracking-transparency';
 
-import { NativeModules } from 'react-native';
-const { YandexMetrica } = NativeModules;
+import AppMetrica from '@appmetrica/react-native-analytics';
+
+AppMetrica.activate({
+  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
+  sessionTimeout: 120,
+  firstActivationAsUpdate: false,
+});
+
 var Sound = require('react-native-sound');
+Sound = Sound.default || Sound;
 Sound.setCategory('Playback');
 
 import * as StoreReview from 'react-native-store-review';
@@ -68,12 +75,14 @@ import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
-import Tts from 'react-native-tts';
+import Speech from '@mhpdev/react-native-speech';
 import Svg, { Path, Circle } from 'react-native-svg';
+
+import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 
 setTimeout(async () => {
   try {
-    await Tts.setDefaultEngine('com.google.android.tts');
+    await Speech.setEngine('com.google.android.tts');
     console.log('Google TTS engine activated');
   } catch (err) {
     console.warn('Google TTS not available, using default engine', err);
@@ -81,6 +90,13 @@ setTimeout(async () => {
   // Выбор голоса по умолчанию выполняется в одном месте — в reader.js
   // (функция pickDefaultVoice), чтобы логика не дублировалась.
 }, 1000);
+
+MobileAds.initialize();
+
+let adSize = null;
+(async () => {
+  adSize = await BannerAdSize.inlineSize(300, 250);
+})();
 
 // import {
 //   Appodeal,
@@ -788,6 +804,7 @@ class Request {
             },
           );
         }
+
 
         if (response.data['response'] != undefined) {
           return response.data['response'];
@@ -1790,7 +1807,7 @@ class Home extends React.Component {
       var range_time = (now_time - time_show_review) / 1000 / 60;
 
       if (range_time > 7200) { //7200
-        YandexMetrica.sendEvent('reviewShow', { show: true });
+        AppMetrica.reportEvent('reviewShow', { show: true });
         await new Storage().set('review_showed', 'true');
         StoreReview.requestReview();
       }
@@ -1808,7 +1825,7 @@ class Home extends React.Component {
 
   setLevel(level) {
 
-    YandexMetrica.sendEvent('setLevel', { level: level });
+    AppMetrica.reportEvent('setLevel', { level: level });
 
     this.setState({
       level: level,
@@ -1818,7 +1835,7 @@ class Home extends React.Component {
   }
   openProperty() {
 
-    YandexMetrica.sendEvent('openProperty', { show: !this.state.open_property });
+    AppMetrica.reportEvent('openProperty', { show: !this.state.open_property });
 
     this.setState({
       open_property: !this.state.open_property,
@@ -1827,7 +1844,7 @@ class Home extends React.Component {
 
   setPropertyShowRead() {
 
-    YandexMetrica.sendEvent('notShowRead', { value: !this.state.not_show_read });
+    AppMetrica.reportEvent('notShowRead', { value: !this.state.not_show_read });
 
     AsyncStorage.setItem('not_show_read', (!this.state.not_show_read).toString()).then(() => {
       this.setState({
@@ -1841,7 +1858,7 @@ class Home extends React.Component {
   }
   setPropertySortNewBook() {
 
-    YandexMetrica.sendEvent('sortNewBook', { value: !this.state.sort_new_book });
+    AppMetrica.reportEvent('sortNewBook', { value: !this.state.sort_new_book });
 
     AsyncStorage.setItem('sort_new_book', (!this.state.sort_new_book).toString()).then(() => {
       this.setState({
@@ -1854,7 +1871,7 @@ class Home extends React.Component {
 
   setPropertyShowOnlyLoaded() {
 
-    YandexMetrica.sendEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
+    AppMetrica.reportEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
 
     AsyncStorage.setItem('show_only_loaded', (!this.state.show_only_loaded).toString()).then(() => {
       this.setState({
@@ -2833,7 +2850,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <TouchableWithoutFeedback>
-            <React.Fragment>
+            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
               <View style={{
                 backgroundColor: readerStore.backgroundColorTheme,
                 borderRadius: 10,
@@ -2877,14 +2894,17 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
               </View>
 
               {this.props.has_subscription == false &&
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000' }}>
-                  <BannerView
-                    adUnitId={'R-M-1281415-12'}
-                    size="BANNER_320x50"
-                  />
+                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                  {adSize && (
+                    <BannerView
+                      adUnitId={'R-M-1281415-12'}
+                      size={adSize}
+                      adRequest={{}}
+                    />
+                  )}
                 </View>
               }
-            </React.Fragment>
+            </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
 
@@ -2961,7 +2981,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   async voice_word(original) {
-    YandexMetrica.sendEvent('Voiceover', {
+    AppMetrica.reportEvent('Voiceover', {
       original: original
     });
 
@@ -3025,7 +3045,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     if (this.props.current_user == false) {
       this.props.openAuthModal();
     } else {
-      YandexMetrica.sendEvent('addWordToDictionary', { word: this.props.original });
+      AppMetrica.reportEvent('addWordToDictionary', { word: this.props.original });
 
       var add_to_server = await new Request('/api/v1/dictionary/words', {
         original: this.props.original,
@@ -3111,7 +3131,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <TouchableWithoutFeedback>
-            <React.Fragment>
+            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
               <View style={{
                 margin: 20,
                 backgroundColor: readerStore.backgroundColorTheme,
@@ -3243,14 +3263,17 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
               </View>
 
               {this.props.has_subscription == false &&
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000' }}>
-                  <BannerView
-                    adUnitId={'R-M-1281415-12'}
-                    size="BANNER_320x50"
-                  />
+                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                  {adSize && (
+                    <BannerView
+                      adUnitId={'R-M-1281415-12'}
+                      size={adSize}
+                      adRequest={{}}
+                    />
+                  )}
                 </View>
               }
-            </React.Fragment>
+            </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
       </Modal >
@@ -3302,38 +3325,35 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     // Если нажали на уже играющее предложение — остановить
     if (this.isSpeaking(sentenceIndex)) {
-      Tts.stop();
+      Speech.stop();
       readerStore.setCurrentSpeaking(null);
       this.stopPulseAnimation();
       return;
     }
 
     // Остановить текущую озвучку и запустить новую.
-    Tts.stop();
+    Speech.stop();
     readerStore.setCurrentSpeaking({ p: this.props.data['name'], i: sentenceIndex });
     this.startPulseAnimation();
 
     var applyAndSpeak = function () {
-      try { Tts.speak(text.trim()); } catch (e) {}
+      try { Speech.speak(text.trim()); } catch (e) {}
     };
 
-    // setDefaultVoice вызываем ОДИН РАЗ на голос:
-    //  — либо сразу после смены голоса в настройках,
-    //  — либо при самом первом speak после загрузки читалки.
-    // Флаг ttsVoiceApplied сбрасывается в false при setTtsVoice() и после
-    // того, как движок успешно применил голос — остаётся true до следующей смены.
+    // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
     if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
-      Tts.setDefaultVoice(readerStore.ttsVoice).then(function () {
+      try {
+        Speech.configure({ voiceId: readerStore.ttsVoice });
         readerStore.setTtsVoiceApplied(true);
-        applyAndSpeak();
-      }, applyAndSpeak);
+      } catch (e) {}
+      applyAndSpeak();
     } else {
       applyAndSpeak();
     }
   }
 
   async componentDidMount() {
-    this._ttsFinish = Tts.addEventListener('tts-finish', () => {
+    this._ttsFinish = Speech.onFinish(() => {
       readerStore.setCurrentSpeaking(null);
     });
     var paragraph_translate = [];
@@ -3355,7 +3375,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     if (this.props.current_user == false) {
       this.props.openAuthModal();
     } else {
-      YandexMetrica.sendEvent('addBookmark', { bookmark: 'bookmark_' + this.props.book_id + '_' + this.props.data['name'] });
+      AppMetrica.reportEvent('addBookmark', { bookmark: 'bookmark_' + this.props.book_id + '_' + this.props.data['name'] });
 
       if (readerStore.bookmark == this.props.data['name']) {
         this.props.setBookmark(false);
@@ -3430,7 +3450,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     var word = readerStore.list_words[word_id];
 
-    YandexMetrica.sendEvent('translateWord', { word: word });
+    AppMetrica.reportEvent('translateWord', { word: word });
 
     var transcription = word.ts;
 
@@ -3450,7 +3470,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   translateText(translate) {
-    YandexMetrica.sendEvent('translateText', { platform: Platform.OS });
+    AppMetrica.reportEvent('translateText', { platform: Platform.OS });
 
     this.props.openTranslateSentence(translate);
   }
@@ -3566,13 +3586,10 @@ class ReaderSettings extends React.Component {
   }
 
   componentDidMount() {
-    Tts.voices().then((voices) => {
-      // Показываем только онлайн-голоса (они заметно качественнее).
+    Speech.getAvailableVoices().then((voices) => {
       var englishVoices = voices.filter(v =>
         v.language &&
-        v.language.toLowerCase().startsWith('en') &&
-        v.notInstalled !== true &&
-        v.networkConnectionRequired === true
+        v.language.toLowerCase().startsWith('en')
       );
       // Сортируем по алфавиту отображаемого названия ("Австралия — ...", "Британия — ...", "США — ...").
       var self = this;
@@ -3774,7 +3791,7 @@ class ReaderSettings extends React.Component {
                     >
                       {this.state.voices.map((voice, index) =>
                         <TouchableOpacity key={index} onPress={() => this.props.changeVoice(voice)}
-                          style={[(this.props.ttsVoice == voice.id) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
+                          style={[(this.props.ttsVoice == voice.identifier) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
                           <Text style={{ fontSize: 14 }}>
                             {this.getVoiceLabel(voice, index)}
                           </Text>
@@ -3807,18 +3824,13 @@ var MALE_IOS_NAMES = [
   'jorge', 'diego', 'juan', 'luca', 'reed'
 ];
 
-function isOfflineVoice(v) {
-  return v && v.networkConnectionRequired !== true;
-}
 function isEnglishVoice(v) {
-  return v && v.language && v.language.toLowerCase().startsWith('en') && v.notInstalled !== true;
+  return v && v.language && v.language.toLowerCase().startsWith('en');
 }
 function isMaleVoice(v) {
   if (!v) return false;
-  // Явное поле gender (на некоторых платформах приходит)
-  if (v.gender && String(v.gender).toLowerCase() === 'male') return true;
-  // Android Google TTS: id вида "en-us-x-tpf-local"
-  var id = (v.id || '').toLowerCase();
+  // Android Google TTS: identifier вида "en-us-x-tpf-local"
+  var id = (v.identifier || '').toLowerCase();
   var parts = id.split('-');
   if (parts.length >= 4 && MALE_ANDROID_CODES.indexOf(parts[3]) !== -1) return true;
   // iOS: человекочитаемое имя
@@ -3834,20 +3846,17 @@ function pickDefaultVoice(voices) {
   var english = voices.filter(isEnglishVoice);
   if (!english.length) return null;
 
-  var isOnline = function (v) { return v && v.networkConnectionRequired === true; };
+  // 1. Мужской Enhanced (оффлайн высокого качества)
+  var maleEnhanced = english.filter(function (v) { return v.quality === 'Enhanced' && isMaleVoice(v); });
+  if (maleEnhanced.length) return maleEnhanced[0];
 
-  // 1. Мужской + онлайн (список в настройках показывает только онлайн,
-  //    хотим, чтобы дефолт был из того же набора)
-  var maleOnline = english.filter(function (v) { return isOnline(v) && isMaleVoice(v); });
-  if (maleOnline.length) return maleOnline[0];
-
-  // 2. Любой мужской (offline как fallback)
+  // 2. Любой мужской
   var male = english.filter(isMaleVoice);
   if (male.length) return male[0];
 
-  // 3. Любой онлайн английский
-  var online = english.filter(isOnline);
-  if (online.length) return online[0];
+  // 3. Enhanced английский
+  var enhanced = english.filter(function (v) { return v.quality === 'Enhanced'; });
+  if (enhanced.length) return enhanced[0];
 
   // 4. Хоть какой-то английский
   return english[0];
@@ -3922,7 +3931,7 @@ class Reader extends React.Component {
       }
     });
 
-    YandexMetrica.sendEvent('openReader', {
+    AppMetrica.reportEvent('openReader', {
       book_name: this.book_name
     });
 
@@ -3956,12 +3965,12 @@ class Reader extends React.Component {
 
     if (!ttsVoice) {
       try {
-        var allVoices = await Tts.voices();
+        var allVoices = await Speech.getAvailableVoices();
         var picked = pickDefaultVoice(allVoices);
         if (picked) {
-          ttsVoice = picked.id;
+          ttsVoice = picked.identifier;
           try {
-            await Tts.setDefaultVoice(ttsVoice);
+            Speech.configure({ voiceId: ttsVoice });
             ttsVoiceApplied = true;
           } catch (e) {}
           new Storage().set('ttsVoice', ttsVoice);
@@ -4187,7 +4196,7 @@ class Reader extends React.Component {
   }
 
   showAdInfo() {
-    YandexMetrica.sendEvent('showAdInfo', { platform: Platform.OS });
+    AppMetrica.reportEvent('showAdInfo', { platform: Platform.OS });
 
     this.setState({
       showAdInfo: true,
@@ -4227,9 +4236,13 @@ class Reader extends React.Component {
       showAdOpacity: true,
     });
 
-    RewardedAdManager.showAd('R-M-1281415-13')
-      .then((resp) => {
+    try {
+      const loader = await RewardedAdLoader.create();
+      const rewardedAd = await loader.loadAd({
+        adUnitId: 'R-M-1281415-13',
+      });
 
+      rewardedAd.onAdDismissed = () => {
         if (this.state.showAdOpacity == true) {
           this.setState({
             showAdOpacity: false,
@@ -4237,10 +4250,9 @@ class Reader extends React.Component {
           new Storage().set('time_ad', moment().format());
           this.openPage(false);
         }
+      };
 
-      })
-      .catch((error: any) => {
-
+      rewardedAd.onAdFailedToShow = () => {
         if (this.state.showAdOpacity == true) {
           this.setState({
             showAdOpacity: false,
@@ -4252,8 +4264,23 @@ class Reader extends React.Component {
           }
           this.openPage(false);
         }
+      };
 
-      });
+      await rewardedAd.show();
+    } catch (error) {
+      console.error('Failed to show rewarded ad:', error);
+      if (this.state.showAdOpacity == true) {
+        this.setState({
+          showAdOpacity: false,
+        });
+        if (this.state.showNoAd == false) {
+          this.setState({
+            showNoAd: true,
+          });
+        }
+        this.openPage(false);
+      }
+    }
   }
 
   closeTraining() {
@@ -4274,7 +4301,7 @@ class Reader extends React.Component {
 
   async onSlidingComplete() {
 
-    YandexMetrica.sendEvent('slidingPage', { platform: Platform.OS });
+    AppMetrica.reportEvent('slidingPage', { platform: Platform.OS });
 
     this.checkAd();
   }
@@ -4355,7 +4382,7 @@ class Reader extends React.Component {
 
   openThemeSetting() {
 
-    YandexMetrica.sendEvent('openThemeSetting', { open: !this.state.showThemeSetting });
+    AppMetrica.reportEvent('openThemeSetting', { open: !this.state.showThemeSetting });
 
     this.setState({
       showThemeSetting: !this.state.showThemeSetting,
@@ -4371,7 +4398,7 @@ class Reader extends React.Component {
         settings = JSON.parse(settings);
         settings['fontFamily'] = fontFamily;
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
-          YandexMetrica.sendEvent('changeProperty', { fontFamily: fontFamily });
+          AppMetrica.reportEvent('changeProperty', { fontFamily: fontFamily });
           this.setState({
             fontFamily: fontFamily,
             show_list: true,
@@ -4394,7 +4421,7 @@ class Reader extends React.Component {
         settings['textColorTheme'] = textColor;
         settings['secondColorTheme'] = secondColor;
 
-        YandexMetrica.sendEvent('changeProperty', { colorTheme: backgroundColor });
+        AppMetrica.reportEvent('changeProperty', { colorTheme: backgroundColor });
 
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
           this.setState({
@@ -4438,7 +4465,7 @@ class Reader extends React.Component {
 
         settings['textAlign'] = nowTextAlign;
 
-        YandexMetrica.sendEvent('changeProperty', { textAlign: nowTextAlign });
+        AppMetrica.reportEvent('changeProperty', { textAlign: nowTextAlign });
 
         new Storage().set('themeReaderSettings', JSON.stringify(settings)).then(() => {
 
@@ -4464,7 +4491,7 @@ class Reader extends React.Component {
         var newFontSize = this.state.fontSize - 2;
       }
 
-      YandexMetrica.sendEvent('changeProperty', { fontSize: newFontSize });
+      AppMetrica.reportEvent('changeProperty', { fontSize: newFontSize });
 
       if (newFontSize == 14) {
         var translate_icon_size = 18;
@@ -4529,20 +4556,16 @@ class Reader extends React.Component {
 
   async changeVoice(voice) {
     // Принимаем как объект voice, так и строку (id) для обратной совместимости
-    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.id);
+    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.identifier);
     if (!voiceId) return;
 
     // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Tts.stop(); } catch (e) {}
+    try { Speech.stop(); } catch (e) {}
     readerStore.setCurrentSpeaking(null);
 
-    // Только setDefaultVoice — он сам подтянет нужную локаль из voice object.
-    // Если сначала вызвать setDefaultLanguage, Android TTS сбрасывает voice
-    // на женский дефолт для этого языка, и следующий setDefaultVoice
-    // в некоторых прошивках не успевает применить -> отсюда «все голоса женские».
     var applied = false;
     try {
-      await Tts.setDefaultVoice(voiceId);
+      Speech.configure({ voiceId: voiceId });
       applied = true;
     } catch (e) {}
 
@@ -4562,10 +4585,13 @@ class Reader extends React.Component {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
-          <BannerView
-            adUnitId={'R-M-1281415-12'}
-            size="BANNER_300x250"
-          />
+          {adSize && (
+            <BannerView
+              adUnitId={'R-M-1281415-12'}
+              size={adSize}
+              adRequest={{}}
+            />
+          )}
         </View>
       );
     }
@@ -5057,13 +5083,13 @@ class RootApp extends React.Component {
     if (await new Storage().get('openAppFirst') == undefined) {
       new Storage().set('openAppFirst', 'true');
 
-      YandexMetrica.sendEvent('openAppFirst', {
+      AppMetrica.reportEvent('openAppFirst', {
         platform: Platform.OS,
       });
     } else {
       //this.check_location();
 
-      YandexMetrica.sendEvent('openAppNotFirst', {
+      AppMetrica.reportEvent('openAppNotFirst', {
         platform: Platform.OS,
       });
     }
@@ -5549,8 +5575,8 @@ class ButtonRead extends React.Component {
         this.loadFiles(ar_files, index, count, book_id);
       } else {
 
-        YandexMetrica.sendEvent('loader',{status: 'finish'});
-        YandexMetrica.sendEvent('loader',{progress: 100});
+        AppMetrica.reportEvent('loader',{status: 'finish'});
+        AppMetrica.reportEvent('loader',{progress: 100});
 
         await this.setState({
           progress: 100,
@@ -5575,7 +5601,7 @@ class ButtonRead extends React.Component {
 
   async openBook(book_id) {
     if (this.state.have_file == false) {
-      YandexMetrica.sendEvent('loader',{status: 'start'});
+      AppMetrica.reportEvent('loader',{status: 'start'});
 
       await this.setState({
         show_load_status: true,
@@ -5699,7 +5725,7 @@ class Show extends React.Component {
         if (book.id == this.props.stack.route.params.book_id) {
           var have_file = await new Storage().get('have_file_' + book.id, 'false');
 
-          YandexMetrica.sendEvent('openDetail', {
+          AppMetrica.reportEvent('openDetail', {
             book_name: book.name
           });
           
@@ -5896,7 +5922,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async initPayment(subscription_id) {
-    YandexMetrica.sendEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
+    AppMetrica.reportEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
     if (appStore.type_payment == 'by_store') {
       this.payByStore(subscription_id);
     } else {

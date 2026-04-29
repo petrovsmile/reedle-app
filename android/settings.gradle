@@ -3,4 +3,6 @@ plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'reedle'
 include ':app'
+include ':appmetrica_react-native-analytics'
+project(':appmetrica_react-native-analytics').projectDir = new File(rootProject.projectDir, '../node_modules/@appmetrica/react-native-analytics/android')
 includeBuild('../node_modules/@react-native/gradle-plugin')

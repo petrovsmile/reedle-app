@@ -9,7 +9,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <TouchableWithoutFeedback>
-            <React.Fragment>
+            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
               <View style={{
                 backgroundColor: readerStore.backgroundColorTheme,
                 borderRadius: 10,
@@ -53,14 +53,17 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
               </View>
 
               {this.props.has_subscription == false &&
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000' }}>
-                  <BannerView
-                    adUnitId={'R-M-1281415-12'}
-                    size="BANNER_320x50"
-                  />
+                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                  {adSize && (
+                    <BannerView
+                      adUnitId={'R-M-1281415-12'}
+                      size={adSize}
+                      adRequest={{}}
+                    />
+                  )}
                 </View>
               }
-            </React.Fragment>
+            </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
 

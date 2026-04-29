@@ -7,13 +7,10 @@ class ReaderSettings extends React.Component {
   }
 
   componentDidMount() {
-    Tts.voices().then((voices) => {
-      // Показываем только онлайн-голоса (они заметно качественнее).
+    Speech.getAvailableVoices().then((voices) => {
       var englishVoices = voices.filter(v =>
         v.language &&
-        v.language.toLowerCase().startsWith('en') &&
-        v.notInstalled !== true &&
-        v.networkConnectionRequired === true
+        v.language.toLowerCase().startsWith('en')
       );
       // Сортируем по алфавиту отображаемого названия ("Австралия — ...", "Британия — ...", "США — ...").
       var self = this;
@@ -215,7 +212,7 @@ class ReaderSettings extends React.Component {
                     >
                       {this.state.voices.map((voice, index) =>
                         <TouchableOpacity key={index} onPress={() => this.props.changeVoice(voice)}
-                          style={[(this.props.ttsVoice == voice.id) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
+                          style={[(this.props.ttsVoice == voice.identifier) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
                           <Text style={{ fontSize: 14 }}>
                             {this.getVoiceLabel(voice, index)}
                           </Text>
