@@ -14,20 +14,15 @@ if (!fs.existsSync(podspecPath)) {
   process.exit(0);
 }
 
-const original = 's.dependency "YandexMobileAds", "8.0.0-beta.1"';
-const patched  = 's.dependency "YandexMobileAds", "~> 7.9"';
-
+// Revert any stale 7.9 patch from previous builds back to original
 const content = fs.readFileSync(podspecPath, 'utf8');
+const stale_patch = 's.dependency "YandexMobileAds", "~> 7.9"';
+const original    = 's.dependency "YandexMobileAds", "8.0.0-beta.1"';
 
-if (content.includes(patched)) {
-  console.log('[patch-yandex-ads] already patched, skipping');
+if (content.includes(stale_patch)) {
+  fs.writeFileSync(podspecPath, content.replace(stale_patch, original), 'utf8');
+  console.log('[patch-yandex-ads] reverted stale 7.9 patch back to 8.0.0-beta.1');
   process.exit(0);
 }
 
-if (!content.includes(original)) {
-  console.warn('[patch-yandex-ads] expected string not found, skipping');
-  process.exit(0);
-}
-
-fs.writeFileSync(podspecPath, content.replace(original, patched), 'utf8');
-console.log('[patch-yandex-ads] patched YandexMobileAds dependency: 8.0.0-beta.1 -> ~> 7.9');
+console.log('[patch-yandex-ads] no patch needed, skipping');

@@ -10,7 +10,7 @@
     "test": "jest",
     "web": "webpack-dev-server",
     "babel-config": "cross-env BABEL_SHOW_CONFIG_FOR=./node_modules/react-native/index.js babel ./node_modules/react-native/index.js --out-file /dev/null",
-    "postinstall": "node scripts/patch-yandex-ads-podspec.js"
+    "postinstall": "node scripts/patch-yandex-ads-podspec.js && node scripts/patch-appmetrica-podspec.js"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^3.6.0",
