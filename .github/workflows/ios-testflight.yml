@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Build & Upload to TestFlight
-    runs-on: macos-14
+    runs-on: macos-15
 
     env:
       LANG: en_US.UTF-8
@@ -17,10 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.1
+      - name: Select Xcode 17
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.1'
+          xcode-version: '17'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
