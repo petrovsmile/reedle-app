@@ -117,6 +117,7 @@ jobs:
       - name: Build via Fastlane
         env:
           PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           cd ios
           bundle exec fastlane build_testflight

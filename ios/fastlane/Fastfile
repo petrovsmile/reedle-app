@@ -10,6 +10,11 @@ platform :ios do
 
     xcargs_string = "-allowProvisioningUpdates CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE='#{profile_uuid}'"
 
+    increment_build_number(
+      build_number: ENV["BUILD_NUMBER"].to_i,
+      xcodeproj: "reedle.xcodeproj"
+    )
+
     build_app(
       workspace: "reedle.xcworkspace",
       scheme: "reedle",
