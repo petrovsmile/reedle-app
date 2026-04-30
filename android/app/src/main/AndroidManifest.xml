@@ -13,16 +13,9 @@
     android:theme="@style/AppTheme"
     android:launchMode="singleTask"
   >
-    <!-- Remove heavy ad-network auto-init ContentProviders that block the main thread on startup.
-         Yandex Mediation initializes partner SDKs lazily on first ad request. -->
+    <!-- Блокируем авто-инит Google Mobile Ads ContentProvider.
+         Используется только РСЯ; сторонняя медиация отключена. -->
     <provider android:name="com.google.android.gms.ads.MobileAdsInitProvider" tools:node="remove" />
-    <provider android:name="com.applovin.sdk.AppLovinInitProvider" tools:node="remove" />
-    <provider android:name="com.ironsource.lifecycle.IronsourceLifecycleProvider" tools:node="remove" />
-    <provider android:name="com.ironsource.lifecycle.LevelPlayActivityLifecycleProvider" tools:node="remove" />
-    <provider android:name="com.mbridge.msdk.config.component.status.MBComponentLifecycleProvider" tools:node="remove" />
-    <provider android:name="com.startapp.sdk.adsbase.StartAppInitProvider" tools:node="remove" />
-    <provider android:name="com.vungle.ads.VungleProvider" tools:node="remove" />
-    <provider android:name="sg.bigo.ads.controller.provider.BigoAdsProvider" tools:node="remove" />
     <activity
       android:name=".MainActivity"
       android:label="@string/app_name"

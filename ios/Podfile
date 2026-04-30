@@ -23,7 +23,7 @@ target 'reedle' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  pod 'YandexMobileAdsMediation', '8.0.0-beta.1'
+  #pod 'YandexMobileAdsMediation', '8.0.0-beta.1'
 
   post_install do |installer|
     react_native_post_install(

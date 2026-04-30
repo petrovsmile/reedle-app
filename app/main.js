@@ -96,7 +96,8 @@ if (Platform.OS === 'ios') {
   Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
 }
 
-let adSize = null;
+let adSizeBig = null;
+let adSizeMini = null;
 
 // import {
 //   Appodeal,

@@ -776,11 +776,10 @@ class Reader extends React.Component {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
-          {adSize && (
+          {adSizeBig && (
             <BannerView
-              adUnitId={'R-M-1281415-12'}
-              size={adSize}
-              adRequest={{}}
+              size={adSizeBig}
+              adRequest={{ adUnitId: 'R-M-1281415-12' }}
             />
           )}
         </View>

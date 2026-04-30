@@ -96,7 +96,8 @@ if (Platform.OS === 'ios') {
   Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
 }
 
-let adSize = null;
+let adSizeBig = null;
+let adSizeMini = null;
 
 // import {
 //   Appodeal,
@@ -3234,7 +3235,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
                           <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
                             {this.state.show_limits_information ? (
-                              <Image style={{ width: 22, height: 22}} source={require('./app/images/books/dictionary_info_close.png')} />
+                              <Image style={{ width: 22, height: 22 }} source={require('./app/images/books/dictionary_info_close.png')} />
                             ) : (
                               <Image style={{ width: 22, height: 22 }} source={require('./app/images/books/dictionary_info.png')} />
                             )}
@@ -3266,9 +3267,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                 <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                   {adSize && (
                     <BannerView
-                      adUnitId={'R-M-1281415-12'}
                       size={adSize}
-                      adRequest={{}}
+                      adRequest={{ adUnitId: 'R-M-1281415-12' }}
                     />
                   )}
                 </View>
@@ -4585,11 +4585,10 @@ class Reader extends React.Component {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
-          {adSize && (
+          {adSizeBig && (
             <BannerView
-              adUnitId={'R-M-1281415-12'}
-              size={adSize}
-              adRequest={{}}
+              size={adSizeBig}
+              adRequest={{ adUnitId: 'R-M-1281415-12' }}
             />
           )}
         </View>
@@ -5103,7 +5102,8 @@ class RootApp extends React.Component {
       } catch (e) {}
     }
     await MobileAds.initialize();
-    adSize = await BannerAdSize.inlineSize(300, 250);
+    adSizeBig = await BannerAdSize.inlineSize(300, 250);
+    adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
   }
 

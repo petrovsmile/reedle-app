@@ -79,7 +79,8 @@ class RootApp extends React.Component {
       } catch (e) {}
     }
     await MobileAds.initialize();
-    adSize = await BannerAdSize.inlineSize(300, 250);
+    adSizeBig = await BannerAdSize.inlineSize(300, 250);
+    adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
   }
 
