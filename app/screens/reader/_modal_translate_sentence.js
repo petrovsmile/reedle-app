@@ -54,10 +54,10 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
 
               {this.props.has_subscription == false &&
                 <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSize && (
+                  {adSizeMini && (
                     <BannerView
                       adUnitId={'R-M-1281415-12'}
-                      size={adSize}
+                      size={adSizeMini}
                       adRequest={{}}
                     />
                   )}

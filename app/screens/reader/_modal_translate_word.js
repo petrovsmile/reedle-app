@@ -350,9 +350,9 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
               {this.props.has_subscription == false &&
                 <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSize && (
+                  {adSizeMini && (
                     <BannerView
-                      size={adSize}
+                      size={adSizeMini}
                       adRequest={{ adUnitId: 'R-M-1281415-12' }}
                     />
                   )}
