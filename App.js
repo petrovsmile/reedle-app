@@ -5981,7 +5981,7 @@ const Subscription = observer(class Subscription extends React.Component {
         console.log('User cancelled the purchase');
       } else {
         console.warn('IAP error:', error);
-        Alert.alert('Ошибка', 'Ошибка при обработке покупки. Попробуйте позже.');
+        Alert.alert('IAP Error', `Code: ${error.code}\nMessage: ${error.message}\n${JSON.stringify(error.userInfo)}`);
       }
     }
   }
