@@ -430,7 +430,7 @@ class Reader extends React.Component {
     try {
       const loader = await RewardedAdLoader.create();
       const rewardedAd = await loader.loadAd({
-        adUnitId: 'R-M-1281415-13',
+        adUnitId: AD_UNIT_REWARDED,
       });
 
       rewardedAd.onAdDismissed = () => {
@@ -779,7 +779,7 @@ class Reader extends React.Component {
           {adSizeBig && (
             <BannerView
               size={adSizeBig}
-              adRequest={{ adUnitId: 'R-M-1281415-12' }}
+              adRequest={{ adUnitId: AD_UNIT_BANNER }}
             />
           )}
         </View>

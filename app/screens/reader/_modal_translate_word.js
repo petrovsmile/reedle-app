@@ -353,7 +353,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                   {adSizeMini && (
                     <BannerView
                       size={adSizeMini}
-                      adRequest={{ adUnitId: 'R-M-1281415-12' }}
+                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
                     />
                   )}
                 </View>

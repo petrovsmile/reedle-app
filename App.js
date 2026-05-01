@@ -93,11 +93,14 @@ setTimeout(async () => {
 
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-  Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
+  Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
 }
 
 let adSizeBig = null;
 let adSizeMini = null;
+
+const AD_UNIT_BANNER = Platform.OS === 'ios' ? 'R-M-1281415-12' : 'R-M-1281416-12';
+const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416-13';
 
 // import {
 //   Appodeal,
@@ -2899,7 +2902,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
                   {adSizeMini && (
                     <BannerView
                       size={adSizeMini}
-                      adRequest={{ adUnitId: 'R-M-1281415-12' }}
+                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
                     />
                   )}
                 </View>
@@ -3267,7 +3270,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                   {adSizeMini && (
                     <BannerView
                       size={adSizeMini}
-                      adRequest={{ adUnitId: 'R-M-1281415-12' }}
+                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
                     />
                   )}
                 </View>
@@ -4238,7 +4241,7 @@ class Reader extends React.Component {
     try {
       const loader = await RewardedAdLoader.create();
       const rewardedAd = await loader.loadAd({
-        adUnitId: 'R-M-1281415-13',
+        adUnitId: AD_UNIT_REWARDED,
       });
 
       rewardedAd.onAdDismissed = () => {
@@ -4587,7 +4590,7 @@ class Reader extends React.Component {
           {adSizeBig && (
             <BannerView
               size={adSizeBig}
-              adRequest={{ adUnitId: 'R-M-1281415-12' }}
+              adRequest={{ adUnitId: AD_UNIT_BANNER }}
             />
           )}
         </View>
@@ -5848,19 +5851,33 @@ const Subscription = observer(class Subscription extends React.Component {
   constructor() {
     super();
     this.state = {
-      active_subscription: 1,
+      active_subscription: 3,
       load_check_status_button: false,
       load_payment_button: false,
+      load_restore_button: false,
       modal_yoo_kassa: false,
       payment_url: '',
       auth_modal: false,
       load_sync_button: false,
+      store_prices: {},
     }
 
     this.read_1_month = 99;
     this.read_6_month = 499;
     this.read_1_year = 799;
     this.read_forever = 2490;
+  }
+
+  async componentDidMount() {
+    if (appStore.type_payment == 'by_store') {
+      try {
+        const ids = ['read_1_month', 'read_6_month', 'read_1_year', 'read_forever'];
+        const products = await Purchases.getProducts(ids);
+        const prices = {};
+        products.forEach(p => { prices[p.identifier] = p.priceString; });
+        this.setState({ store_prices: prices });
+      } catch (e) {}
+    }
   }
 
   cancelSubscription() {
@@ -6029,6 +6046,50 @@ const Subscription = observer(class Subscription extends React.Component {
       });
 
       Alert.alert("Данные синхронизированы");
+    }
+  }
+
+  async restorePurchases() {
+    try {
+      this.setState({ load_restore_button: true });
+      const customerInfo = await Purchases.restorePurchases();
+      const proEntitlement = customerInfo.entitlements.active['pro'];
+      if (proEntitlement) {
+        await this.props.root.checkSubscription();
+        Alert.alert('Готово', 'Покупка восстановлена.');
+      } else {
+        Alert.alert('Покупки не найдены', 'Активных покупок для этого Apple ID не найдено.');
+      }
+    } catch (e) {
+      Alert.alert('Ошибка', 'Не удалось восстановить покупки. Попробуйте позже.');
+    } finally {
+      this.setState({ load_restore_button: false });
+    }
+  }
+
+  getPrice(productId, fallback) {
+    const s = this.state.store_prices[productId];
+    return s || fallback + ' ₽';
+  }
+
+  getDiscount(monthlyTotal, months) {
+    const monthly = this.read_1_month;
+    const perMonth = monthlyTotal / months;
+    return Math.round((1 - perMonth / monthly) * 100);
+  }
+
+  getButtonLabel() {
+    const { active_subscription } = this.state;
+    if (appStore.type_payment == 'by_store') {
+      if (active_subscription == 1) return 'Подписаться за ' + this.getPrice('read_1_month', this.read_1_month);
+      if (active_subscription == 2) return 'Подписаться за ' + this.getPrice('read_6_month', this.read_6_month);
+      if (active_subscription == 3) return 'Подписаться за ' + this.getPrice('read_1_year', this.read_1_year);
+      if (active_subscription == 4) return 'Купить за ' + this.getPrice('read_forever', this.read_forever);
+    } else {
+      if (active_subscription == 1) return 'Оплатить 1 месяц — ' + this.read_1_month + ' ₽';
+      if (active_subscription == 2) return 'Оплатить 6 месяцев — ' + this.read_6_month + ' ₽';
+      if (active_subscription == 3) return 'Оплатить 1 год — ' + this.read_1_year + ' ₽';
+      if (active_subscription == 4) return 'Купить навсегда — ' + this.read_forever + ' ₽';
     }
   }
 
@@ -6219,159 +6280,120 @@ const Subscription = observer(class Subscription extends React.Component {
             {this.can_show_pricing() &&
               <React.Fragment>
 
-                <Text style={{ marginTop: 15, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-                  Варианты
-                  {appStore.type_payment == 'by_store' ? (
-                    <Text> подписки:</Text>
-                  ) : (
-                    <Text> оплаты:</Text>
-                  )}
+                <Text style={{ marginTop: 20, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
+                  {appStore.type_payment == 'by_store' ? 'Варианты подписки:' : 'Варианты оплаты:'}
                 </Text>
 
-                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, }}>
+                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: 'visible' }}>
 
+                  {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
                     <View style={[{
-                      borderRadius: 10,
-                      zIndex: 1,
-                      backgroundColor: '#FFF',
-                      padding: 15,
-                      height: 85,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#ddd'
-                    }, this.state.active_subscription == 1 && { borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 }]}>
+                      borderRadius: 10, backgroundColor: '#FFF', padding: 15, height: 75,
+                      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                      borderBottomWidth: 1, borderBottomColor: '#eee',
+                    }, this.state.active_subscription == 1 && {
+                      borderColor: '#f05458', borderWidth: 2, borderBottomColor: '#f05458',
+                    }]}>
                       <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.read_1_month} руб</Text>
+                        <Text style={[{ fontSize: 18, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
+                        <Text style={{ fontSize: 14, color: '#888', marginTop: 3 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
-
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{this.read_1_month} руб/мес</Text>
-                      </View>
-
+                      <Text style={{ fontSize: 15, color: '#555' }}>{this.getPrice('read_1_month', this.read_1_month)}/мес</Text>
                     </View>
                   </TouchableWithoutFeedback>
 
+                  {/* 6 месяцев */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(2)}>
                     <View style={[{
-                      borderRadius: 10,
-                      zIndex: 1,
-                      backgroundColor: '#FFF',
-                      padding: 15,
-                      height: 85,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#ddd'
-                    }, this.state.active_subscription == 2 && { borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 }]}>
+                      backgroundColor: '#FFF', padding: 15, height: 75,
+                      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                      borderBottomWidth: 1, borderBottomColor: '#eee',
+                    }, this.state.active_subscription == 2 && {
+                      borderColor: '#f05458', borderWidth: 2, borderBottomColor: '#f05458',
+                    }]}>
                       <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.read_6_month} руб</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[{ fontSize: 18, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
+                          <View style={{ marginLeft: 8, backgroundColor: '#fff3cd', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 11, color: '#856404', fontWeight: 'bold' }}>−{this.getDiscount(this.read_6_month, 6)}%</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 14, color: '#888', marginTop: 3 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
-
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{(this.read_6_month / 6).toFixed(0)}  руб/мес</Text>
-                      </View>
-
+                      <Text style={{ fontSize: 15, color: '#555' }}>{Math.round(this.read_6_month / 6)} ₽/мес</Text>
                     </View>
                   </TouchableWithoutFeedback>
 
+                  {/* 1 год — выгоднее всего */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(3)}>
                     <View style={[{
-                      borderRadius: 10,
-                      zIndex: 1,
-                      backgroundColor: '#FFF',
-                      padding: 15,
-                      height: 85,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#ddd'
-                    }, this.state.active_subscription == 3 && { borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 }]}>
-
+                      backgroundColor: '#FFF', padding: 15, height: 75,
+                      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                      borderBottomWidth: 1, borderBottomColor: '#eee',
+                    }, this.state.active_subscription == 3 && {
+                      borderColor: '#f05458', borderWidth: 2, borderBottomColor: '#f05458',
+                    }]}>
                       <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.read_1_year} руб</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[{ fontSize: 18, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
+                          <View style={{ marginLeft: 8, backgroundColor: '#d4edda', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 11, color: '#155724', fontWeight: 'bold' }}>Выгоднее всего −{this.getDiscount(this.read_1_year, 12)}%</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 14, color: '#888', marginTop: 3 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
-
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{(this.read_1_year / 12).toFixed(0)} руб/мес</Text>
-                      </View>
-
+                      <Text style={{ fontSize: 15, color: '#555' }}>{Math.round(this.read_1_year / 12)} ₽/мес</Text>
                     </View>
                   </TouchableWithoutFeedback>
+
+                  {/* Навсегда */}
+                  <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(4)}>
+                    <View style={[{
+                      borderRadius: 10, backgroundColor: '#FFF', padding: 15, height: 75,
+                      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    }, this.state.active_subscription == 4 && {
+                      borderColor: '#f05458', borderWidth: 2,
+                    }]}>
+                      <View>
+                        <Text style={[{ fontSize: 18, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
+                        <Text style={{ fontSize: 14, color: '#888', marginTop: 3 }}>Единоразовый платёж</Text>
+                      </View>
+                      <Text style={{ fontSize: 15, color: '#555' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
+                    </View>
+                  </TouchableWithoutFeedback>
+
                 </View>
 
-                <React.Fragment>
-                  <Text style={{ marginTop: 15 }}>Вы приобретаете ПРО-доступ на {this.range_of_subscription(this.state.active_subscription)}.</Text>
-                  {appStore.type_payment == 'by_yoo_kassa' &&
-                    <Text style={{ marginTop: 15 }}>По окончании этого периода, для продления доступа, необходимо произвести оплату еще раз в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>read-en.ru</Text>.</Text>
-                  }
-                </React.Fragment>
+                {this.state.active_subscription == 4 &&
+                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
+                }
+                {appStore.type_payment == 'by_yoo_kassa' && this.state.active_subscription != 4 &&
+                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
+                }
 
-                <TouchableOpacity onPress={() => this.initSubscriptionPayment()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
+                <TouchableOpacity
+                  onPress={() => this.state.active_subscription == 4 ? this.initForeverPayment() : this.initSubscriptionPayment()}
+                  style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 8 }}>
                   {this.state.load_payment_button == true ? (
                     <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
                   ) : (
-                    <React.Fragment>
-
-                      {this.props.root.state.has_subscription ? (
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Продлить</Text>
-                      ) : (
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>
-                          {appStore.type_payment == 'by_store' ? (
-                            <Text>Подписаться</Text>
-                          ) : (
-                            <Text>Оплатить {this.range_of_subscription(this.state.active_subscription)}</Text>
-                          )}
-                        </Text>
-                      )}
-
-                    </React.Fragment>
+                    <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16, fontWeight: 'bold' }}>
+                      {this.props.root.state.has_subscription ? 'Продлить' : this.getButtonLabel()}
+                    </Text>
                   )}
                 </TouchableOpacity>
 
-                <React.Fragment>
-                  <Text style={{ marginTop: 30, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-                    <Text>Купить навсегда</Text>
-                  </Text>
-
-                  <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, }}>
-                    <View style={[{
-                      borderRadius: 10,
-                      zIndex: 1,
-                      backgroundColor: '#FFF',
-                      padding: 15,
-                      height: 85,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between'
-                    }]}>
-
-                      <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.read_forever} руб</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <React.Fragment>
-                    <Text style={{ marginTop: 15 }}>Вы приобретаете пожизненный ПРО-доступ.</Text>
-
-                    <Text style={{ marginTop: 15 }}>ПРО-доступ "Навсегда" продлевать не нужно и такой возможности не будет. Доступ оплачивается один раз и навсегда.</Text>
-                  </React.Fragment>
-
-                  <TouchableOpacity onPress={() => this.initForeverPayment()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
-                    {this.state.load_payment_button == true ? (
-                      <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
+                {appStore.type_payment == 'by_store' &&
+                  <TouchableOpacity onPress={() => this.restorePurchases()} style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
+                    {this.state.load_restore_button ? (
+                      <ActivityIndicator size="small" color="#888" />
                     ) : (
-                      <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>
-                        <Text>Купить навсегда</Text>
-                      </Text>
+                      <Text style={{ color: '#555', textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
                     )}
                   </TouchableOpacity>
-                </React.Fragment>
+                }
+
               </React.Fragment>
             }
 
@@ -6384,21 +6406,16 @@ const Subscription = observer(class Subscription extends React.Component {
               </TouchableOpacity>
             </View>
 
-            <Text style={{fontWeight: 'bold'}}>Подробновсти условий использования</Text>
-              
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>Приложение распространяется бесплатно.</Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>Бесплатное пользование не ограничено по времени. Автоматически оплата взиматься не будет.</Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>В любой момент вы можеет купить ПРО-доступ на определенный период: 1 месяц за 99руб, 6 месяцев за 499руб, 1 год за 799руб или навсегда за 2490руб. </Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>ПРО-доступ убирает показ рекламы и дает возможность скачивать книги на устройство.</Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>По окочании периода действия ПРО-доступа его необходмио продлить. Это можно сделать в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>read-en.ru</Text>. Пожизненный ПРО-доступ продлевать не нужно и такой возможности не будет. </Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}>При покупке любого типа ПРО-доступа у вас нет возможности отказаться от его действия. По окочании срока действия вы вернетесь к бесплатной версии. Вечный доступ не отменяется никогда. Автоматически возврат денежных средств не возможен. По вопросам возврата денежных средств и другим финансовым вопросам пишите на почту read-en@yandex.ru.</Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}></Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}></Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}></Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}></Text></View>
-            <View><Text style={{ fontSize: 13, marginTop: 5 }}></Text></View>
+            <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Подробности условий использования</Text>
 
-            <View style={{ height: 50 }}></View>
+            <Text style={{ fontSize: 13, marginTop: 8, color: '#555', lineHeight: 20 }}>
+              Приложение распространяется бесплатно, без ограничений по времени. Автоматического списания средств нет.{'\n\n'}
+              PRO-доступ можно приобрести на 1 месяц (99 ₽), 6 месяцев (499 ₽), 1 год (799 ₽) или навсегда (2 490 ₽). PRO убирает рекламу и открывает чтение без интернета.{'\n\n'}
+              По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>read-en.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
+              Возврат средств возможен только через поддержку Apple (для покупок через App Store). По другим вопросам пишите на read-en@yandex.ru.
+            </Text>
+
+            <View style={{ height: 40 }}></View>
 
           </View>
         </ScrollView>

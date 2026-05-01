@@ -93,11 +93,14 @@ setTimeout(async () => {
 
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-  Purchases.configure({ apiKey: 'test_GRkpTxrhGahSngGvYdXRJAUnfiF' });
+  Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
 }
 
 let adSizeBig = null;
 let adSizeMini = null;
+
+const AD_UNIT_BANNER = Platform.OS === 'ios' ? 'R-M-1281415-12' : 'R-M-1281416-12';
+const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416-13';
 
 // import {
 //   Appodeal,

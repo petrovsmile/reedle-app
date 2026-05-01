@@ -57,7 +57,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
                   {adSizeMini && (
                     <BannerView
                       size={adSizeMini}
-                      adRequest={{ adUnitId: 'R-M-1281415-12' }}
+                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
                     />
                   )}
                 </View>
