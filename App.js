@@ -5943,6 +5943,9 @@ const Subscription = observer(class Subscription extends React.Component {
         const { customerInfo } = await Purchases.purchaseStoreProduct(products[0]);
 
         const proEntitlement = customerInfo.entitlements.active['pro'];
+
+        Alert.alert('Entitlements debug', JSON.stringify(customerInfo.entitlements, null, 2));
+
         if (!proEntitlement) {
           throw new Error('Purchase completed but entitlement not active');
         }
