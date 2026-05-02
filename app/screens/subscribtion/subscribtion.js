@@ -78,65 +78,36 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async payByStore(subscription_id) {
+    if (this.state.load_payment_button) return;
     try {
-      if (this.state.load_payment_button == false) {
-        this.setState({ load_payment_button: true });
+      this.setState({ load_payment_button: true });
 
-        if (subscription_id == 1) var productId = 'read_1_month';
-        if (subscription_id == 2) var productId = 'read_6_month';
-        if (subscription_id == 3) var productId = 'read_1_year';
-        if (subscription_id == 4) var productId = 'read_forever';
+      if (subscription_id == 1) var productId = 'read_1_month';
+      if (subscription_id == 2) var productId = 'read_6_month';
+      if (subscription_id == 3) var productId = 'read_1_year';
+      if (subscription_id == 4) var productId = 'read_forever';
 
-        const products = await Purchases.getProducts([productId]);
-        if (!products || products.length === 0) {
-          throw new Error('Product not found: ' + productId);
-        }
-        const { customerInfo } = await Purchases.purchaseStoreProduct(products[0]);
-
-        const proEntitlement = customerInfo.entitlements.active['pro'];
-
-        Alert.alert('Entitlements debug', JSON.stringify(customerInfo.entitlements, null, 2));
-
-        if (!proEntitlement) {
-          throw new Error('Purchase completed but entitlement not active');
-        }
-
-        const end_date = proEntitlement.expirationDate
-          ? moment(proEntitlement.expirationDate)
-          : moment().add(200, 'years');
-
-        const subscription_info = {
-          end_date: end_date.format('YYYY-MM-DD HH:MM'),
-          subscription_id: subscription_id,
-        };
-
-        await new Storage().set('has_subscription', 'true');
-        await new Storage().set('subscription_info', JSON.stringify(subscription_info));
-
-        await this.props.root.setState({
-          subscription_info: subscription_info,
-          has_subscription: true,
-        });
-
-        if (this.props.root.state.current_user) {
-          this.props.root.sync_subscription_with_server(
-            this.props.root.state.current_user.id,
-            subscription_id,
-            end_date.format('YYYY-MM-DD HH:MM')
-          );
-        }
-
-        this.checkSubscription();
-        this.setState({ load_payment_button: false });
+      const products = await Purchases.getProducts([productId]);
+      if (!products || products.length === 0) {
+        throw new Error('Product not found: ' + productId);
       }
+
+      await Purchases.purchaseStoreProduct(products[0]);
+
+      await this.props.root.checkSubscription();
     } catch (error) {
-      this.setState({ load_payment_button: false });
       if (error.userCancelled) {
         console.log('User cancelled the purchase');
       } else {
         console.warn('IAP error:', error);
-        Alert.alert('IAP Error', `Code: ${error.code}\nMessage: ${error.message}\n${JSON.stringify(error.userInfo)}`);
+        if (error.message && error.message.startsWith('Product not found')) {
+          Alert.alert('Недоступно', 'Продукт временно недоступен в App Store. Попробуйте позже.');
+        } else {
+          Alert.alert('Ошибка покупки', error.message || 'Неизвестная ошибка. Попробуйте ещё раз.');
+        }
       }
+    } finally {
+      this.setState({ load_payment_button: false });
     }
   }
 
