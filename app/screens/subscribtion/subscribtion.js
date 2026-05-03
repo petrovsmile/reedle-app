@@ -416,57 +416,66 @@ const Subscription = observer(class Subscription extends React.Component {
                     <View style={[{
                       borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                      borderBottomWidth: 1, borderBottomColor: '#ddd',
                     }, this.state.active_subscription == 1 && {
-                      borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
+                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
                     }]}>
                       <View>
                         <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{this.getPrice('read_1_month', this.read_1_month)}/мес</Text>
+                      <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPrice('read_1_month', this.read_1_month)}/мес</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
 
+                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
+
                   {/* 6 месяцев */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(2)}>
                     <View style={[{
-                      zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                      borderBottomWidth: 1, borderBottomColor: '#ddd',
                     }, this.state.active_subscription == 2 && {
-                      borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
+                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
                     }]}>
                       <View>
                         <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{(this.read_6_month / 6).toFixed(0)} руб/мес</Text>
+                      <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+                        <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Экономия 16%</Text>
+                        </View>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{(this.read_6_month / 6).toFixed(0)} руб/мес</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
 
+                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
+
                   {/* 1 год */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(3)}>
                     <View style={[{
-                      zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                      borderBottomWidth: 1, borderBottomColor: '#ddd',
                     }, this.state.active_subscription == 3 && {
-                      borderBottomColor: '#f05458', borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
+                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
                     }]}>
                       <View>
                         <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{(this.read_1_year / 12).toFixed(0)} руб/мес</Text>
+                      <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+                        <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение</Text>
+                        </View>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{(this.read_1_year / 12).toFixed(0)} руб/мес</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
+
+                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
 
                   {/* Навсегда */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(4)}>
@@ -480,8 +489,11 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>Единоразовый платёж</Text>
                       </View>
-                      <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'center' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
+                      <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+                        <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Выгоднее всего</Text>
+                        </View>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
