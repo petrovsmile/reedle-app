@@ -10,9 +10,10 @@ const Subscription = observer(class Subscription extends React.Component {
       payment_url: '',
       auth_modal: false,
       load_sync_button: false,
-      store_prices: {},
+      api_prices: {},
     }
 
+    // Fallback prices used when API is unavailable
     this.read_1_month = 99;
     this.read_6_month = 499;
     this.read_1_year = 799;
@@ -20,15 +21,12 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async componentDidMount() {
-    if (appStore.type_payment == 'by_store') {
-      try {
-        const ids = ['read_1_month', 'read_6_month', 'read_1_year', 'read_forever'];
-        const products = await Purchases.getProducts(ids);
-        const prices = {};
-        products.forEach(p => { prices[p.identifier] = p.priceString; });
-        this.setState({ store_prices: prices });
-      } catch (e) {}
-    }
+    try {
+      const result = await new Request(
+        '/api/v1/subscriptions/prices', {}, { do_not_show_error: true }
+      ).get();
+      if (result) this.setState({ api_prices: result });
+    } catch (e) {}
   }
 
   cancelSubscription() {
@@ -192,30 +190,34 @@ const Subscription = observer(class Subscription extends React.Component {
     }
   }
 
-  getPrice(productId, fallback) {
-    const s = this.state.store_prices[productId];
-    return s || fallback + ' ₽';
+  // Numeric price from site API, or hardcoded fallback
+  getNumericPrice(productId, fallback) {
+    const p = this.state.api_prices[productId];
+    return (p != null) ? p : fallback;
   }
 
-  getDiscount(monthlyTotal, months) {
-    const monthly = this.read_1_month;
-    const perMonth = monthlyTotal / months;
-    return Math.round((1 - perMonth / monthly) * 100);
+  // Formatted price string
+  getPrice(productId, fallback) {
+    return this.getNumericPrice(productId, fallback) + ' ₽';
+  }
+
+  getPerMonthLabel(productId, fallback, months) {
+    const total = this.getNumericPrice(productId, fallback);
+    return Math.round(total / months) + ' ₽/мес';
+  }
+
+  getDiscountPercent(productId, fallback, months) {
+    const monthly = this.getNumericPrice('read_1_month', this.read_1_month);
+    const total = this.getNumericPrice(productId, fallback);
+    return Math.round((1 - total / months / monthly) * 100);
   }
 
   getButtonLabel() {
     const { active_subscription } = this.state;
-    if (appStore.type_payment == 'by_store') {
-      if (active_subscription == 1) return 'Подписаться за ' + this.getPrice('read_1_month', this.read_1_month);
-      if (active_subscription == 2) return 'Подписаться за ' + this.getPrice('read_6_month', this.read_6_month);
-      if (active_subscription == 3) return 'Подписаться за ' + this.getPrice('read_1_year', this.read_1_year);
-      if (active_subscription == 4) return 'Купить за ' + this.getPrice('read_forever', this.read_forever);
-    } else {
-      if (active_subscription == 1) return 'Оплатить 1 месяц — ' + this.read_1_month + ' ₽';
-      if (active_subscription == 2) return 'Оплатить 6 месяцев — ' + this.read_6_month + ' ₽';
-      if (active_subscription == 3) return 'Оплатить 1 год — ' + this.read_1_year + ' ₽';
-      if (active_subscription == 4) return 'Купить навсегда — ' + this.read_forever + ' ₽';
-    }
+    if (active_subscription == 1) return 'Подписаться за ' + this.getPrice('read_1_month', this.read_1_month);
+    if (active_subscription == 2) return 'Подписаться за ' + this.getPrice('read_6_month', this.read_6_month);
+    if (active_subscription == 3) return 'Подписаться за ' + this.getPrice('read_1_year', this.read_1_year);
+    if (active_subscription == 4) return 'Купить за ' + this.getPrice('read_forever', this.read_forever);
   }
 
   can_show_pricing() {
@@ -424,7 +426,7 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPrice('read_1_month', this.read_1_month)}/мес</Text>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_month', this.read_1_month, 1)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -445,9 +447,9 @@ const Subscription = observer(class Subscription extends React.Component {
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Экономия 16%</Text>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{(this.read_6_month / 6).toFixed(0)} руб/мес</Text>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -468,9 +470,9 @@ const Subscription = observer(class Subscription extends React.Component {
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение</Text>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение · −{this.getDiscountPercent('read_1_year', this.read_1_year, 12)}%</Text>
                         </View>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{(this.read_1_year / 12).toFixed(0)} руб/мес</Text>
+                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
