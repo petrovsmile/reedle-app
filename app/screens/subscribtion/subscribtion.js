@@ -400,7 +400,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   </View>
                 </View>
 
-                <Text style={{ marginTop: 15 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>read-en.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
+                <Text style={{ marginTop: 15 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
               </React.Fragment>
             }
 
@@ -470,7 +470,7 @@ const Subscription = observer(class Subscription extends React.Component {
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение · −{this.getDiscountPercent('read_1_year', this.read_1_year, 12)}%</Text>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение</Text>
                         </View>
                         <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
                       </View>
@@ -493,7 +493,7 @@ const Subscription = observer(class Subscription extends React.Component {
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Выгоднее всего</Text>
+                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Один раз и навсегда</Text>
                         </View>
                         <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
                       </View>
@@ -547,8 +547,8 @@ const Subscription = observer(class Subscription extends React.Component {
 
             <Text style={{ fontSize: 13, marginTop: 8, color: '#555', lineHeight: 20 }}>
               Приложение распространяется бесплатно, без ограничений по времени. Автоматического списания средств нет.{'\n\n'}
-              PRO-доступ можно приобрести на 1 месяц (99 ₽), 6 месяцев (499 ₽), 1 год (799 ₽) или навсегда (2 490 ₽). PRO убирает рекламу и открывает чтение без интернета.{'\n\n'}
-              По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>read-en.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
+              {'PRO-доступ можно приобрести на 1 месяц (' + this.getPrice('read_1_month', this.read_1_month) + '), 6 месяцев (' + this.getPrice('read_6_month', this.read_6_month) + '), 1 год (' + this.getPrice('read_1_year', this.read_1_year) + ') или навсегда (' + this.getPrice('read_forever', this.read_forever) + '). PRO убирает рекламу и открывает чтение без интернета.\n\n'}
+              По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
               Возврат средств возможен только через поддержку Apple (для покупок через App Store). По другим вопросам пишите на read-en@yandex.ru.
             </Text>
 
