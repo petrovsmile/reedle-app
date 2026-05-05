@@ -2,7 +2,7 @@ var scroll_percent = 0;
 
 // ============================================================
 // Единая точка выбора голоса озвучки по умолчанию.
-// Приоритет: английский → оффлайн → мужской.
+// Приоритет: английский → онлайн → мужской.
 // Используется ТОЛЬКО здесь — в reader.js при первом запуске,
 // когда в Storage ещё нет сохранённого ttsVoice.
 // ============================================================
@@ -18,9 +18,17 @@ var MALE_IOS_NAMES = [
 function isEnglishVoice(v) {
   return v && v.language && v.language.toLowerCase().startsWith('en');
 }
+function isOnlineVoice(v) {
+  if (!v) return false;
+  // iOS: онлайн-голоса имеют quality === 'Premium'
+  if (v.quality === 'Premium') return true;
+  // Android Google TTS: онлайн-голоса содержат '-network' в identifier
+  if (v.identifier && v.identifier.toLowerCase().includes('-network')) return true;
+  return false;
+}
 function isMaleVoice(v) {
   if (!v) return false;
-  // Android Google TTS: identifier вида "en-us-x-tpf-local"
+  // Android Google TTS: identifier вида "en-us-x-tpf-network"
   var id = (v.identifier || '').toLowerCase();
   var parts = id.split('-');
   if (parts.length >= 4 && MALE_ANDROID_CODES.indexOf(parts[3]) !== -1) return true;
@@ -34,22 +42,14 @@ function isMaleVoice(v) {
 
 function pickDefaultVoice(voices) {
   if (!voices || !voices.length) return null;
-  var english = voices.filter(isEnglishVoice);
+  var english = voices.filter(isEnglishVoice).filter(isOnlineVoice);
   if (!english.length) return null;
 
-  // 1. Мужской Enhanced (оффлайн высокого качества)
-  var maleEnhanced = english.filter(function (v) { return v.quality === 'Enhanced' && isMaleVoice(v); });
-  if (maleEnhanced.length) return maleEnhanced[0];
-
-  // 2. Любой мужской
+  // 1. Мужской онлайн-голос
   var male = english.filter(isMaleVoice);
   if (male.length) return male[0];
 
-  // 3. Enhanced английский
-  var enhanced = english.filter(function (v) { return v.quality === 'Enhanced'; });
-  if (enhanced.length) return enhanced[0];
-
-  // 4. Хоть какой-то английский
+  // 2. Любой онлайн английский
   return english[0];
 }
 

@@ -10,7 +10,8 @@ class ReaderSettings extends React.Component {
     Speech.getAvailableVoices().then((voices) => {
       var englishVoices = voices.filter(v =>
         v.language &&
-        v.language.toLowerCase().startsWith('en')
+        v.language.toLowerCase().startsWith('en') &&
+        (v.quality === 'Premium' || (v.identifier && v.identifier.toLowerCase().includes('-network')))
       );
       // Сортируем по алфавиту отображаемого названия ("Австралия — ...", "Британия — ...", "США — ...").
       var self = this;
@@ -22,8 +23,9 @@ class ReaderSettings extends React.Component {
   }
 
   getVoiceLabel(voice, index) {
-    // Просто возвращаем "Голос N" где N — это порядковый номер (индекс + 1)
-    return `Голос ${index + 1}`;
+    var male = isMaleVoice(voice);
+    var count = this.state.voices.slice(0, index).filter(v => isMaleVoice(v) === male).length + 1;
+    return male ? `Мужской ${count}` : `Женский ${count}`;
   }
 
   render(){
