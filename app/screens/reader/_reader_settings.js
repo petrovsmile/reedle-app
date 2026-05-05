@@ -8,12 +8,13 @@ class ReaderSettings extends React.Component {
 
   componentDidMount() {
     Speech.getAvailableVoices().then((voices) => {
-      var englishVoices = voices.filter(v =>
-        v.language &&
-        v.language.toLowerCase().startsWith('en') &&
-        (v.quality === 'Premium' || (v.identifier && v.identifier.toLowerCase().includes('-network')))
+      var allEnglish = voices.filter(v =>
+        v.language && v.language.toLowerCase().startsWith('en')
       );
-      // Сортируем по алфавиту отображаемого названия ("Австралия — ...", "Британия — ...", "США — ...").
+      var premium = allEnglish.filter(v =>
+        v.quality === 'Enhanced' || (v.identifier && v.identifier.toLowerCase().includes('-network'))
+      );
+      var englishVoices = premium.length > 0 ? premium : allEnglish;
       var self = this;
       englishVoices.sort(function (a, b) {
         return self.getVoiceLabel(a).localeCompare(self.getVoiceLabel(b), 'ru');

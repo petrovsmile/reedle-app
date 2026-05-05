@@ -61,7 +61,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
     if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
       try {
-        Speech.configure({ voiceId: readerStore.ttsVoice });
+        Speech.configure({ voice: readerStore.ttsVoice });
         readerStore.setTtsVoiceApplied(true);
       } catch (e) {}
       applyAndSpeak();

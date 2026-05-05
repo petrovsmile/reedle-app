@@ -3321,7 +3321,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
     if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
       try {
-        Speech.configure({ voiceId: readerStore.ttsVoice });
+        Speech.configure({ voice: readerStore.ttsVoice });
         readerStore.setTtsVoiceApplied(true);
       } catch (e) {}
       applyAndSpeak();
@@ -3565,12 +3565,13 @@ class ReaderSettings extends React.Component {
 
   componentDidMount() {
     Speech.getAvailableVoices().then((voices) => {
-      var englishVoices = voices.filter(v =>
-        v.language &&
-        v.language.toLowerCase().startsWith('en') &&
-        (v.quality === 'Premium' || (v.identifier && v.identifier.toLowerCase().includes('-network')))
+      var allEnglish = voices.filter(v =>
+        v.language && v.language.toLowerCase().startsWith('en')
       );
-      // Сортируем по алфавиту отображаемого названия ("Австралия — ...", "Британия — ...", "США — ...").
+      var premium = allEnglish.filter(v =>
+        v.quality === 'Enhanced' || (v.identifier && v.identifier.toLowerCase().includes('-network'))
+      );
+      var englishVoices = premium.length > 0 ? premium : allEnglish;
       var self = this;
       englishVoices.sort(function (a, b) {
         return self.getVoiceLabel(a).localeCompare(self.getVoiceLabel(b), 'ru');
@@ -3809,8 +3810,8 @@ function isEnglishVoice(v) {
 }
 function isOnlineVoice(v) {
   if (!v) return false;
-  // iOS: онлайн-голоса имеют quality === 'Premium'
-  if (v.quality === 'Premium') return true;
+  // iOS: @mhpdev/react-native-speech возвращает 'Enhanced' для высококачественных голосов
+  if (v.quality === 'Enhanced') return true;
   // Android Google TTS: онлайн-голоса содержат '-network' в identifier
   if (v.identifier && v.identifier.toLowerCase().includes('-network')) return true;
   return false;
@@ -3950,7 +3951,7 @@ class Reader extends React.Component {
         if (picked) {
           ttsVoice = picked.identifier;
           try {
-            Speech.configure({ voiceId: ttsVoice });
+            Speech.configure({ voice: ttsVoice });
             ttsVoiceApplied = true;
           } catch (e) {}
           new Storage().set('ttsVoice', ttsVoice);
@@ -4545,7 +4546,7 @@ class Reader extends React.Component {
 
     var applied = false;
     try {
-      Speech.configure({ voiceId: voiceId });
+      Speech.configure({ voice: voiceId });
       applied = true;
     } catch (e) {}
 

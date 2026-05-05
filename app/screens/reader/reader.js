@@ -20,8 +20,8 @@ function isEnglishVoice(v) {
 }
 function isOnlineVoice(v) {
   if (!v) return false;
-  // iOS: онлайн-голоса имеют quality === 'Premium'
-  if (v.quality === 'Premium') return true;
+  // iOS: @mhpdev/react-native-speech возвращает 'Enhanced' для высококачественных голосов
+  if (v.quality === 'Enhanced') return true;
   // Android Google TTS: онлайн-голоса содержат '-network' в identifier
   if (v.identifier && v.identifier.toLowerCase().includes('-network')) return true;
   return false;
@@ -161,7 +161,7 @@ class Reader extends React.Component {
         if (picked) {
           ttsVoice = picked.identifier;
           try {
-            Speech.configure({ voiceId: ttsVoice });
+            Speech.configure({ voice: ttsVoice });
             ttsVoiceApplied = true;
           } catch (e) {}
           new Storage().set('ttsVoice', ttsVoice);
@@ -756,7 +756,7 @@ class Reader extends React.Component {
 
     var applied = false;
     try {
-      Speech.configure({ voiceId: voiceId });
+      Speech.configure({ voice: voiceId });
       applied = true;
     } catch (e) {}
 
