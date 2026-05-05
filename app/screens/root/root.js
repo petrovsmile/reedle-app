@@ -50,6 +50,10 @@ class RootApp extends React.Component {
       appStore.setInternet(state.isConnected);
     });
 
+    this._linkSub = Linking.addEventListener('url', (e) => {
+      this.handleOAuthURL(e.url);
+    });
+
     if (await new Storage().get('openAppFirst') == undefined) {
       new Storage().set('openAppFirst', 'true');
 
@@ -69,7 +73,29 @@ class RootApp extends React.Component {
     if (this._unsubNet) {
       this._unsubNet();
     }
+    if (this._linkSub) {
+      this._linkSub.remove();
+    }
     clearTimeout(this.notification_timer);
+  }
+
+  async handleOAuthURL(url) {
+    if (!url || !url.includes('token=')) return;
+
+    const tokenPart = url.split('token=')[1];
+    if (!tokenPart) return;
+    const token = tokenPart.split('/')[0].split('&')[0];
+
+    const response = await new Request('/api/v1/users/by_oauth_token', {
+      token: token,
+    }).get();
+
+    if (!response || response['error'] != undefined) return;
+
+    appStore.setCurrentUser(response);
+    this.setState({ current_user: response });
+    await new Storage().set('current_user', JSON.stringify(response));
+    this.checkSubscription();
   }
 
   async initAds() {

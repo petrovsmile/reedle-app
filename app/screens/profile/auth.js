@@ -20,33 +20,9 @@ class Auth extends React.Component {
         method: this.props.method
       });
     }
-
-    this._linkSub = Linking.addEventListener('url', async (e) => {
-      let token = e.url.split('token=')[1].split('/')[0];
-
-      let response = await new Request('/api/v1/users/by_oauth_token', {
-        token: token,
-      }).get();
-
-      if (response['error'] != undefined) {
-        this.setState({
-          error: response['error']
-        });
-      } else {
-        appStore.setCurrentUser(response);
-        root_app.setState({
-          current_user: response
-        });
-        await new Storage().set('current_user', JSON.stringify(response));
-        root_app.checkSubscription();
-      }
-    });
   }
 
   componentWillUnmount() {
-    if (this._linkSub) {
-      this._linkSub.remove();
-    }
   }
 
   changeMethod(method) {
