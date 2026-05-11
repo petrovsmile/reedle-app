@@ -201,7 +201,7 @@ class ReaderSettings extends React.Component {
                   </TouchableOpacity>
                 </View>
 
-                {this.state.voices.length > 0 &&
+                {FEATURE_SENTENCE_TRANSLATE && this.state.voices.length > 0 &&
                   <View style={{ borderTopColor: '#ddd', borderTopWidth: 1 }}>
                     <Text style={{ fontSize: 16, marginTop: 10, marginBottom: 6, marginLeft: 10, marginRight: 10 }}>
                       Голос озвучки предложений:

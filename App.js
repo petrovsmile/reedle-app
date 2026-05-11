@@ -191,9 +191,13 @@ const CURRENT_ANDROID_VERSION = '1.2.1'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 const HOST="https://reedle.ru"
-//const HOST="https://stage.reedle.ru" 
-//const HOST = "http://localhost:3000"; 
-const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50'; 
+//const HOST="https://stage.reedle.ru"
+//const HOST = "http://localhost:3000";
+const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
+
+// Feature flags
+// Перевод предложений — временно отключён в приложении, доступен только на сайте
+const FEATURE_SENTENCE_TRANSLATE = false;
 const app_theme_colors = {
   background: "#FFF",
   backgroundLight: "#eee",
@@ -3528,7 +3532,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 }
                 )}
 
-                {this.props.data['sentences'].length > 1 &&
+                {FEATURE_SENTENCE_TRANSLATE && this.props.data['sentences'].length > 1 &&
                   <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
                     <Image
                       style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
@@ -3758,7 +3762,7 @@ class ReaderSettings extends React.Component {
                   </TouchableOpacity>
                 </View>
 
-                {this.state.voices.length > 0 &&
+                {FEATURE_SENTENCE_TRANSLATE && this.state.voices.length > 0 &&
                   <View style={{ borderTopColor: '#ddd', borderTopWidth: 1 }}>
                     <Text style={{ fontSize: 16, marginTop: 10, marginBottom: 6, marginLeft: 10, marginRight: 10 }}>
                       Голос озвучки предложений:
@@ -5013,7 +5017,7 @@ class RootApp extends React.Component {
       has_subscription: false,
       subscription_info: {},
       current_user: false,
-      confirm_conditions: true,
+      confirm_conditions: null, // null = ещё не загружено из Storage
       books_percents: {},
 
       error_show: false,
@@ -5294,7 +5298,9 @@ class RootApp extends React.Component {
     return (
       <React.Fragment>
         <TargetVersion />
-        {this.state.confirm_conditions == false ? (
+        {this.state.confirm_conditions === null ? (
+          <View style={{ flex: 1, backgroundColor: '#fff' }} />
+        ) : this.state.confirm_conditions == false ? (
           <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
               <Image

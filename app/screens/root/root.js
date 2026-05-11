@@ -9,7 +9,7 @@ class RootApp extends React.Component {
       has_subscription: false,
       subscription_info: {},
       current_user: false,
-      confirm_conditions: true,
+      confirm_conditions: null, // null = ещё не загружено из Storage
       books_percents: {},
 
       error_show: false,
@@ -290,7 +290,9 @@ class RootApp extends React.Component {
     return (
       <React.Fragment>
         <TargetVersion />
-        {this.state.confirm_conditions == false ? (
+        {this.state.confirm_conditions === null ? (
+          <View style={{ flex: 1, backgroundColor: '#fff' }} />
+        ) : this.state.confirm_conditions == false ? (
           <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
               <Image

@@ -268,7 +268,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 }
                 )}
 
-                {this.props.data['sentences'].length > 1 &&
+                {FEATURE_SENTENCE_TRANSLATE && this.props.data['sentences'].length > 1 &&
                   <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
                     <Image
                       style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
