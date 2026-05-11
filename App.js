@@ -5058,9 +5058,15 @@ class RootApp extends React.Component {
       appStore.setInternet(state.isConnected);
     });
 
+    // Обработка URL-схемы когда приложение уже запущено (foreground/background)
     this._linkSub = Linking.addEventListener('url', (e) => {
       this.handleOAuthURL(e.url);
     });
+
+    // Обработка URL-схемы когда приложение было убито iOS и запускается заново
+    Linking.getInitialURL().then((url) => {
+      if (url) this.handleOAuthURL(url);
+    }).catch(() => {});
 
     if (await new Storage().get('openAppFirst') == undefined) {
       new Storage().set('openAppFirst', 'true');
