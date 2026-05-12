@@ -5066,7 +5066,7 @@ class RootApp extends React.Component {
     // Обработка URL-схемы когда приложение было убито iOS и запускается заново
     Linking.getInitialURL().then((url) => {
       if (url) this.handleOAuthURL(url);
-    }).catch(() => {});
+    }).catch(() => { });
 
     if (await new Storage().get('openAppFirst') == undefined) {
       new Storage().set('openAppFirst', 'true');
@@ -5094,15 +5094,21 @@ class RootApp extends React.Component {
   }
 
   async handleOAuthURL(url) {
+    Alert.alert(url);
+
     if (!url || !url.includes('token=')) return;
 
     const tokenPart = url.split('token=')[1];
     if (!tokenPart) return;
     const token = tokenPart.split('/')[0].split('&')[0];
 
+    Alert.alert(token)
+
     const response = await new Request('/api/v1/users/by_oauth_token', {
       token: token,
     }).get();
+
+    Alert.alert(JSON.stringify(response))
 
     if (!response || response['error'] != undefined) return;
 
@@ -5116,7 +5122,7 @@ class RootApp extends React.Component {
     if (Platform.OS === 'ios') {
       try {
         await requestTrackingPermission();
-      } catch (e) {}
+      } catch (e) { }
     }
     await MobileAds.initialize();
     adSizeBig = await BannerAdSize.inlineSize(300, 250);
