@@ -92,9 +92,13 @@ class RootApp extends React.Component {
     if (!tokenPart) return;
     const token = tokenPart.split('/')[0].split('&')[0];
 
+    alert(token)
+
     const response = await new Request('/api/v1/users/by_oauth_token', {
       token: token,
     }).get();
+
+    alert(JSON.stringify(response))
 
     if (!response || response['error'] != undefined) return;
 
