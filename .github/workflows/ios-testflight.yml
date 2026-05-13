@@ -53,11 +53,13 @@ jobs:
           key: cocoapods-specs-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: cocoapods-specs-
 
-      - name: Cache Pods directory
+      - name: Cache Pods directory and workspace
         uses: actions/cache@v4
         id: cocoapods-pods
         with:
-          path: ios/Pods
+          path: |
+            ios/Pods
+            ios/reedle.xcworkspace
           key: cocoapods-pods-${{ hashFiles('ios/Podfile.lock') }}
 
       - name: Install CocoaPods
