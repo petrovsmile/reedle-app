@@ -99,9 +99,9 @@ class RootApp extends React.Component {
     if (!response || response['error'] != undefined) return;
 
     appStore.setCurrentUser(response);
-    this.setState({ current_user: response });
+    this.setState({ current_user: response }); // обновление UI
     await new Storage().set('current_user', JSON.stringify(response));
-    this.checkSubscription();
+    this.checkSubscription(); // читает current_user из appStore (синхронно)
   }
 
   async initAds() {
@@ -141,20 +141,18 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
-    var has_subscription = await new Storage().get('has_subscription', 'false');
+    // Используем локальную переменную вместо this.state — setState в class components
+    // не гарантирует синхронное обновление this.state, поэтому читать его после
+    // await this.setState() ненадёжно.
+    var has_subscription = (await new Storage().get('has_subscription', 'false')) == 'true';
 
-    var subscription_info = await new Storage().get('subscription_info');
-    if (subscription_info != undefined) {
-      subscription_info = JSON.parse(subscription_info);
-    } else {
-      subscription_info = {};
-    }
+    var subscription_info_raw = await new Storage().get('subscription_info');
+    var subscription_info = subscription_info_raw != undefined
+      ? JSON.parse(subscription_info_raw)
+      : {};
 
-    await this.setState({
-      has_subscription: has_subscription == 'true',
-      subscription_info: subscription_info
-    });
-    appStore.setSubscription(has_subscription == 'true');
+    this.setState({ has_subscription, subscription_info });
+    appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
     if (this.state.type_payment == 'by_store') {
@@ -175,18 +173,16 @@ class RootApp extends React.Component {
             ? moment(proEntitlement.expirationDate)
             : moment().add(200, 'years');
 
-          const subscription_info = {
+          subscription_info = {
             end_date: end_date.format('YYYY-MM-DD HH:MM'),
             subscription_id: subscription_id,
           };
+          has_subscription = true;
 
           await new Storage().set('has_subscription', 'true');
           await new Storage().set('subscription_info', JSON.stringify(subscription_info));
 
-          await this.setState({
-            subscription_info: subscription_info,
-            has_subscription: true,
-          });
+          this.setState({ subscription_info, has_subscription: true });
           appStore.setSubscription(true);
           appStore.setSubscriptionInfo(subscription_info);
 
@@ -198,8 +194,9 @@ class RootApp extends React.Component {
             );
           }
         } else {
+          has_subscription = false;
           await new Storage().set('has_subscription', 'false');
-          await this.setState({ has_subscription: false });
+          this.setState({ has_subscription: false });
           appStore.setSubscription(false);
         }
       } catch (e) {
@@ -207,40 +204,37 @@ class RootApp extends React.Component {
       }
     }
 
-    if (this.state.current_user != false && this.state.has_subscription == false) {
+    // Используем локальную has_subscription и appStore.current_user (синхронный)
+    const current_user = appStore.current_user;
+    if (current_user && !has_subscription) {
       var response = await new Request('/api/v1/users/subscription', {
-        user_id: this.state.current_user.id
+        user_id: current_user.id
       }, {
         do_not_show_error: true
       }).get();
       if (response != false) {
-        await this.setState({
-          subscription_info: response,
-          has_subscription: true,
-        });
+        has_subscription = true;
+        response['subscription_id'] = response['subscription']['id'];
+        this.setState({ subscription_info: response, has_subscription: true });
         appStore.setSubscription(true);
         appStore.setSubscriptionInfo(response);
-        response['subscription_id'] = response['subscription']['id'];
         await new Storage().set('has_subscription', 'true');
         await new Storage().set('subscription_info', JSON.stringify(response));
       }
     }
 
-    if (this.state.has_subscription == true) {
-      var subscription_info = JSON.parse(await new Storage().get('subscription_info'));
-
-      var end_date = moment(subscription_info.end_date);
-      var now_time = moment();
-      if (end_date < now_time) {
+    if (has_subscription) {
+      var stored_info = JSON.parse(await new Storage().get('subscription_info'));
+      var end_date = moment(stored_info.end_date);
+      if (end_date < moment()) {
+        has_subscription = false;
         await new Storage().set('has_subscription', 'false');
-        await this.setState({
-          has_subscription: false,
-        });
+        this.setState({ has_subscription: false });
         appStore.setSubscription(false);
       }
     }
 
-    return this.state.has_subscription;
+    return has_subscription;
   }
 
 

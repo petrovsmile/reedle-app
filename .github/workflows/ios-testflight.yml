@@ -45,10 +45,33 @@ jobs:
           bundle config set --local path 'vendor/bundle'
           bundle install --jobs 4 --retry 3
 
+      - name: Cache CocoaPods specs
+        uses: actions/cache@v4
+        id: cocoapods-specs
+        with:
+          path: ~/.cocoapods/repos
+          key: cocoapods-specs-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: cocoapods-specs-
+
+      - name: Cache Pods directory
+        uses: actions/cache@v4
+        id: cocoapods-pods
+        with:
+          path: ios/Pods
+          key: cocoapods-pods-${{ hashFiles('ios/Podfile.lock') }}
+
       - name: Install CocoaPods
         run: |
           cd ios
-          bundle exec pod install --repo-update
+          if [ "${{ steps.cocoapods-pods.outputs.cache-hit }}" == "true" ]; then
+            echo "✓ Pods cache hit — skipping pod install"
+          elif [ "${{ steps.cocoapods-specs.outputs.cache-hit }}" == "true" ]; then
+            echo "Specs cached — pod install without --repo-update"
+            bundle exec pod install
+          else
+            echo "No cache — pod install with --repo-update"
+            bundle exec pod install --repo-update
+          fi
 
       # ⚙️ Fastlane setup_ci создаст временный keychain ПРАВИЛЬНО:
       # - создаст fastlane_tmp_keychain
