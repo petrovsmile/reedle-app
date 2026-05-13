@@ -86,21 +86,15 @@ class RootApp extends React.Component {
   }
 
   async handleOAuthURL(url) {
-    Alert.alert(url);
-
     if (!url || !url.includes('token=')) return;
 
     const tokenPart = url.split('token=')[1];
     if (!tokenPart) return;
     const token = tokenPart.split('/')[0].split('&')[0];
 
-    Alert.alert(token)
-
     const response = await new Request('/api/v1/users/by_oauth_token', {
       token: token,
     }).get();
-
-    Alert.alert(JSON.stringify(response))
 
     if (!response || response['error'] != undefined) return;
 
