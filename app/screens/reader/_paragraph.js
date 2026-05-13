@@ -223,7 +223,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
             <View style={readerScreenStyles.sentenceIndent}></View>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {appStore.has_internet ? (
+                {FEATURE_SENTENCE_TRANSLATE && (appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.Image
                       style={[
@@ -243,7 +243,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                       source={require('./app/images/reader/voiceover-limited.png')}
                     />
                   </TouchableOpacity>
-                )}
+                ))}
                 {sentence['b'].map((block, index) => {
 
                   var past_value = "";
@@ -268,7 +268,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 }
                 )}
 
-                {FEATURE_SENTENCE_TRANSLATE && this.props.data['sentences'].length > 1 &&
+                {this.props.data['sentences'].length > 1 &&
                   <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
                     <Image
                       style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
