@@ -5150,9 +5150,6 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
-    // Используем локальную переменную вместо this.state — setState в class components
-    // не гарантирует синхронное обновление this.state, поэтому читать его после
-    // await this.setState() ненадёжно.
     var has_subscription = (await new Storage().get('has_subscription', 'false')) == 'true';
 
     var subscription_info_raw = await new Storage().get('subscription_info');
@@ -5164,7 +5161,31 @@ class RootApp extends React.Component {
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
-    if (this.state.type_payment == 'by_store') {
+    // 1. Сначала проверяем подписку на сайте
+    const current_user = appStore.current_user;
+    if (current_user) {
+      var response = await new Request('/api/v1/users/subscription', {
+        user_id: current_user.id
+      }, {
+        do_not_show_error: true
+      }).get();
+      if (response != false) {
+        response['subscription_id'] = response['subscription']['id'];
+        const server_end_date = response.end_date ? moment(response.end_date) : null;
+        const is_valid = !server_end_date || server_end_date > moment();
+        if (is_valid) {
+          has_subscription = true;
+          this.setState({ subscription_info: response, has_subscription: true });
+          appStore.setSubscription(true);
+          appStore.setSubscriptionInfo(response);
+          await new Storage().set('has_subscription', 'true');
+          await new Storage().set('subscription_info', JSON.stringify(response));
+        }
+      }
+    }
+
+    // 2. Если на сайте не найдено — проверяем App Store
+    if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
         const customerInfo = await Purchases.getCustomerInfo();
         const proEntitlement = customerInfo.entitlements.active['pro'];
@@ -5195,9 +5216,9 @@ class RootApp extends React.Component {
           appStore.setSubscription(true);
           appStore.setSubscriptionInfo(subscription_info);
 
-          if (this.state.current_user) {
+          if (current_user) {
             this.sync_subscription_with_server(
-              this.state.current_user.id,
+              current_user.id,
               subscription_id,
               end_date.format('YYYY-MM-DD HH:MM')
             );
@@ -5210,25 +5231,6 @@ class RootApp extends React.Component {
         }
       } catch (e) {
         console.warn('Error checking subscription via RevenueCat:', e);
-      }
-    }
-
-    // Используем локальную has_subscription и appStore.current_user (синхронный)
-    const current_user = appStore.current_user;
-    if (current_user && !has_subscription) {
-      var response = await new Request('/api/v1/users/subscription', {
-        user_id: current_user.id
-      }, {
-        do_not_show_error: true
-      }).get();
-      if (response != false) {
-        has_subscription = true;
-        response['subscription_id'] = response['subscription']['id'];
-        this.setState({ subscription_info: response, has_subscription: true });
-        appStore.setSubscription(true);
-        appStore.setSubscriptionInfo(response);
-        await new Storage().set('has_subscription', 'true');
-        await new Storage().set('subscription_info', JSON.stringify(response));
       }
     }
 
@@ -5864,7 +5866,6 @@ const Subscription = observer(class Subscription extends React.Component {
     super();
     this.state = {
       active_subscription: 3,
-      load_check_status_button: false,
       load_payment_button: false,
       load_restore_button: false,
       modal_yoo_kassa: false,
@@ -5895,22 +5896,6 @@ const Subscription = observer(class Subscription extends React.Component {
     this.props.root.setState({
       has_subscription: false,
     });
-  }
-
-  async checkSubscription() {
-    this.setState({
-      load_check_status_button: true
-    });
-
-    var result = await this.props.root.checkSubscription();
-
-    this.setState({
-      load_check_status_button: false
-    });
-
-    if (result == false) {
-      Alert.alert('У Вас нет активных покупок.');
-    }
   }
 
   async setActiveSubscription(active_subscription) {
@@ -6030,24 +6015,6 @@ const Subscription = observer(class Subscription extends React.Component {
       });
 
       Alert.alert("Данные синхронизированы");
-    }
-  }
-
-  async restorePurchases() {
-    try {
-      this.setState({ load_restore_button: true });
-      const customerInfo = await Purchases.restorePurchases();
-      const proEntitlement = customerInfo.entitlements.active['pro'];
-      if (proEntitlement) {
-        await this.props.root.checkSubscription();
-        Alert.alert('Готово', 'Покупка восстановлена.');
-      } else {
-        Alert.alert('Покупки не найдены', 'Активных покупок для этого Apple ID не найдено.');
-      }
-    } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось восстановить покупки. Попробуйте позже.');
-    } finally {
-      this.setState({ load_restore_button: false });
     }
   }
 
@@ -6198,19 +6165,6 @@ const Subscription = observer(class Subscription extends React.Component {
                   }}>
                     У Вас нет активного PRO-доступа
                   </Text>
-
-                  {(this.props.root.state.current_user || appStore.type_payment == 'by_store') &&
-                    <TouchableOpacity onPress={() => this.checkSubscription()} style={{ marginTop: 15, marginLeft: 15, marginRight: 15, backgroundColor: '#f05458', height: 40, borderRadius: 5 }}>
-                      {this.state.load_check_status_button == true ? (
-                        <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
-                      ) : (
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 40, fontSize: 16 }}>
-                          Проверить статус
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  }
-
                 </React.Fragment>
               )}
               <View style={{ height: 1, backgroundColor: '#ddd', marginTop: 30 }}></View>
@@ -6383,7 +6337,13 @@ const Subscription = observer(class Subscription extends React.Component {
                 </TouchableOpacity>
 
                 {appStore.type_payment == 'by_store' &&
-                  <TouchableOpacity onPress={() => this.restorePurchases()} style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      this.setState({ load_restore_button: true });
+                      await this.props.root.checkSubscription();
+                      this.setState({ load_restore_button: false });
+                    }}
+                    style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
                     {this.state.load_restore_button ? (
                       <ActivityIndicator size="small" color="#888" />
                     ) : (

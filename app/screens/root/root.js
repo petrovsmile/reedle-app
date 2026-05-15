@@ -141,9 +141,6 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
-    // Используем локальную переменную вместо this.state — setState в class components
-    // не гарантирует синхронное обновление this.state, поэтому читать его после
-    // await this.setState() ненадёжно.
     var has_subscription = (await new Storage().get('has_subscription', 'false')) == 'true';
 
     var subscription_info_raw = await new Storage().get('subscription_info');
@@ -155,7 +152,31 @@ class RootApp extends React.Component {
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
-    if (this.state.type_payment == 'by_store') {
+    // 1. Сначала проверяем подписку на сайте
+    const current_user = appStore.current_user;
+    if (current_user) {
+      var response = await new Request('/api/v1/users/subscription', {
+        user_id: current_user.id
+      }, {
+        do_not_show_error: true
+      }).get();
+      if (response != false) {
+        response['subscription_id'] = response['subscription']['id'];
+        const server_end_date = response.end_date ? moment(response.end_date) : null;
+        const is_valid = !server_end_date || server_end_date > moment();
+        if (is_valid) {
+          has_subscription = true;
+          this.setState({ subscription_info: response, has_subscription: true });
+          appStore.setSubscription(true);
+          appStore.setSubscriptionInfo(response);
+          await new Storage().set('has_subscription', 'true');
+          await new Storage().set('subscription_info', JSON.stringify(response));
+        }
+      }
+    }
+
+    // 2. Если на сайте не найдено — проверяем App Store
+    if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
         const customerInfo = await Purchases.getCustomerInfo();
         const proEntitlement = customerInfo.entitlements.active['pro'];
@@ -186,9 +207,9 @@ class RootApp extends React.Component {
           appStore.setSubscription(true);
           appStore.setSubscriptionInfo(subscription_info);
 
-          if (this.state.current_user) {
+          if (current_user) {
             this.sync_subscription_with_server(
-              this.state.current_user.id,
+              current_user.id,
               subscription_id,
               end_date.format('YYYY-MM-DD HH:MM')
             );
@@ -201,25 +222,6 @@ class RootApp extends React.Component {
         }
       } catch (e) {
         console.warn('Error checking subscription via RevenueCat:', e);
-      }
-    }
-
-    // Используем локальную has_subscription и appStore.current_user (синхронный)
-    const current_user = appStore.current_user;
-    if (current_user && !has_subscription) {
-      var response = await new Request('/api/v1/users/subscription', {
-        user_id: current_user.id
-      }, {
-        do_not_show_error: true
-      }).get();
-      if (response != false) {
-        has_subscription = true;
-        response['subscription_id'] = response['subscription']['id'];
-        this.setState({ subscription_info: response, has_subscription: true });
-        appStore.setSubscription(true);
-        appStore.setSubscriptionInfo(response);
-        await new Storage().set('has_subscription', 'true');
-        await new Storage().set('subscription_info', JSON.stringify(response));
       }
     }
 

@@ -3,7 +3,6 @@ const Subscription = observer(class Subscription extends React.Component {
     super();
     this.state = {
       active_subscription: 3,
-      load_check_status_button: false,
       load_payment_button: false,
       load_restore_button: false,
       modal_yoo_kassa: false,
@@ -34,22 +33,6 @@ const Subscription = observer(class Subscription extends React.Component {
     this.props.root.setState({
       has_subscription: false,
     });
-  }
-
-  async checkSubscription() {
-    this.setState({
-      load_check_status_button: true
-    });
-
-    var result = await this.props.root.checkSubscription();
-
-    this.setState({
-      load_check_status_button: false
-    });
-
-    if (result == false) {
-      Alert.alert('У Вас нет активных покупок.');
-    }
   }
 
   async setActiveSubscription(active_subscription) {
@@ -169,24 +152,6 @@ const Subscription = observer(class Subscription extends React.Component {
       });
 
       Alert.alert("Данные синхронизированы");
-    }
-  }
-
-  async restorePurchases() {
-    try {
-      this.setState({ load_restore_button: true });
-      const customerInfo = await Purchases.restorePurchases();
-      const proEntitlement = customerInfo.entitlements.active['pro'];
-      if (proEntitlement) {
-        await this.props.root.checkSubscription();
-        Alert.alert('Готово', 'Покупка восстановлена.');
-      } else {
-        Alert.alert('Покупки не найдены', 'Активных покупок для этого Apple ID не найдено.');
-      }
-    } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось восстановить покупки. Попробуйте позже.');
-    } finally {
-      this.setState({ load_restore_button: false });
     }
   }
 
@@ -337,19 +302,6 @@ const Subscription = observer(class Subscription extends React.Component {
                   }}>
                     У Вас нет активного PRO-доступа
                   </Text>
-
-                  {(this.props.root.state.current_user || appStore.type_payment == 'by_store') &&
-                    <TouchableOpacity onPress={() => this.checkSubscription()} style={{ marginTop: 15, marginLeft: 15, marginRight: 15, backgroundColor: '#f05458', height: 40, borderRadius: 5 }}>
-                      {this.state.load_check_status_button == true ? (
-                        <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
-                      ) : (
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 40, fontSize: 16 }}>
-                          Проверить статус
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  }
-
                 </React.Fragment>
               )}
               <View style={{ height: 1, backgroundColor: '#ddd', marginTop: 30 }}></View>
@@ -522,7 +474,13 @@ const Subscription = observer(class Subscription extends React.Component {
                 </TouchableOpacity>
 
                 {appStore.type_payment == 'by_store' &&
-                  <TouchableOpacity onPress={() => this.restorePurchases()} style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      this.setState({ load_restore_button: true });
+                      await this.props.root.checkSubscription();
+                      this.setState({ load_restore_button: false });
+                    }}
+                    style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
                     {this.state.load_restore_button ? (
                       <ActivityIndicator size="small" color="#888" />
                     ) : (
