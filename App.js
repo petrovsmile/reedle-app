@@ -1694,10 +1694,7 @@ class Home extends React.Component {
         books = server_books;
         await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
 
-        await this.setState({
-          books: books,
-        });
-        this.filter_books();
+        this.setState({ books: books }, () => this.filter_books());
       } else {
         this.filter_books();
       }
