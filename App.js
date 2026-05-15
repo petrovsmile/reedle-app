@@ -1250,6 +1250,8 @@ class Dictionary extends React.Component {
         words = words.sort((a, b) => {
           return a.original >= b.original ? 0 : - 1;
         });
+      } else {
+        words = words.reverse();
       }
 
       this.setState({
@@ -2731,8 +2733,8 @@ class ModalFastLearning extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Быстрое обучение</Text>
@@ -2779,8 +2781,8 @@ class ModalFastLearning extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
 
       </Modal>
     )
@@ -2795,8 +2797,8 @@ class ModalNoAd extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
 
 
@@ -2813,8 +2815,8 @@ class ModalNoAd extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
 
       </Modal>
     )
@@ -2830,8 +2832,8 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
         visible={this.props.visible}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
-          <TouchableWithoutFeedback>
-            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+          <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
               <View style={{
                 backgroundColor: readerStore.backgroundColorTheme,
                 borderRadius: 10,
@@ -2874,18 +2876,19 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
                 </TouchableWithoutFeedback>
               </View>
 
-              {this.props.has_subscription == false &&
-                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSizeMini && (
-                    <BannerView
-                      size={adSizeMini}
-                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
-                    />
-                  )}
-                </View>
-              }
-            </View>
-          </TouchableWithoutFeedback>
+            </TouchableOpacity>
+
+            {this.props.has_subscription == false &&
+              <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                {adSizeMini && (
+                  <BannerView
+                    size={adSizeMini}
+                    adRequest={{ adUnitId: AD_UNIT_BANNER }}
+                  />
+                )}
+              </View>
+            }
+          </View>
         </TouchableOpacity>
 
       </Modal>
@@ -2972,15 +2975,16 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
-    url = HOST + pesponse.url;
-
-    if (url == null) {
+    if (!pesponse || !pesponse.url) {
       Alert.alert('Озвучка не найдена');
-      this.setState({
-        voiceover_playing: false
-      });
+      this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
-    } else {
+      return;
+    }
+
+    var url = HOST + pesponse.url;
+
+    {
       const sound = new Sound(url, '', error => {
         if (error) {
           appStore.showError('Ошибка воспроизвездения');
@@ -3110,8 +3114,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         visible={this.props.visible}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
-          <TouchableWithoutFeedback>
-            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+          <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
               <View style={{
                 margin: 20,
                 backgroundColor: readerStore.backgroundColorTheme,
@@ -3241,19 +3245,19 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                 )}
 
               </View>
+            </TouchableOpacity>
 
-              {this.props.has_subscription == false &&
-                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSizeMini && (
-                    <BannerView
-                      size={adSizeMini}
-                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
-                    />
-                  )}
-                </View>
-              }
-            </View>
-          </TouchableWithoutFeedback>
+            {this.props.has_subscription == false &&
+              <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                {adSizeMini && (
+                  <BannerView
+                    size={adSizeMini}
+                    adRequest={{ adUnitId: AD_UNIT_BANNER }}
+                  />
+                )}
+              </View>
+            }
+          </View>
         </TouchableOpacity>
       </Modal >
     )
@@ -4936,8 +4940,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
         transparent={true}
         visible={this.state.visible}>
 
-        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Обновите приложение</Text>
@@ -4980,8 +4984,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
 
       </Modal>
     )

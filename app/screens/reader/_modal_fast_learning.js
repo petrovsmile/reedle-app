@@ -7,8 +7,8 @@ class ModalFastLearning extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Быстрое обучение</Text>
@@ -55,8 +55,8 @@ class ModalFastLearning extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
 
       </Modal>
     )

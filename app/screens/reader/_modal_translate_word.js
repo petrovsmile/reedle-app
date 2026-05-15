@@ -78,15 +78,16 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
-    url = HOST + pesponse.url;
-
-    if (url == null) {
+    if (!pesponse || !pesponse.url) {
       Alert.alert('Озвучка не найдена');
-      this.setState({
-        voiceover_playing: false
-      });
+      this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
-    } else {
+      return;
+    }
+
+    var url = HOST + pesponse.url;
+
+    {
       const sound = new Sound(url, '', error => {
         if (error) {
           appStore.showError('Ошибка воспроизвездения');
@@ -216,8 +217,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         visible={this.props.visible}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
-          <TouchableWithoutFeedback>
-            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+          <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
               <View style={{
                 margin: 20,
                 backgroundColor: readerStore.backgroundColorTheme,
@@ -347,19 +348,19 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                 )}
 
               </View>
+            </TouchableOpacity>
 
-              {this.props.has_subscription == false &&
-                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSizeMini && (
-                    <BannerView
-                      size={adSizeMini}
-                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
-                    />
-                  )}
-                </View>
-              }
-            </View>
-          </TouchableWithoutFeedback>
+            {this.props.has_subscription == false &&
+              <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                {adSizeMini && (
+                  <BannerView
+                    size={adSizeMini}
+                    adRequest={{ adUnitId: AD_UNIT_BANNER }}
+                  />
+                )}
+              </View>
+            }
+          </View>
         </TouchableOpacity>
       </Modal >
     )

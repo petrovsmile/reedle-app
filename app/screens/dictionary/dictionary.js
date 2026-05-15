@@ -42,6 +42,8 @@ class Dictionary extends React.Component {
         words = words.sort((a, b) => {
           return a.original >= b.original ? 0 : - 1;
         });
+      } else {
+        words = words.reverse();
       }
 
       this.setState({

@@ -8,8 +8,8 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
         visible={this.props.visible}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
-          <TouchableWithoutFeedback>
-            <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+          <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
               <View style={{
                 backgroundColor: readerStore.backgroundColorTheme,
                 borderRadius: 10,
@@ -52,18 +52,19 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
                 </TouchableWithoutFeedback>
               </View>
 
-              {this.props.has_subscription == false &&
-                <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                  {adSizeMini && (
-                    <BannerView
-                      size={adSizeMini}
-                      adRequest={{ adUnitId: AD_UNIT_BANNER }}
-                    />
-                  )}
-                </View>
-              }
-            </View>
-          </TouchableWithoutFeedback>
+            </TouchableOpacity>
+
+            {this.props.has_subscription == false &&
+              <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                {adSizeMini && (
+                  <BannerView
+                    size={adSizeMini}
+                    adRequest={{ adUnitId: AD_UNIT_BANNER }}
+                  />
+                )}
+              </View>
+            }
+          </View>
         </TouchableOpacity>
 
       </Modal>
