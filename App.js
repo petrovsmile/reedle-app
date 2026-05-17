@@ -5169,10 +5169,13 @@ class RootApp extends React.Component {
       }, {
         do_not_show_error: true
       }).get();
+
       if (response != false) {
         response['subscription_id'] = response['subscription']['id'];
         const server_end_date = response.end_date ? moment(response.end_date) : null;
         const is_valid = !server_end_date || server_end_date > moment();
+
+        Alert.alert(String(is_valid))
         if (is_valid) {
           has_subscription = true;
           this.setState({ subscription_info: response, has_subscription: true });
@@ -5188,6 +5191,9 @@ class RootApp extends React.Component {
     if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
         const customerInfo = await Purchases.getCustomerInfo();
+
+        Alert.alert(JSON.stringify(customerInfo))
+
         const proEntitlement = customerInfo.entitlements.active['pro'];
 
         if (proEntitlement) {
@@ -5230,6 +5236,7 @@ class RootApp extends React.Component {
           appStore.setSubscription(false);
         }
       } catch (e) {
+        Alert.alert(e?.message || String(e))
         console.warn('Error checking subscription via RevenueCat:', e);
       }
     }
