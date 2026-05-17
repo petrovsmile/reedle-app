@@ -5190,6 +5190,8 @@ class RootApp extends React.Component {
     // 2. Если на сайте не найдено — проверяем App Store
     if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
+        await Purchases.syncPurchases();
+
         const customerInfo = await Purchases.getCustomerInfo();
 
         Alert.alert(JSON.stringify(customerInfo))
