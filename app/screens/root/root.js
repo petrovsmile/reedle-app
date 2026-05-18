@@ -161,6 +161,8 @@ class RootApp extends React.Component {
         do_not_show_error: true
       }).get();
 
+      Alert.alert(JSON.stringify(response))
+
       if (response != false) {
         response['subscription_id'] = response['subscription']['id'];
         const server_end_date = response.end_date ? moment(response.end_date) : null;
@@ -180,9 +182,9 @@ class RootApp extends React.Component {
     // 2. Если на сайте не найдено — проверяем App Store
     if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
-        await Purchases.syncPurchases();
+        const customerInfo = await Purchases.syncPurchases();
 
-        const customerInfo = await Purchases.getCustomerInfo();
+        Alert.alert(JSON.stringify(customerInfo))
 
         const proEntitlement = customerInfo.entitlements.active['pro'];
 
