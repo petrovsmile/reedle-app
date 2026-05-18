@@ -166,7 +166,6 @@ class RootApp extends React.Component {
         const server_end_date = response.end_date ? moment(response.end_date) : null;
         const is_valid = !server_end_date || server_end_date > moment();
 
-        Alert.alert(String(is_valid))
         if (is_valid) {
           has_subscription = true;
           this.setState({ subscription_info: response, has_subscription: true });
@@ -184,8 +183,6 @@ class RootApp extends React.Component {
         await Purchases.syncPurchases();
 
         const customerInfo = await Purchases.getCustomerInfo();
-
-        Alert.alert(JSON.stringify(customerInfo))
 
         const proEntitlement = customerInfo.entitlements.active['pro'];
 
@@ -229,7 +226,6 @@ class RootApp extends React.Component {
           appStore.setSubscription(false);
         }
       } catch (e) {
-        Alert.alert(e?.message || String(e))
         console.warn('Error checking subscription via RevenueCat:', e);
       }
     }
