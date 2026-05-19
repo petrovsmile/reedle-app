@@ -152,6 +152,8 @@ class RootApp extends React.Component {
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
+    let sync_with_server = null;
+
     // 1. Сначала проверяем подписку на сайте
     const current_user = appStore.current_user;
     if (current_user) {
@@ -161,20 +163,16 @@ class RootApp extends React.Component {
         do_not_show_error: true
       }).get();
 
-      Alert.alert(JSON.stringify(response))
-
-      if (response != false) {
+      if (response == false) {
+        has_subscription = false;
+      } else {
         response['subscription_id'] = response['subscription']['id'];
         const server_end_date = response.end_date ? moment(response.end_date) : null;
         const is_valid = !server_end_date || server_end_date > moment();
 
         if (is_valid) {
           has_subscription = true;
-          this.setState({ subscription_info: response, has_subscription: true });
-          appStore.setSubscription(true);
-          appStore.setSubscriptionInfo(response);
-          await new Storage().set('has_subscription', 'true');
-          await new Storage().set('subscription_info', JSON.stringify(response));
+          subscription_info = response;
         }
       }
     }
@@ -182,7 +180,8 @@ class RootApp extends React.Component {
     // 2. Если на сайте не найдено — проверяем App Store
     if (!has_subscription && this.state.type_payment == 'by_store') {
       try {
-        const customerInfo = await Purchases.syncPurchases();
+        await Purchases.syncPurchases();
+        const customerInfo = await Purchases.getCustomerInfo();
 
         Alert.alert(JSON.stringify(customerInfo))
 
@@ -207,40 +206,41 @@ class RootApp extends React.Component {
           };
           has_subscription = true;
 
-          await new Storage().set('has_subscription', 'true');
-          await new Storage().set('subscription_info', JSON.stringify(subscription_info));
-
-          this.setState({ subscription_info, has_subscription: true });
-          appStore.setSubscription(true);
-          appStore.setSubscriptionInfo(subscription_info);
-
           if (current_user) {
-            this.sync_subscription_with_server(
-              current_user.id,
+            sync_with_server = {
+              user_id: current_user.id,
               subscription_id,
-              end_date.format('YYYY-MM-DD HH:MM')
-            );
+              end_date: end_date.format('YYYY-MM-DD HH:MM'),
+            };
           }
         } else {
           has_subscription = false;
-          await new Storage().set('has_subscription', 'false');
-          this.setState({ has_subscription: false });
-          appStore.setSubscription(false);
+          subscription_info = {};
         }
       } catch (e) {
         console.warn('Error checking subscription via RevenueCat:', e);
       }
     }
 
-    if (has_subscription) {
-      var stored_info = JSON.parse(await new Storage().get('subscription_info'));
-      var end_date = moment(stored_info.end_date);
-      if (end_date < moment()) {
+    if (has_subscription && subscription_info.end_date) {
+      if (moment(subscription_info.end_date) < moment()) {
         has_subscription = false;
-        await new Storage().set('has_subscription', 'false');
-        this.setState({ has_subscription: false });
-        appStore.setSubscription(false);
+        subscription_info = {};
       }
+    }
+
+    await new Storage().set('has_subscription', has_subscription ? 'true' : 'false');
+    await new Storage().set('subscription_info', JSON.stringify(subscription_info));
+    this.setState({ has_subscription, subscription_info });
+    appStore.setSubscription(has_subscription);
+    appStore.setSubscriptionInfo(subscription_info);
+
+    if (sync_with_server) {
+      this.sync_subscription_with_server(
+        sync_with_server.user_id,
+        sync_with_server.subscription_id,
+        sync_with_server.end_date,
+      );
     }
 
     return has_subscription;
