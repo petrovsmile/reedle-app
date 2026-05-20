@@ -6393,7 +6393,7 @@ const Subscription = observer(class Subscription extends React.Component {
               Приложение распространяется бесплатно, без ограничений по времени. Автоматического списания средств нет.{'\n\n'}
               {'PRO-доступ можно приобрести на 1 месяц (' + this.getPrice('read_1_month', this.read_1_month) + '), 6 месяцев (' + this.getPrice('read_6_month', this.read_6_month) + '), 1 год (' + this.getPrice('read_1_year', this.read_1_year) + ') или навсегда (' + this.getPrice('read_forever', this.read_forever) + '). PRO убирает рекламу и открывает чтение без интернета.\n\n'}
               По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
-              Возврат средств возможен только через поддержку Apple (для покупок через App Store). По другим вопросам пишите на read-en@yandex.ru.
+              Возврат средств возможен только через поддержку Apple (для покупок через App Store). По другим вопросам пишите на info@reedle.ru.
             </Text>
 
             <View style={{ height: 40 }}></View>
