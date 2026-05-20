@@ -473,21 +473,19 @@ const Subscription = observer(class Subscription extends React.Component {
                   )}
                 </TouchableOpacity>
 
-                {appStore.type_payment == 'by_store' &&
-                  <TouchableOpacity
-                    onPress={async () => {
-                      this.setState({ load_restore_button: true });
-                      await this.props.root.checkSubscription();
-                      this.setState({ load_restore_button: false });
-                    }}
-                    style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
-                    {this.state.load_restore_button ? (
-                      <ActivityIndicator size="small" color="#888" />
-                    ) : (
-                      <Text style={{ color: '#555', textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
-                    )}
-                  </TouchableOpacity>
-                }
+                <TouchableOpacity
+                  onPress={async () => {
+                    this.setState({ load_restore_button: true });
+                    await this.props.root.checkSubscription();
+                    this.setState({ load_restore_button: false });
+                  }}
+                  style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
+                  {this.state.load_restore_button ? (
+                    <ActivityIndicator size="small" color="#888" />
+                  ) : (
+                    <Text style={{ color: '#555', textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
+                  )}
+                </TouchableOpacity>
 
               </React.Fragment>
             }
