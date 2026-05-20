@@ -2,11 +2,16 @@ class Profile extends React.Component {
   async log_out() {
     await new Storage().remove('current_user');
     await new Storage().set('has_subscription', 'false');
+    await new Storage().set('subscription_info', JSON.stringify({}));
 
     this.props.root.setState({
       current_user: false,
-      has_subscription: false
+      has_subscription: false,
+      subscription_info: {},
     });
+    appStore.setSubscription(false);
+    appStore.setSubscriptionInfo({});
+    appStore.setCurrentUser(false);
   }
 
   render() {

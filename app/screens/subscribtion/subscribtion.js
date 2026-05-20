@@ -28,17 +28,8 @@ const Subscription = observer(class Subscription extends React.Component {
     } catch (e) {}
   }
 
-  cancelSubscription() {
-    new Storage().set('has_subscription', 'false');
-    this.props.root.setState({
-      has_subscription: false,
-    });
-  }
-
-  async setActiveSubscription(active_subscription) {
-    await this.setState({
-      active_subscription: active_subscription
-    });
+  setActiveSubscription(active_subscription) {
+    this.setState({ active_subscription });
   }
 
   async initPayment(subscription_id) {
@@ -133,25 +124,34 @@ const Subscription = observer(class Subscription extends React.Component {
 
   async sync_subscription() {
     if (this.props.root.state.current_user == false) {
-      this.setState({
-        auth_modal: true
-      });
-    } else {
-      await this.setState({
-        load_sync_button: true
-      });
+      this.setState({ auth_modal: true });
+      return;
+    }
 
-      await this.props.root.sync_subscription_with_server(
+    const { subscription_info } = this.props.root.state;
+    if (!subscription_info || !subscription_info.subscription_id) {
+      Alert.alert('Нет данных подписки для синхронизации');
+      return;
+    }
+
+    this.setState({ load_sync_button: true });
+
+    try {
+      const result = await this.props.root.sync_subscription_with_server(
         this.props.root.state.current_user.id,
-        this.props.root.state.subscription_info.subscription_id,
-        moment(this.props.root.state.subscription_info.end_date).format('YYYY-MM-DD'),
+        subscription_info.subscription_id,
+        moment(subscription_info.end_date).format('YYYY-MM-DD'),
       );
 
-      await this.setState({
-        load_sync_button: false
-      });
-
-      Alert.alert("Данные синхронизированы");
+      if (result) {
+        Alert.alert('Данные синхронизированы');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+      }
+    } catch (e) {
+      Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+    } finally {
+      this.setState({ load_sync_button: false });
     }
   }
 

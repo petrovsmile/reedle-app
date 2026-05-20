@@ -19,6 +19,7 @@ class RootApp extends React.Component {
     }
 
     this.notification_timer;
+    this._checkingSubscription = false;
   }
 
   async componentDidMount() {
@@ -133,7 +134,7 @@ class RootApp extends React.Component {
   }
 
   async sync_subscription_with_server(user_id, subscription_id, end_date) {
-    await new Request('/api/v1/payments/sync_subscription', {
+    return await new Request('/api/v1/payments/sync_subscription', {
       user_id: user_id,
       subscription_id: subscription_id,
       end_date: end_date,
@@ -141,6 +142,16 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
+    if (this._checkingSubscription) return;
+    this._checkingSubscription = true;
+    try {
+      return await this._doCheckSubscription();
+    } finally {
+      this._checkingSubscription = false;
+    }
+  }
+
+  async _doCheckSubscription() {
     var has_subscription = (await new Storage().get('has_subscription', 'false')) == 'true';
 
     var subscription_info_raw = await new Storage().get('subscription_info');
@@ -166,24 +177,24 @@ class RootApp extends React.Component {
       if (response == false) {
         has_subscription = false;
       } else {
-        response['subscription_id'] = response['subscription']['id'];
+        response['subscription_id'] = response['subscription'] ? response['subscription']['id'] : null;
         const server_end_date = response.end_date ? moment(response.end_date) : null;
         const is_valid = !server_end_date || server_end_date > moment();
 
+        subscription_info = response;
         if (is_valid) {
           has_subscription = true;
-          subscription_info = response;
+        } else {
+          has_subscription = false;
         }
       }
     }
 
     // 2. Если на сайте не найдено — проверяем App Store
-    if (!has_subscription && this.state.type_payment == 'by_store') {
+    if (!has_subscription && appStore.type_payment == 'by_store') {
       try {
         await Purchases.syncPurchases();
         const customerInfo = await Purchases.getCustomerInfo();
-
-        Alert.alert(JSON.stringify(customerInfo))
 
         const proEntitlement = customerInfo.entitlements.active['pro'];
 
@@ -201,7 +212,7 @@ class RootApp extends React.Component {
             : moment().add(200, 'years');
 
           subscription_info = {
-            end_date: end_date.format('YYYY-MM-DD HH:MM'),
+            end_date: end_date.format('YYYY-MM-DD HH:mm'),
             subscription_id: subscription_id,
           };
           has_subscription = true;
@@ -210,7 +221,7 @@ class RootApp extends React.Component {
             sync_with_server = {
               user_id: current_user.id,
               subscription_id,
-              end_date: end_date.format('YYYY-MM-DD HH:MM'),
+              end_date: end_date.format('YYYY-MM-DD HH:mm'),
             };
           }
         } else {
