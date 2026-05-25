@@ -12,6 +12,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
   async componentDidMount() {
     if (appStore.has_internet == true) {
       var response = await new Request('/api/v1/target_version', {}, { do_not_show_error: true }).get();
+
       if (response != false) {
         if (Platform.OS === 'ios') {
           this.current_version = CURRENT_IOS_VERSION;
@@ -32,6 +33,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
   }
 
   compareVersions() {
+    if (!this.current_version || !this.target_version) return true;
     var current = parseInt(this.current_version.split('.').join(''));
     var target = parseInt(this.target_version.split('.').join(''));
 

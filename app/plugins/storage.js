@@ -1,9 +1,11 @@
 class Storage {
   async get(key, default_value) {
     var value = await AsyncStorage.getItem(key);
-    if (value == undefined || value == null) {
+    if (value == undefined || value == null || value === '') {
       value = default_value;
-      this.set(key, default_value);
+      if (default_value != undefined) {
+        this.set(key, default_value);
+      }
     }
     return value;
   }

@@ -142,7 +142,7 @@ class Home extends React.Component {
       }
     }
 
-    percents = {}
+    var percents = {}
     result.forEach(function (book) {
       percents[book.id] = book.percent;
     });

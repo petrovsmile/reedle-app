@@ -118,7 +118,7 @@ class Bookmarks extends React.Component {
         });
       }));
 
-      bookmarks_keys = await new Storage().get('bookmarks_keys');
+      var bookmarks_keys = await new Storage().get('bookmarks_keys');
       if (bookmarks_keys == undefined || bookmarks_keys == null) {
         bookmarks_keys = [];
       } else {
@@ -162,7 +162,7 @@ class Bookmarks extends React.Component {
   }
 
   async deleteBookmark(rowMap, data) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    var bookmarks_keys = await new Storage().get('bookmarks_keys');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
     var index = bookmarks_keys.indexOf('bookmark_' + data.book_id);

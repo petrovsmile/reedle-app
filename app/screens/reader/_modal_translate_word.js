@@ -159,7 +159,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
 
   async addWordToKeys(value) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     if (words_keys == undefined) {
       words_keys = []
     } else {
@@ -196,7 +196,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   async deleteBookmarkKey(value) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf(value);

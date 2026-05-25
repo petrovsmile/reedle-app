@@ -1,31 +1,34 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const TerserPlugin = require('terser-webpack-plugin');
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 module.exports = {
-    mode: 'development',
-    devtool: 'source-map',
-    
+    mode: isProduction ? 'production' : 'development',
+    devtool: isProduction ? false : 'source-map',
+
     entry: './index.web.js',
 
     output: {
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'web'),
         filename: 'bundle.js',
         clean: true,
-        library: {
-            type: 'var',
-            name: 'app'
-        }
     },
 
     module: {
         rules: [
             {
-                test: /\.(js|jsx|mjs)$/,
+                test: /\.(js|jsx|mjs|ts|tsx)$/,
                 exclude: /node_modules\/(?!(react-native-.*|@react-navigation|react-navigation|react-native-swipe-list-view|react-native-gesture-handler|react-native-reanimated|react-native-safe-area-context|react-native-circular-progress|react-native-svg)\/).*/,
                 use: {
                     loader: 'babel-loader',
                     options: {
+                        // Ignore babel.config.js — it's for React Native (includes @react-native/babel-preset
+                        // which converts ES modules to CJS, breaking webpack's module handling)
+                        configFile: false,
+                        babelrc: false,
                         presets: [
                             ['@babel/preset-env', {
                                 modules: false,
@@ -33,11 +36,13 @@ module.exports = {
                                     browsers: ['last 2 versions', 'not dead', 'not ie 11']
                                 }
                             }],
-                            ['@babel/preset-react', { runtime: 'automatic' }]
+                            ['@babel/preset-react', { runtime: 'automatic' }],
+                            ['@babel/preset-typescript', { allExtensions: true, isTSX: true }],
                         ],
                         plugins: [
-                            '@babel/plugin-proposal-class-properties',
-                            '@babel/plugin-proposal-private-methods',
+                            ['@babel/plugin-proposal-class-properties', { loose: true }],
+                            ['@babel/plugin-proposal-private-methods', { loose: true }],
+                            ['@babel/plugin-transform-private-property-in-object', { loose: true }],
                             '@babel/plugin-transform-runtime'
                         ],
                         sourceType: 'unambiguous'
@@ -48,12 +53,23 @@ module.exports = {
                 test: /\.(png|jpe?g|gif|svg)$/i,
                 type: 'asset/resource',
             },
+            // Disable fullySpecified for node_modules ESM packages that use bare imports
+            {
+                test: /\.m?js$/,
+                include: /node_modules/,
+                resolve: {
+                    fullySpecified: false,
+                },
+            },
         ],
     },
 
     resolve: {
         alias: {
+            // react-native → react-native-web
             'react-native$': 'react-native-web',
+
+            // Заглушки нативных модулей без веб-поддержки
             'react-native-fs': path.resolve(__dirname, 'web-stubs/react-native-fs.js'),
             'react-native-nitro-modules': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
             'react-native-sound': path.resolve(__dirname, 'web-stubs/react-native-sound.js'),
@@ -61,10 +77,19 @@ module.exports = {
             'react-native-store-review': path.resolve(__dirname, 'web-stubs/react-native-store-review.js'),
             'react-native-tracking-transparency': path.resolve(__dirname, 'web-stubs/react-native-tracking-transparency.js'),
             'react-native-iap': path.resolve(__dirname, 'web-stubs/react-native-iap.js'),
-            'YandexMobileAdsSample': path.resolve(__dirname, 'web-stubs/yandex-ads.js'),
+            'react-native-purchases': path.resolve(__dirname, 'web-stubs/react-native-purchases.js'),
+            'react-native-restart': path.resolve(__dirname, 'web-stubs/react-native-restart.js'),
+            'react-native-webview': path.resolve(__dirname, 'web-stubs/react-native-webview.js'),
+            'react-native-worklets': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
+            '@mhpdev/react-native-speech': path.resolve(__dirname, 'web-stubs/react-native-speech.js'),
+            '@appmetrica/react-native-analytics': path.resolve(__dirname, 'web-stubs/appmetrica.js'),
             '@react-native-async-storage/async-storage': path.resolve(__dirname, 'web-stubs/async-storage.js'),
+            '@react-native-community/netinfo': path.resolve(__dirname, 'web-stubs/netinfo.js'),
+            '@react-native-community/slider': path.resolve(__dirname, 'web-stubs/slider.js'),
+            'yandex-mobile-ads': path.resolve(__dirname, 'web-stubs/yandex-ads.js'),
+            'YandexMobileAdsSample': path.resolve(__dirname, 'web-stubs/yandex-ads.js'),
         },
-        extensions: ['.web.js', '.web.jsx', '.js', '.jsx', '.mjs', '.json'],
+        extensions: ['.web.js', '.web.jsx', '.web.ts', '.web.tsx', '.js', '.jsx', '.ts', '.tsx', '.mjs', '.json'],
         mainFields: ['browser', 'module', 'main'],
         symlinks: false,
         fallback: {
@@ -90,8 +115,10 @@ module.exports = {
             scriptLoading: 'defer',
         }),
         new webpack.DefinePlugin({
-            '__DEV__': JSON.stringify(true),
-            'process.env.NODE_ENV': JSON.stringify('development'),
+            '__DEV__': JSON.stringify(!isProduction),
+            'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
+            // Пустая строка → запросы идут на /api/... → перехватываются прокси dev-сервера
+            'HOST': JSON.stringify(''),
         }),
         new webpack.ProvidePlugin({
             process: 'process/browser',
@@ -113,26 +140,39 @@ module.exports = {
                 warnings: false,
             },
         },
-        // 🟢 ИСПРАВЛЕННЫЙ ПРОКСИ - ТЕПЕРЬ ЭТО МАССИВ
         proxy: [
             {
-                context: ['/api'],  // ← context вместо ключа объекта
+                context: ['/api'],
                 target: 'https://reedle.ru',
                 changeOrigin: true,
                 secure: false,
-                logLevel: 'debug',
-                onProxyReq: (proxyReq, req, res) => {
+                onProxyReq: (proxyReq) => {
                     proxyReq.removeHeader('origin');
                 },
                 onError: (err, req, res) => {
                     console.error('Proxy error:', err);
-                    res.writeHead(500, {
-                        'Content-Type': 'text/plain',
-                    });
+                    res.writeHead(500, { 'Content-Type': 'text/plain' });
                     res.end('Proxy error: ' + err.message);
                 }
             }
         ]
+    },
+
+    optimization: {
+        minimizer: [
+            new TerserPlugin({
+                terserOptions: {
+                    mangle: {
+                        // Don't rename these - some pre-compiled CJS packages in node_modules
+                        // reference them as free variables after babel+webpack transform
+                        reserved: ['exports', 'require', 'module'],
+                    },
+                    compress: {
+                        passes: 2,
+                    },
+                },
+            }),
+        ],
     },
 
     target: 'web',

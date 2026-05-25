@@ -145,7 +145,7 @@ class Dictionary extends React.Component {
   }
 
   async deleteWord(rowMap, data) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf('word_' + data.original);

@@ -838,9 +838,11 @@ class Request {
 class Storage {
   async get(key, default_value) {
     var value = await AsyncStorage.getItem(key);
-    if (value == undefined || value == null) {
+    if (value == undefined || value == null || value === '') {
       value = default_value;
-      this.set(key, default_value);
+      if (default_value != undefined) {
+        this.set(key, default_value);
+      }
     }
     return value;
   }
@@ -1028,7 +1030,7 @@ class Bookmarks extends React.Component {
         });
       }));
 
-      bookmarks_keys = await new Storage().get('bookmarks_keys');
+      var bookmarks_keys = await new Storage().get('bookmarks_keys');
       if (bookmarks_keys == undefined || bookmarks_keys == null) {
         bookmarks_keys = [];
       } else {
@@ -1072,7 +1074,7 @@ class Bookmarks extends React.Component {
   }
 
   async deleteBookmark(rowMap, data) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    var bookmarks_keys = await new Storage().get('bookmarks_keys');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
     var index = bookmarks_keys.indexOf('bookmark_' + data.book_id);
@@ -1353,7 +1355,7 @@ class Dictionary extends React.Component {
   }
 
   async deleteWord(rowMap, data) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf('word_' + data.original);
@@ -1778,7 +1780,7 @@ class Home extends React.Component {
       }
     }
 
-    percents = {}
+    var percents = {}
     result.forEach(function (book) {
       percents[book.id] = book.percent;
     });
@@ -3061,7 +3063,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
 
   async addWordToKeys(value) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     if (words_keys == undefined) {
       words_keys = []
     } else {
@@ -3098,7 +3100,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   async deleteBookmarkKey(value) {
-    words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf(value);
@@ -4899,6 +4901,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
   async componentDidMount() {
     if (appStore.has_internet == true) {
       var response = await new Request('/api/v1/target_version', {}, { do_not_show_error: true }).get();
+
       if (response != false) {
         if (Platform.OS === 'ios') {
           this.current_version = CURRENT_IOS_VERSION;
@@ -4919,6 +4922,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
   }
 
   compareVersions() {
+    if (!this.current_version || !this.target_version) return true;
     var current = parseInt(this.current_version.split('.').join(''));
     var target = parseInt(this.target_version.split('.').join(''));
 
