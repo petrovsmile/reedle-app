@@ -82,6 +82,20 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     this.scaleAnim.setValue(1);
   }
 
+  prepareVoiceoverAudioSession() {
+    try {
+      Sound.setCategory('Playback', true);
+    } catch (e) {
+      Sound.setCategory('Playback');
+    }
+
+    if (Sound.setActive) {
+      try {
+        Sound.setActive(true);
+      } catch (e) {}
+    }
+  }
+
   async voice_word(original) {
     if (this.voiceover_playing_lock) {
       return;
@@ -110,6 +124,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     var url = HOST + pesponse.url;
 
     {
+      this.prepareVoiceoverAudioSession();
+
       if (this.voiceoverSound) {
         this.voiceoverSound.release();
         this.voiceoverSound = null;
@@ -142,6 +158,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
           this.voiceover_playing_lock = false;
           return;
         }
+
+        sound.setVolume(1);
 
         sound.play((success) => {
           if (success) {
