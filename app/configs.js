@@ -1,5 +1,5 @@
-const CURRENT_IOS_VERSION = '1.2.1'
-const CURRENT_ANDROID_VERSION = '1.2.1'
+const CURRENT_IOS_VERSION = '1.3.1'
+const CURRENT_ANDROID_VERSION = '1.3.1'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 const HOST="https://reedle.ru"

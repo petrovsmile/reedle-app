@@ -27,7 +27,23 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     });
   }
 
+  componentWillUnmount() {
+    if (this.voiceoverSound) {
+      this.voiceoverSound.release();
+      this.voiceoverSound = null;
+    }
+    this.voiceover_playing_lock = false;
+  }
+
   async check_count_voiceover() {
+    if (this.props.has_subscription) {
+      this.setState({
+        count_voiceover: 0,
+        words: []
+      });
+      return;
+    }
+
     var date_today = moment().format("YYYY-MM-DD");
     var count_voiceover_hash = await new Storage().get('count_voiceover', JSON.stringify({ date: date_today, count: 0, words: [] }));
     count_voiceover_hash = JSON.parse(count_voiceover_hash);
@@ -67,6 +83,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   async voice_word(original) {
+    if (this.voiceover_playing_lock) {
+      return;
+    }
+    this.voiceover_playing_lock = true;
+
     AppMetrica.reportEvent('Voiceover', {
       original: original
     });
@@ -82,26 +103,50 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       Alert.alert('Озвучка не найдена');
       this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
+      this.voiceover_playing_lock = false;
       return;
     }
 
     var url = HOST + pesponse.url;
 
     {
-      const sound = new Sound(url, '', error => {
+      if (this.voiceoverSound) {
+        this.voiceoverSound.release();
+        this.voiceoverSound = null;
+      }
+
+      var sound = new Sound(url, '', error => {
+        if (this.voiceoverSound !== sound) {
+          sound.release();
+          return;
+        }
+
         if (error) {
           appStore.showError('Ошибка воспроизвездения');
           this.setState({
             voiceover_playing: false
           });
           this.stopPulseAnimation();
+          this.voiceover_playing_lock = false;
+          return;
+        }
+
+        if (sound.getDuration() <= 0) {
+          appStore.showError('Озвучка не найдена');
+          sound.release();
+          this.voiceoverSound = null;
+          this.setState({
+            voiceover_playing: false
+          });
+          this.stopPulseAnimation();
+          this.voiceover_playing_lock = false;
+          return;
         }
 
         sound.play((success) => {
           if (success) {
-            if (!this.state.words.includes(original)) {
-              var new_words = this.state.words;
-              new_words.push(original);
+            if (!this.props.has_subscription && !this.state.words.includes(original)) {
+              var new_words = [...this.state.words, original];
               var new_count = this.state.count_voiceover + 1;
 
               new Storage().set('count_voiceover', JSON.stringify(
@@ -123,8 +168,17 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             voiceover_playing: false
           });
           this.stopPulseAnimation();
+          this.voiceover_playing_lock = false;
+
+          if (this.voiceoverSound === sound) {
+            sound.release();
+            this.voiceoverSound = null;
+          } else {
+            sound.release();
+          }
         });
       })
+      this.voiceoverSound = sound;
     }
   }
 
@@ -232,7 +286,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                 {appStore.has_internet ? (
                   <React.Fragment>
                     <React.Fragment>
-                      {this.state.count_voiceover < 15 ? (
+                      {(this.state.count_voiceover < 15 || this.props.has_subscription) ? (
                         <TouchableWithoutFeedback onPress={() => this.voice_word(this.props.original)}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                             <Animated.Image
@@ -254,7 +308,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                           </View>
                         </TouchableWithoutFeedback>
                       ) : (
-                        <TouchableWithoutFeedback onPress={() => Alert.alert('Лимт на сегодня закончился.\nОплатите подписку, чтобы пользоваться озвучкой без ограничений\nБесплатно доступно 15 слов в день.')}>
+                        <TouchableWithoutFeedback onPress={() => Alert.alert('Лимит на сегодня закончился.\nОплатите подписку, чтобы пользоваться озвучкой без ограничений\nБесплатно доступно 15 слов в день.')}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                             <Image style={{ width: 24, height: 24 }}
                               source={require('./app/images/reader/voiceover-limited.png')} />
