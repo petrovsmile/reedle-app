@@ -7,6 +7,7 @@ const Subscription = observer(class Subscription extends React.Component {
       load_restore_button: false,
       modal_yoo_kassa: false,
       payment_url: '',
+      payment_webview_loading: false,
       auth_modal: false,
       load_sync_button: false,
       api_prices: {},
@@ -107,7 +108,8 @@ const Subscription = observer(class Subscription extends React.Component {
         if (response != false) {
           this.setState({
             modal_yoo_kassa: true,
-            payment_url: response.payment_url
+            payment_url: response.payment_url,
+            payment_webview_loading: true
           });
         }
       }
@@ -118,7 +120,8 @@ const Subscription = observer(class Subscription extends React.Component {
     this.props.root.checkSubscription();
 
     this.setState({
-      modal_yoo_kassa: false
+      modal_yoo_kassa: false,
+      payment_webview_loading: false
     });
   }
 
@@ -242,7 +245,16 @@ const Subscription = observer(class Subscription extends React.Component {
                     uri: this.state.payment_url,
                   }}
                   style={{ flex: 1 }}
+                  onLoadStart={() => this.setState({ payment_webview_loading: true })}
+                  onLoadEnd={() => this.setState({ payment_webview_loading: false })}
+                  onError={() => this.setState({ payment_webview_loading: false })}
                 />
+                {this.state.payment_webview_loading &&
+                  <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#f05458" />
+                    <Text style={{ marginTop: 12, color: '#777', fontSize: 14 }}>Загрузка страницы оплаты...</Text>
+                  </View>
+                }
               </View>
             </View>
           </View>
