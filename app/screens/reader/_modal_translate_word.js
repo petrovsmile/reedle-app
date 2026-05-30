@@ -279,6 +279,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
+  openSubscription() {
+    this.props.close();
+    setTimeout(() => this.props.openSubscription(), 100);
+  }
+
 
   render() {
     return (
@@ -411,7 +416,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                         <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>Вы добавили {this.state.count_words}/30</Text></View>
                         <View><Text style={{ marginTop: 4, textAlign: 'center', fontSize: 12 }}>Вы озвучили {this.state.count_voiceover}/15</Text></View>
 
-                        <TouchableOpacity onPress={() => this.props.openSubscription()}>
+                        <TouchableOpacity onPress={() => this.openSubscription()}>
                           <Text style={{ color: '#f05458', fontSize: 12, marginTop: 4, textAlign: 'center', }}>Приобрести PRO-доступ</Text>
                         </TouchableOpacity>
                       </View>

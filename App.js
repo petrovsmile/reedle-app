@@ -3183,6 +3183,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
+  openSubscription() {
+    this.props.close();
+    setTimeout(() => this.props.openSubscription(), 100);
+  }
+
 
   render() {
     return (
@@ -3315,7 +3320,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                         <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>Вы добавили {this.state.count_words}/30</Text></View>
                         <View><Text style={{ marginTop: 4, textAlign: 'center', fontSize: 12 }}>Вы озвучили {this.state.count_voiceover}/15</Text></View>
 
-                        <TouchableOpacity onPress={() => this.props.openSubscription()}>
+                        <TouchableOpacity onPress={() => this.openSubscription()}>
                           <Text style={{ color: '#f05458', fontSize: 12, marginTop: 4, textAlign: 'center', }}>Приобрести PRO-доступ</Text>
                         </TouchableOpacity>
                       </View>
@@ -4752,7 +4757,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('Subscription')} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -4785,7 +4790,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('Subscription')}
+              openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
             />
 
             <View style={{
