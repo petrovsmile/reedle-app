@@ -28,7 +28,17 @@ class TabStack extends React.Component {
             headerShown: false
           })}>
           {(tabs) => (
-            <Home tabs={tabs} stack={this.props.stack} parent={this} root={this.props.root} />
+            <SafeAreaInsetsContext.Consumer>
+              {(insets) => (
+                <Home
+                  tabs={tabs}
+                  stack={this.props.stack}
+                  parent={this}
+                  root={this.props.root}
+                  safeAreaInsets={insets}
+                />
+              )}
+            </SafeAreaInsetsContext.Consumer>
           )}
         </Tab.Screen>
         <Tab.Screen name="Bookmarks"

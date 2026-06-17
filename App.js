@@ -37,6 +37,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 
 var RNFS = require('react-native-fs');
@@ -186,8 +187,9 @@ const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416
 // Appodeal.addEventListener(AppodealInterstitialEvent.SHOWN, () => {
 //   AsyncStorage.setItem('time_short_ad', moment().format());
 // });
+
 const CURRENT_IOS_VERSION = '1.3.1'
-const CURRENT_ANDROID_VERSION = '1.3.1'
+const CURRENT_ANDROID_VERSION = '1.3.2'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 const HOST="https://reedle.ru"
@@ -613,6 +615,16 @@ var readerScreenStyles = StyleSheet.create({
   footerSpacer: {
     height: 50,
   },
+  safeRoot: {
+    flex: 1,
+  },
+  readerHeader: {
+    height: 40,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    position: 'relative',
+    zIndex: 2,
+  },
   footerNav: {
     height: 50,
     flexDirection: 'row',
@@ -861,8 +873,13 @@ class Storage {
   }
 }
 export default function App() {
-  return <RootApp/>;
+  return (
+    <SafeAreaProvider>
+      <RootApp />
+    </SafeAreaProvider>
+  );
 }
+
 class Bookmark extends React.Component {
   constructor(props) {
     super(props);
@@ -1892,6 +1909,8 @@ class Home extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
+    var safeAreaTop = safeAreaInsets.top || 0;
 
     const readBook = (rowMap, rowKey) => {
       if (rowMap[rowKey.id]) {
@@ -1914,7 +1933,7 @@ class Home extends React.Component {
     };
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop }]}>
         <View style={homeStyles.header}>
 
           <View style={homeStyles.header_empty_block} />
@@ -2077,7 +2096,7 @@ class Home extends React.Component {
           }
         </React.Fragment>
 
-      </SafeAreaView>
+      </View>
     )
   }
 }
@@ -2133,6 +2152,7 @@ function PreviewBook() {
     </React.Fragment>
   );
 }
+
 class ChangePassword extends React.Component {
   constructor(props) {
     super(props);
@@ -4686,6 +4706,10 @@ class Reader extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, bottom: 0 };
+    var safeAreaTop = safeAreaInsets.top || 0;
+    var safeAreaBottom = safeAreaInsets.bottom || 0;
+
     return (
       <React.Fragment>
 
@@ -4701,7 +4725,7 @@ class Reader extends React.Component {
         }
 
         {(this.state.paragraphs == false) ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: this.state.backgroundColorTheme }}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
               {this.state.textColorTheme == '#ffffff' &&
                 <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
@@ -4714,10 +4738,10 @@ class Reader extends React.Component {
             </TouchableOpacity>
 
             <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
-          </SafeAreaView>
+          </View>
         ) : (
 
-          <SafeAreaView style={{ flex: 1, backgroundColor: this.state.backgroundColorTheme }}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
@@ -4793,15 +4817,13 @@ class Reader extends React.Component {
               openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
             />
 
-            <View style={{
-              height: 40,
-              backgroundColor: this.state.backgroundColorTheme,
-              borderBottomWidth: 1,
-              borderColor: this.state.secondColorTheme,
-              flexDirection: 'row',
-              position: 'relative',
-              zIndex: 2,
-            }}>
+            <View style={[
+              readerScreenStyles.readerHeader,
+              {
+                backgroundColor: this.state.backgroundColorTheme,
+                borderColor: this.state.secondColorTheme,
+              }
+            ]}>
               <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                 {this.state.textColorTheme == '#ffffff' &&
                   <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
@@ -4889,13 +4911,21 @@ class Reader extends React.Component {
                   onScroll={(event) => this.onScroll(event)}
                   onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
                   scrollEventThrottle={8}
-                  ListFooterComponent={<View style={readerScreenStyles.footerSpacer} />}
+                  ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
                   style={{ flex: 1 }}
                 />
               }
             </View>
 
-            <View style={[readerScreenStyles.footerNav, { borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
+            <View style={[
+              readerScreenStyles.footerNav,
+              {
+                height: 50 + safeAreaBottom,
+                paddingBottom: safeAreaBottom,
+                borderTopWidth: 1,
+                borderTopColor: this.state.secondColorTheme
+              }
+            ]}>
 
               {this.state.page > 1 &&
                 <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
@@ -4957,7 +4987,7 @@ class Reader extends React.Component {
             </View>
 
 
-          </SafeAreaView>
+          </View>
 
         )}
       </React.Fragment>
@@ -5473,7 +5503,16 @@ class RootApp extends React.Component {
                     headerShown: false
                   })}>
                   {(stack) => (
-                    <Reader home_stack_state={this} root={this} stack={stack} />
+                    <SafeAreaInsetsContext.Consumer>
+                      {(insets) => (
+                        <Reader
+                          home_stack_state={this}
+                          root={this}
+                          stack={stack}
+                          safeAreaInsets={insets}
+                        />
+                      )}
+                    </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
               </Stack.Navigator>
@@ -5534,7 +5573,17 @@ class TabStack extends React.Component {
             headerShown: false
           })}>
           {(tabs) => (
-            <Home tabs={tabs} stack={this.props.stack} parent={this} root={this.props.root} />
+            <SafeAreaInsetsContext.Consumer>
+              {(insets) => (
+                <Home
+                  tabs={tabs}
+                  stack={this.props.stack}
+                  parent={this}
+                  root={this.props.root}
+                  safeAreaInsets={insets}
+                />
+              )}
+            </SafeAreaInsetsContext.Consumer>
           )}
         </Tab.Screen>
         <Tab.Screen name="Bookmarks"
@@ -5613,6 +5662,7 @@ class TabStack extends React.Component {
     );
   }
 }
+
 
 class ButtonRead extends React.Component {
 

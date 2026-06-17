@@ -806,6 +806,10 @@ class Reader extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, bottom: 0 };
+    var safeAreaTop = safeAreaInsets.top || 0;
+    var safeAreaBottom = safeAreaInsets.bottom || 0;
+
     return (
       <React.Fragment>
 
@@ -821,7 +825,7 @@ class Reader extends React.Component {
         }
 
         {(this.state.paragraphs == false) ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: this.state.backgroundColorTheme }}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
               {this.state.textColorTheme == '#ffffff' &&
                 <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
@@ -834,10 +838,10 @@ class Reader extends React.Component {
             </TouchableOpacity>
 
             <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
-          </SafeAreaView>
+          </View>
         ) : (
 
-          <SafeAreaView style={{ flex: 1, backgroundColor: this.state.backgroundColorTheme }}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
@@ -913,15 +917,13 @@ class Reader extends React.Component {
               openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
             />
 
-            <View style={{
-              height: 40,
-              backgroundColor: this.state.backgroundColorTheme,
-              borderBottomWidth: 1,
-              borderColor: this.state.secondColorTheme,
-              flexDirection: 'row',
-              position: 'relative',
-              zIndex: 2,
-            }}>
+            <View style={[
+              readerScreenStyles.readerHeader,
+              {
+                backgroundColor: this.state.backgroundColorTheme,
+                borderColor: this.state.secondColorTheme,
+              }
+            ]}>
               <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                 {this.state.textColorTheme == '#ffffff' &&
                   <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
@@ -1009,13 +1011,21 @@ class Reader extends React.Component {
                   onScroll={(event) => this.onScroll(event)}
                   onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
                   scrollEventThrottle={8}
-                  ListFooterComponent={<View style={readerScreenStyles.footerSpacer} />}
+                  ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
                   style={{ flex: 1 }}
                 />
               }
             </View>
 
-            <View style={[readerScreenStyles.footerNav, { borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
+            <View style={[
+              readerScreenStyles.footerNav,
+              {
+                height: 50 + safeAreaBottom,
+                paddingBottom: safeAreaBottom,
+                borderTopWidth: 1,
+                borderTopColor: this.state.secondColorTheme
+              }
+            ]}>
 
               {this.state.page > 1 &&
                 <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
@@ -1077,7 +1087,7 @@ class Reader extends React.Component {
             </View>
 
 
-          </SafeAreaView>
+          </View>
 
         )}
       </React.Fragment>

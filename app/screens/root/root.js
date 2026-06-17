@@ -377,7 +377,16 @@ class RootApp extends React.Component {
                     headerShown: false
                   })}>
                   {(stack) => (
-                    <Reader home_stack_state={this} root={this} stack={stack} />
+                    <SafeAreaInsetsContext.Consumer>
+                      {(insets) => (
+                        <Reader
+                          home_stack_state={this}
+                          root={this}
+                          stack={stack}
+                          safeAreaInsets={insets}
+                        />
+                      )}
+                    </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
               </Stack.Navigator>

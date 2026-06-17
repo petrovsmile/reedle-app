@@ -254,6 +254,8 @@ class Home extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
+    var safeAreaTop = safeAreaInsets.top || 0;
 
     const readBook = (rowMap, rowKey) => {
       if (rowMap[rowKey.id]) {
@@ -276,7 +278,7 @@ class Home extends React.Component {
     };
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop }]}>
         <View style={homeStyles.header}>
 
           <View style={homeStyles.header_empty_block} />
@@ -439,7 +441,7 @@ class Home extends React.Component {
           }
         </React.Fragment>
 
-      </SafeAreaView>
+      </View>
     )
   }
 }

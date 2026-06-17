@@ -75,6 +75,16 @@ var readerScreenStyles = StyleSheet.create({
   footerSpacer: {
     height: 50,
   },
+  safeRoot: {
+    flex: 1,
+  },
+  readerHeader: {
+    height: 40,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    position: 'relative',
+    zIndex: 2,
+  },
   footerNav: {
     height: 50,
     flexDirection: 'row',
