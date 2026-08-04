@@ -29,8 +29,14 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarks() {
+    if (this._get_bookmarks_promise) return this._get_bookmarks_promise;
+    this._get_bookmarks_promise = this._getBookmarks().finally(() => { this._get_bookmarks_promise = null; });
+    return this._get_bookmarks_promise;
+  }
+
+  async _getBookmarks() {
     if (this.props.root.state.current_user != false) {
-      await this.setState({
+      this.setState({
         do_not_find: false,
         bookmarks: [],
       });
@@ -47,101 +53,7 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarksFromServer() {
-    var server_bookmarks = await new Request('/api/v1/bookmarks', {
-      user_id: this.props.root.state.current_user.id
-    }, {
-      do_not_show_error: true
-    }).get();
-    if (server_bookmarks != false) {
-
-      var ar_delete_keys = [];
-      var ar_add_keys = [];
-
-      // Удаляем с устройства если на сервере удалили и добавляем на сервере, если есть добавленные на устройстве offline
-      await Promise.all(this.storage_bookmarks.reverse().map(async storage_bookmark => {
-        var has_bookmark = false;
-        server_bookmarks.map(async server_bookmark => {
-          if (server_bookmark.book.id == storage_bookmark.book_id && has_bookmark == false) {
-            has_bookmark = true;
-          }
-        })
-        if (has_bookmark == false) {
-          if (storage_bookmark.offline == true) {
-            await new Request('/api/v1/bookmarks', {
-              book_id: storage_bookmark.book_id,
-              user_id: this.props.root.state.current_user.id,
-              page: storage_bookmark.page,
-              paragraph: storage_bookmark.paragraph
-            }, {
-              do_not_show_error: true
-            }).post();
-            storage_bookmark.offline = false;
-            await new Storage().set('bookmark_' + storage_bookmark.book_id, JSON.stringify(storage_bookmark));
-          } else {
-            ar_delete_keys.push('bookmark_' + storage_bookmark.book_id);
-          }
-        }
-      }));
-
-      await Promise.all(server_bookmarks.reverse().map(async server_bookmark => {
-        // Добавляем, если на сервере есть новые
-        var has_bookmark = false;
-        this.storage_bookmarks.forEach((storage_bookmark) => {
-          if (server_bookmark.book.id == storage_bookmark.book_id && has_bookmark == false) {
-            has_bookmark = true;
-          }
-        });
-
-        if (has_bookmark == false) {
-          await new Storage().set('bookmark_' + server_bookmark.book.id, JSON.stringify({
-            book_id: server_bookmark.book.id,
-            book_name: server_bookmark.book.name,
-            page: server_bookmark.page,
-            paragraph: server_bookmark.paragraph
-          }));
-          ar_add_keys.push('bookmark_' + server_bookmark.book.id);
-        }
-
-        // Обновляем, если на сервере параграф больше
-        this.storage_bookmarks.forEach((storage_bookmark) => {
-          if (server_bookmark.book.id == storage_bookmark.book_id) {
-            if (server_bookmark.paragraph > storage_bookmark.paragraph) {
-              new Storage().set('bookmark_' + storage_bookmark.book_id, JSON.stringify({
-                book_id: storage_bookmark.book_id,
-                book_name: storage_bookmark.book_name,
-                page: server_bookmark.page,
-                paragraph: server_bookmark.paragraph
-              }));
-              ar_add_keys.push('bookmark_' + server_bookmark.book.id);
-            }
-          }
-        });
-      }));
-
-      var bookmarks_keys = await new Storage().get('bookmarks_keys');
-      if (bookmarks_keys == undefined || bookmarks_keys == null) {
-        bookmarks_keys = [];
-      } else {
-        bookmarks_keys = JSON.parse(bookmarks_keys);
-      }
-
-      ar_add_keys.forEach(function (add_key) {
-        var index = bookmarks_keys.indexOf(add_key);
-        if (index > -1) {
-          bookmarks_keys.splice(index, 1);
-        }
-        bookmarks_keys.unshift(add_key);
-      });
-
-      ar_delete_keys.forEach(function (delete_key) {
-        var index = bookmarks_keys.indexOf(delete_key);
-        if (index > -1) {
-          bookmarks_keys.splice(index, 1);
-        }
-      });
-
-      await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
-    }
+    await SyncManager.syncBookmarks(this.props.root.state.current_user.id);
   }
 
   async getBookmarksFromStorage() {
@@ -155,10 +67,10 @@ class Bookmarks extends React.Component {
     var bookmarks = await Promise.all(bookmarks_keys.map(async bookmark_key => {
       var bookmark = await new Storage().get(bookmark_key);
 
-      return JSON.parse(bookmark);
+      return bookmark ? JSON.parse(bookmark) : null;
     }));
 
-    return bookmarks;
+    return bookmarks.filter(bookmark => bookmark != null);
   }
 
   async deleteBookmark(rowMap, data) {
@@ -170,16 +82,11 @@ class Bookmarks extends React.Component {
       bookmarks_keys.splice(index, 1);
     }
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
-
-    await new Request('/api/v1/bookmarks', {
-      book_id: data.book_id,
-      user_id: this.props.root.state.current_user.id
-    }, {
-      desciption_error: 'Закладка удалена только с этого устройства.'
-    }).delete();
-
-    this.getBookmarks();
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().remove('bookmark_' + data.book_id);
+    await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
+    await SyncManager.flush(this.props.root.state.current_user.id);
+    await this.getBookmarks();
   }
 
   openBook(book_id, bookmark) {

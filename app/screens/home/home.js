@@ -1,3 +1,42 @@
+const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
+  var downloads = Object.values(downloadStore.downloads);
+  if (downloads.length === 0) return null;
+
+  return (
+    <View style={homeStyles.downloadsPanel}>
+      <Text style={homeStyles.downloadsTitle}>Загрузка книг</Text>
+      {downloads.map((download) =>
+        <View key={download.bookId} style={homeStyles.downloadRow}>
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={homeStyles.downloadBookName}>{download.nameEn || download.name}</Text>
+            <View style={homeStyles.downloadProgressTrack}>
+              <View style={[
+                homeStyles.downloadProgressValue,
+                {
+                  width: (download.progress || 0) + '%',
+                  backgroundColor: download.status === 'error' ? '#f05458' : (download.color || '#75b641'),
+                }
+              ]} />
+            </View>
+            <Text style={homeStyles.downloadStatus}>
+              {download.status === 'error'
+                ? 'Ошибка загрузки'
+                : download.status === 'completed'
+                  ? 'Загружено'
+                  : (download.progress || 0).toFixed(1) + '%'}
+            </Text>
+          </View>
+          {(download.status === 'completed' || download.status === 'error') &&
+            <TouchableOpacity onPress={() => downloadStore.dismiss(download.bookId)} style={homeStyles.downloadDismiss}>
+              <Text style={homeStyles.downloadDismissText}>×</Text>
+            </TouchableOpacity>
+          }
+        </View>
+      )}
+    </View>
+  );
+});
+
 class Home extends React.Component {
   constructor(props) {
     super(props);
@@ -19,15 +58,15 @@ class Home extends React.Component {
 
   async componentDidMount() {
     var not_show_read = await new Storage().get('not_show_read', 'false')
-    await this.setState({ not_show_read: not_show_read === 'true' });
-
     var sort_new_book = await new Storage().get('sort_new_book', 'false');
-    await this.setState({ sort_new_book: sort_new_book === 'true' });
-
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
-    await this.setState({ show_only_loaded: show_only_loaded === 'true' });
-
-    this.getBooks();
+    this.setState({
+      not_show_read: not_show_read === 'true',
+      sort_new_book: sort_new_book === 'true',
+      show_only_loaded: show_only_loaded === 'true',
+    }, () => {
+      this.getBooks();
+    });
 
     // this.props.stack.navigation.navigate('Reader', {
     //   book_id: 1
@@ -35,127 +74,129 @@ class Home extends React.Component {
   }
 
   async getBooks() {
-    await this.setState({
+    this.setState({
       books: [],
       filter_books: [],
-    });
+    }, async () => {
 
-    var exists = await RNFS.exists(file_root + '/' + BOOKS_FILENAME);
-    if (exists == false) {
-      await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, "[]", 'utf8');
-    }
-
-    var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
-    books = JSON.parse(books);
-
-    await this.setState({
-      books: books,
-    });
-
-    var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
-    if (server_books == false) {
-      this.filter_books();
-    } else {
-      if (server_books.length != books.length) {
-        books = server_books;
-        await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
-
-        this.setState({ books: books }, () => this.filter_books());
-      } else {
-        this.filter_books();
+      var exists = await RNFS.exists(file_root + '/' + BOOKS_FILENAME);
+      if (exists == false) {
+        await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, "[]", 'utf8');
       }
-    }
+
+      var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
+      books = JSON.parse(books);
+
+      this.setState({
+        books: books,
+      }, async () => {
+        var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+        if (server_books == false) {
+          this.filter_books();
+        } else {
+          if (server_books.length != books.length) {
+            books = server_books;
+            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
+
+            this.setState({ books: books }, () => this.filter_books());
+          } else {
+            this.filter_books();
+          }
+        }
+      });
+    });
   }
 
   //Фильтрует по Level, Названиям, Скачиванию
   async filter_books() {
-    await this.setState({
+    this.setState({
       books_filtered: false,
-    });
+    }, async () => {
 
-    var result = [];
+      var result = [];
 
-    for (const i in this.state.books) {
-      var book = this.state.books[i];
+      for (const i in this.state.books) {
+        var book = this.state.books[i];
 
-      if (this.state.level == 'all' || this.state.level == book.level) {
+        if (this.state.level == 'all' || this.state.level == book.level) {
 
-        var check = false;
+          var check = false;
 
-        //Названия
-        if (this.search_value.length == 0) {
-          check = true;
-        } else {
-          var search_array = this.search_value.split(' ').map(name => name.toLowerCase());
-          search_array = search_array.filter(word => word.length > 0);
+          //Названия
+          if (this.search_value.length == 0) {
+            check = true;
+          } else {
+            var search_array = this.search_value.split(' ').map(name => name.toLowerCase());
+            search_array = search_array.filter(word => word.length > 0);
 
-          book.name.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.name.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
 
-          book.author.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.author.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
 
-          book.name_en.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.name_en.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
-        }
-
-        //Скачана книга
-        if (check == true) {
-          var have_file = await new Storage().get('have_file_' + book.id, 'false');
-          book['have_file'] = have_file == 'true';
-          if (this.state.show_only_loaded == true) {
-            check = book['have_file'];
           }
 
-          var percent = await new Storage().get('percent_' + book.id, 0);
-          book['percent'] = percent;
+          //Скачана книга
+          if (check == true) {
+            var have_file = await new Storage().get('have_file_' + book.id, 'false');
+            book['have_file'] = have_file == 'true';
+            if (this.state.show_only_loaded == true) {
+              check = book['have_file'];
+            }
 
-          if (percent == 100) {
-            if (this.state.not_show_read == true) {
-              check = false;
+            var percent = await new Storage().get('percent_' + book.id, 0);
+            book['percent'] = percent;
+
+            if (percent == 100) {
+              if (this.state.not_show_read == true) {
+                check = false;
+              }
             }
           }
-        }
 
 
-        if (check == true) {
-          result.push(book);
+          if (check == true) {
+            result.push(book);
+          }
         }
       }
-    }
 
-    var percents = {}
-    result.forEach(function (book) {
-      percents[book.id] = book.percent;
-    });
+      var percents = {}
+      result.forEach(function (book) {
+        percents[book.id] = book.percent;
+      });
 
-    await this.props.root.setState({
-      books_percents: percents
-    });
+      this.props.root.setState({
+        books_percents: percents
+      });
 
-    this.setState({
-      books_filtered: result,
-      do_not_find: result.length == 0,
-    }, function () {
-      this.showReview();
+      this.setState({
+        books_filtered: result,
+        do_not_find: result.length == 0,
+      }, function () {
+        this.showReview();
+      });
     });
   }
 
@@ -297,6 +338,8 @@ class Home extends React.Component {
           )}
         </View>
 
+        <HomeDownloadsPanel />
+
         <View style={homeStyles.search}>
           <Image
             style={homeStyles.search_image}
@@ -422,14 +465,14 @@ class Home extends React.Component {
                     <View style={{ zIndex: 2, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#FFF' }}>
                     </View>
                     <TouchableWithoutFeedback onPress={() => readBook(rowMap, data.item)} >
-                      <View style={{ zIndex: 1, marginLeft: -10, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#75b641' }}>
-                        <Text numberOfLines={1} style={{ width: 130, position: 'absolute', bottom: 37, left: -27, color: '#FFF', lineHeight: 55, textAlign: 'center', fontSize: 16, transform: [{ rotate: '-90deg' }] }}>Прочитана</Text>
+                      <View style={[homeStyles.swipeMenuButton, { zIndex: 1, backgroundColor: '#75b641' }]}>
+                        <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 14 }]}>Прочитана</Text>
                       </View>
                     </TouchableWithoutFeedback>
                     {data.item.have_file == true &&
                       <TouchableWithoutFeedback onPress={() => deleteBook(rowMap, data.item)}>
-                        <View style={{ zIndex: 0, marginLeft: -10, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#f05458' }}>
-                          <Text numberOfLines={1} style={{ width: 130, position: 'absolute', bottom: 37, left: -27, color: '#FFF', lineHeight: 55, textAlign: 'center', fontSize: 12, transform: [{ rotate: '-90deg' }] }}>Удалить из памяти</Text>
+                        <View style={[homeStyles.swipeMenuButton, { zIndex: 0, backgroundColor: '#f05458' }]}>
+                          <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 10 }]}>Удалить из памяти</Text>
                         </View>
                       </TouchableWithoutFeedback>
                     }

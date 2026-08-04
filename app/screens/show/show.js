@@ -12,6 +12,17 @@ class Show extends React.Component {
   async componentDidMount() {
     homeStore.setOpenProperty(false);
 
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = this.props.stack.route.params.color;
+      this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.style.backgroundColor = this.props.stack.route.params.color;
+      });
+      this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
+        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      });
+    }
+
     var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
     books = JSON.parse(books);
 
@@ -31,6 +42,14 @@ class Show extends React.Component {
         }
       })
     )
+  }
+
+  componentWillUnmount() {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
+      if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
+      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+    }
   }
 
   openBook(book_id) {
@@ -150,4 +169,3 @@ class Show extends React.Component {
 
   }
 };
-

@@ -36,19 +36,19 @@ class Auth extends React.Component {
 
   async sendForm(method) {
     if (this.state.button_loader == false) {
-      await this.setState({
+      this.setState({
         button_loader: true
+      }, () => {
+        if (method == 'login') {
+          this.login();
+        }
+        if (method == 'reg') {
+          this.reg();
+        }
+        if (method == 'remember_password') {
+          this.remember_password();
+        }
       });
-
-      if (method == 'login') {
-        this.login();
-      }
-      if (method == 'reg') {
-        this.reg();
-      }
-      if (method == 'remember_password') {
-        this.remember_password();
-      }
     }
   }
 
@@ -58,7 +58,7 @@ class Auth extends React.Component {
       password: this.state.password
     }).get();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -70,7 +70,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 
@@ -94,7 +94,7 @@ class Auth extends React.Component {
       repeat_password: this.state.repeat_password
     }).post();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -106,7 +106,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 
@@ -127,7 +127,7 @@ class Auth extends React.Component {
       repeat_password: this.state.repeat_password
     }).post();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -139,7 +139,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 

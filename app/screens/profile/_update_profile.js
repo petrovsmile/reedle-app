@@ -24,7 +24,7 @@ class UpdateProfile extends React.Component {
       email: this.state.email,
     }).put();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -36,7 +36,7 @@ class UpdateProfile extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           success: true,
         });
       }

@@ -9,6 +9,8 @@
     "start": "react-native start",
     "test": "jest",
     "web": "webpack-dev-server",
+    "web:local": "API_PROXY_TARGET=http://localhost:3000 webpack-dev-server",
+    "web:production": "API_PROXY_TARGET=https://reedle.ru webpack-dev-server",
     "build:web": "NODE_ENV=production webpack --config webpack.config.js",
     "serve:web": "node scripts/serve-web.js",
     "babel-config": "cross-env BABEL_SHOW_CONFIG_FOR=./node_modules/react-native/index.js babel ./node_modules/react-native/index.js --out-file /dev/null",

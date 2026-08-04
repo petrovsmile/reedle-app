@@ -13,6 +13,11 @@ class TabStack extends React.Component {
           tabBarActiveTintColor: '#f05458'
         })}>
         <Tab.Screen name="Books"
+          listeners={{
+            tabPress: () => {
+              if (this.homeRef) this.homeRef.getBooks();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -31,6 +36,7 @@ class TabStack extends React.Component {
             <SafeAreaInsetsContext.Consumer>
               {(insets) => (
                 <Home
+                  ref={(ref) => this.homeRef = ref}
                   tabs={tabs}
                   stack={this.props.stack}
                   parent={this}
@@ -42,6 +48,11 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="Bookmarks"
+          listeners={{
+            tabPress: () => {
+              if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -56,10 +67,15 @@ class TabStack extends React.Component {
             title: 'Закладки',
           })}>
           {(tabs) => (
-            <BookmarkStack tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <BookmarkStack ref={(ref) => this.bookmarkStackRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="Dictionary"
+          listeners={{
+            tabPress: () => {
+              if (this.dictionaryRef) this.dictionaryRef.getWords();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -74,7 +90,7 @@ class TabStack extends React.Component {
             title: 'Словарь',
           })}>
           {(tabs) => (
-            <Dictionary tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="Subscription"

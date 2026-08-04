@@ -27,7 +27,7 @@ class ChangePassword extends React.Component {
       repeat_password: this.state.repeat_password
     }).put();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -39,7 +39,7 @@ class ChangePassword extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           success: true,
         });
       }

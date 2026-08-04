@@ -127,10 +127,12 @@ class Reader extends React.Component {
     });
 
     var bookmark = await new Storage().get('bookmark_' + this.props.stack.route.params.book_id);
+    var bookmarkParagraph = false;
 
     if (bookmark != undefined) {
-      await this.setState({
-        bookmark: JSON.parse(bookmark).paragraph,
+      bookmarkParagraph = JSON.parse(bookmark).paragraph;
+      this.setState({
+        bookmark: bookmarkParagraph,
       });
     }
 
@@ -151,6 +153,17 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = settings['backgroundColorTheme'];
+      this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.style.backgroundColor = this.state.backgroundColorTheme || settings['backgroundColorTheme'];
+      });
+      this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
+        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      });
+    }
+
     var ttsVoice = await new Storage().get('ttsVoice');
     var ttsVoiceApplied = false;
 
@@ -163,13 +176,13 @@ class Reader extends React.Component {
           try {
             Speech.configure({ voice: ttsVoice });
             ttsVoiceApplied = true;
-          } catch (e) {}
+          } catch (e) { }
           new Storage().set('ttsVoice', ttsVoice);
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
-    await this.setState({
+    this.setState({
       translate_icon_size: settings['translate_icon_size'],
       fontSize: settings['fontSize'],
       textAlign: settings['textAlign'],
@@ -181,7 +194,7 @@ class Reader extends React.Component {
     });
 
     readerStore.setThemeSettings(settings);
-    readerStore.setBookmark(this.state.bookmark);
+    readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
     if (ttsVoice) {
       readerStore.setTtsVoice(ttsVoice);
@@ -212,13 +225,12 @@ class Reader extends React.Component {
     }
 
 
-    await this.setState({
+    this.setState({
       page: parseInt(page),
       pages: Object.keys(pagination).length,
+    }, () => {
+      this.openPage(true);
     });
-
-
-    this.openPage(true);
 
     var haveTraining = await new Storage().get('haveTraining') == 'true';
     if (haveTraining == false) {
@@ -229,6 +241,11 @@ class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
+      if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
+      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+    }
     this.setState({
       paragraphs: false,
     });
@@ -248,7 +265,7 @@ class Reader extends React.Component {
 
       scroll_percent = 0;
 
-      await this.setState({ show_list: false, paragraphs: false });
+      this.setState({ show_list: false, paragraphs: false });
 
       await new Storage().set('page_' + this.props.stack.route.params.book_id, this.state.page.toString());
 
@@ -278,7 +295,7 @@ class Reader extends React.Component {
             return sentences !== false ? { name: paragraphId, sentences: sentences } : null;
           }
         }));
-        results.forEach(function(p) { if (p !== null) paragraphs.push(p); });
+        results.forEach(function (p) { if (p !== null) paragraphs.push(p); });
       }
 
       if (paragraphs.length != 0) {
@@ -287,7 +304,7 @@ class Reader extends React.Component {
           if (paragraphs.length > 8) paragraphs.splice(8, 0, { _type: 'ad', _key: 'ad_8' });
         }
 
-        await this.setState({
+        this.setState({
           paragraphs: paragraphs,
           show_list: true,
         });
@@ -305,7 +322,7 @@ class Reader extends React.Component {
                     if (!isNaN(offset) && offset >= 0) {
                       this.flatListRef.scrollToOffset({ offset: offset, animated: false });
                     }
-                  } catch (e) {}
+                  } catch (e) { }
                 }
               }, 500);
             }
@@ -324,7 +341,7 @@ class Reader extends React.Component {
                     try {
                       var approximateOffset = bookmarkIndex * 200; // примерная высота элемента
                       this.flatListRef.scrollToOffset({ offset: approximateOffset, animated: false });
-                    } catch (e2) {}
+                    } catch (e2) { }
                   }
                 }
               }, 500);
@@ -340,19 +357,19 @@ class Reader extends React.Component {
   }
 
   async prevPage() {
-    await this.setState({
+    this.setState({
       page: this.state.page - 1,
+    }, () => {
+      this.checkAd();
     });
-
-    this.checkAd();
   }
 
   async nextPage() {
-    await this.setState({
+    this.setState({
       page: this.state.page + 1,
+    }, () => {
+      this.checkAd();
     });
-
-    this.checkAd();
   }
 
   async checkAd() {
@@ -422,7 +439,7 @@ class Reader extends React.Component {
   }
 
   async showAd() {
-    await this.setState({
+    this.setState({
       showAdInfo: false,
       showAdOpacity: true,
     });
@@ -602,6 +619,10 @@ class Reader extends React.Component {
   }
 
   changeColorTheme(backgroundColor, textColor, secondColor) {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.body.style.backgroundColor = backgroundColor;
+    }
+
     this.setState({
       show_list: false,
     }, function () {
@@ -751,14 +772,14 @@ class Reader extends React.Component {
     if (!voiceId) return;
 
     // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Speech.stop(); } catch (e) {}
+    try { Speech.stop(); } catch (e) { }
     readerStore.setCurrentSpeaking(null);
 
     var applied = false;
     try {
       Speech.configure({ voice: voiceId });
       applied = true;
-    } catch (e) {}
+    } catch (e) { }
 
     new Storage().set('ttsVoice', voiceId);
     readerStore.setTtsVoice(voiceId);           // сбрасывает ttsVoiceApplied в false
@@ -772,7 +793,7 @@ class Reader extends React.Component {
     });
   }
 
-  renderParagraphItem({item}) {
+  renderParagraphItem({ item }) {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
@@ -842,6 +863,7 @@ class Reader extends React.Component {
         ) : (
 
           <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
@@ -917,173 +939,171 @@ class Reader extends React.Component {
               openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
             />
 
-            <View style={[
-              readerScreenStyles.readerHeader,
-              {
+            <View style={readerScreenStyles.layout}>
+              <View style={[readerScreenStyles.header, {
                 backgroundColor: this.state.backgroundColorTheme,
+                borderBottomWidth: 1,
                 borderColor: this.state.secondColorTheme,
-              }
-            ]}>
-              <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                {this.state.textColorTheme == '#ffffff' &&
-                  <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                    source={require('./app/images/header/arrow-left-white.png')} />
-                }
-                {this.state.textColorTheme == '#000000' &&
-                  <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                    source={require('./app/images/header/arrow-left.png')} />
-                }
-              </TouchableOpacity>
-
-              {this.state.pages == 1 ? (
-                <View style={{ flex: 1 }}></View>
-              ) : (
-                <Slider
-                  style={{
-                    flex: 1,
-                    marginLeft: 5,
-                    marginRight: 5,
-                    width: Dimensions.get('window').width - 100
-                  }}
-                  value={this.state.percent}
-                  minimumValue={1}
-                  maximumValue={100}
-                  step={1}
-                  minimumTrackTintColor="#fe4444"
-                  maximumTrackTintColor={this.state.secondColorTheme}
-                  thumbImage={require("./app/images/reader/sliderThumb.png")}
-                  onValueChange={(value) => this.sliderValueChange(value)}
-                  onSlidingComplete={() => this.onSlidingComplete()}
-                />
-              )}
-
-              <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
-                <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                  <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                    <Circle
-                      cx="12" cy="12" r="3"
-                      stroke={this.state.textColorTheme || '#000000'}
-                      strokeWidth={1.4}
-                    />
-                    <Path
-                      stroke={this.state.textColorTheme || '#000000'}
-                      strokeWidth={1.4}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-                    />
-                  </Svg>
-                </View>
-              </TouchableWithoutFeedback>
-
-              <ReaderSettings
-                visible={this.state.showThemeSetting}
-                closeSettings={() => this.setState({ showThemeSetting: false })}
-
-                fontSize={this.state.fontSize}
-                changeFontSize={(value) => this.changeFontSize(value)}
-
-                textAlign={this.state.textAlign}
-                textAlignChange={() => this.textAlignChange()}
-
-                backgroundColorTheme={this.state.backgroundColorTheme}
-                changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
-
-                fontFamily={this.state.fontFamily}
-                chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
-
-                ttsVoice={this.state.ttsVoice}
-                changeVoice={(voiceId) => this.changeVoice(voiceId)}
-              />
-
-            </View>
-
-            <View style={readerScreenStyles.readerContainer}>
-              {this.state.show_list &&
-                <FlatList
-                  ref={(ref) => this.flatListRef = ref}
-                  data={this.state.paragraphs}
-                  keyExtractor={(item) => item._type === 'ad' ? item._key : 'p_' + item.name}
-                  renderItem={(itemInfo) => this.renderParagraphItem(itemInfo)}
-                  initialNumToRender={5}
-                  maxToRenderPerBatch={3}
-                  windowSize={7}
-                  onScroll={(event) => this.onScroll(event)}
-                  onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
-                  scrollEventThrottle={8}
-                  ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
-                  style={{ flex: 1 }}
-                />
-              }
-            </View>
-
-            <View style={[
-              readerScreenStyles.footerNav,
-              {
-                height: 50 + safeAreaBottom,
-                paddingBottom: safeAreaBottom,
-                borderTopWidth: 1,
-                borderTopColor: this.state.secondColorTheme
-              }
-            ]}>
-
-              {this.state.page > 1 &&
-                <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
+              }]}>
+                <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                   {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={readerScreenStyles.navArrow}
+                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
                       source={require('./app/images/header/arrow-left-white.png')} />
                   }
                   {this.state.textColorTheme == '#000000' &&
-                    <Image style={readerScreenStyles.navArrow}
+                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
                       source={require('./app/images/header/arrow-left.png')} />
                   }
                 </TouchableOpacity>
-              }
-              {this.state.page == 1 &&
-                <React.Fragment>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-left.png')} />
-                  }
 
-                </React.Fragment>
-              }
+                {this.state.pages == 1 ? (
+                  <View style={{ flex: 1 }}></View>
+                ) : (
+                  <Slider
+                    style={{
+                      flex: 1,
+                      marginLeft: 5,
+                      marginRight: 5,
+                      width: Dimensions.get('window').width - 100
+                    }}
+                    value={this.state.percent}
+                    minimumValue={1}
+                    maximumValue={100}
+                    step={1}
+                    minimumTrackTintColor="#fe4444"
+                    maximumTrackTintColor={this.state.secondColorTheme}
+                    thumbImage={require("./app/images/reader/sliderThumb.png")}
+                    onValueChange={(value) => this.sliderValueChange(value)}
+                    onSlidingComplete={() => this.onSlidingComplete()}
+                  />
+                )}
 
+                <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
+                  <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                      <Circle
+                        cx="12" cy="12" r="3"
+                        stroke={this.state.textColorTheme || '#000000'}
+                        strokeWidth={1.4}
+                      />
+                      <Path
+                        stroke={this.state.textColorTheme || '#000000'}
+                        strokeWidth={1.4}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+                      />
+                    </Svg>
+                  </View>
+                </TouchableWithoutFeedback>
 
-              <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                <Text style={{ color: this.state.textColorTheme, lineHeight: 30, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                <ReaderSettings
+                  visible={this.state.showThemeSetting}
+                  closeSettings={() => this.setState({ showThemeSetting: false })}
+
+                  fontSize={this.state.fontSize}
+                  changeFontSize={(value) => this.changeFontSize(value)}
+
+                  textAlign={this.state.textAlign}
+                  textAlignChange={() => this.textAlignChange()}
+
+                  backgroundColorTheme={this.state.backgroundColorTheme}
+                  changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
+
+                  fontFamily={this.state.fontFamily}
+                  chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
+
+                  ttsVoice={this.state.ttsVoice}
+                  changeVoice={(voiceId) => this.changeVoice(voiceId)}
+                />
+
               </View>
 
-              {this.state.page < this.state.pages &&
-                <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30 }}
-                      source={require('./app/images/header/arrow-right-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30 }}
-                      source={require('./app/images/header/arrow-right.png')} />
-                  }
-                </TouchableOpacity>
-              }
-              {this.state.page == this.state.pages &&
-                <React.Fragment>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-right-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-right.png')} />
-                  }
+              <View style={readerScreenStyles.readerContainer}>
+                {this.state.show_list &&
+                  <FlatList
+                    ref={(ref) => this.flatListRef = ref}
+                    data={this.state.paragraphs}
+                    keyExtractor={(item) => item._type === 'ad' ? item._key : 'p_' + item.name}
+                    renderItem={(itemInfo) => this.renderParagraphItem(itemInfo)}
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={3}
+                    windowSize={7}
+                    onScroll={(event) => this.onScroll(event)}
+                    onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
+                    scrollEventThrottle={8}
+                    ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
+                    style={{ flex: 1 }}
+                  />
+                }
+              </View>
 
-                </React.Fragment>
-              }
+              <View style={[readerScreenStyles.footerNav, {
+                height: 50 + safeAreaBottom,
+                paddingBottom: safeAreaBottom,
+                backgroundColor: this.state.backgroundColorTheme,
+                borderTopWidth: 1,
+                borderTopColor: this.state.secondColorTheme,
+              }]}>
 
+                {this.state.page > 1 &&
+                  <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={readerScreenStyles.navArrow}
+                        source={require('./app/images/header/arrow-left-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={readerScreenStyles.navArrow}
+                        source={require('./app/images/header/arrow-left.png')} />
+                    }
+                  </TouchableOpacity>
+                }
+                {this.state.page == 1 &&
+                  <React.Fragment>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-left-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-left.png')} />
+                    }
+
+                  </React.Fragment>
+                }
+
+
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <Text style={{ color: this.state.textColorTheme, lineHeight: 30, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                </View>
+
+                {this.state.page < this.state.pages &&
+                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30 }}
+                        source={require('./app/images/header/arrow-right-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30 }}
+                        source={require('./app/images/header/arrow-right.png')} />
+                    }
+                  </TouchableOpacity>
+                }
+                {this.state.page == this.state.pages &&
+                  <React.Fragment>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-right-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-right.png')} />
+                    }
+
+                  </React.Fragment>
+                }
+
+              </View>
             </View>
 
 

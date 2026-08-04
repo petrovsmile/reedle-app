@@ -29,7 +29,7 @@ class RootApp extends React.Component {
 
     if (current_user != undefined) {
       var parsed_user = JSON.parse(current_user);
-      await this.setState({
+      this.setState({
         current_user: parsed_user,
       });
       appStore.setCurrentUser(parsed_user);
@@ -37,7 +37,7 @@ class RootApp extends React.Component {
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
-    await this.setState({
+    this.setState({
       confirm_conditions: confirm_val
     });
     appStore.setConfirmConditions(confirm_val);
@@ -49,6 +49,9 @@ class RootApp extends React.Component {
         has_internet: state.isConnected,
       });
       appStore.setInternet(state.isConnected);
+      if (state.isConnected && this.state.current_user != false) {
+        SyncManager.flush(this.state.current_user.id);
+      }
     });
 
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
@@ -308,7 +311,7 @@ class RootApp extends React.Component {
     const Stack = createStackNavigator();
 
     return (
-      <React.Fragment>
+      <View style={{ flex: 1 }}>
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
           <View style={{ flex: 1, backgroundColor: '#fff' }} />
@@ -341,7 +344,7 @@ class RootApp extends React.Component {
 
           </View>
         ) : (
-          <React.Fragment>
+          <View style={{ flex: 1 }}>
             <NavigationContainer>
               <Stack.Navigator initialRouteName="Home">
                 <Stack.Screen name="Home" options={() => ({ headerShown: false })}>
@@ -356,6 +359,7 @@ class RootApp extends React.Component {
                     borderColor: 'transparent',
                     shadowColor: 'transparent'
                   },
+                  headerShadowVisible: false,
                   headerBackTitle: 'Список книг',
                   headerBackTitleStyle: {
                     color: '#FFF',
@@ -410,9 +414,9 @@ class RootApp extends React.Component {
                 </View>
               </TouchableOpacity>
             }
-          </React.Fragment>
+          </View>
         )}
-      </React.Fragment>
+      </View>
     );
   }
 }

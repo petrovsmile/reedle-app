@@ -7,7 +7,14 @@ class Dictionary extends React.Component {
       auth_method: 'login',
       words: [],
       do_not_find: false,
-      sorting_by: 'date'
+      sorting_by: 'date',
+      learning: false,
+      learning_questions: [],
+      learning_index: 0,
+      learning_answer: null,
+      learning_correct: 0,
+      learning_mistakes: [],
+      learning_complete: false
     };
 
     this.storage_words = [];
@@ -28,8 +35,14 @@ class Dictionary extends React.Component {
   }
 
   async getWords() {
+    if (this._get_words_promise) return this._get_words_promise;
+    this._get_words_promise = this._getWords().finally(() => { this._get_words_promise = null; });
+    return this._get_words_promise;
+  }
+
+  async _getWords() {
     if (this.props.root.state.current_user != false) {
-      await this.setState({
+      this.setState({
         do_not_find: false,
         words: [],
       });
@@ -39,9 +52,7 @@ class Dictionary extends React.Component {
       var words = await this.getWordsFromStorage();
 
       if (this.state.sorting_by == 'alphabet') {
-        words = words.sort((a, b) => {
-          return a.original >= b.original ? 0 : - 1;
-        });
+        words = words.sort((a, b) => a.original.localeCompare(b.original));
       } else {
         words = words.reverse();
       }
@@ -60,88 +71,14 @@ class Dictionary extends React.Component {
     var words = await Promise.all(words_keys.map(async word_key => {
       var word = await new Storage().get(word_key, '{}');
 
-      return JSON.parse(word);
+      return word ? JSON.parse(word) : null;
     }));
 
-    return words;
+    return words.filter(word => word != null);
   }
 
   async getWordsFromServer() {
-    var server_words = await new Request('/api/v1/dictionary/words', {
-      user_id: this.props.root.state.current_user.id
-    }, {
-      do_not_show_error: true
-    }).get();
-
-    if (server_words != false) {
-      var ar_delete_keys = [];
-      var ar_add_keys = [];
-
-      // Удаляем с устройства если на сервере удалили и добавляем на сервере, если есть добавленные на устройстве offline
-      await Promise.all(this.storage_words.reverse().map(async storage_word => {
-        var has_word = false;
-        server_words.map(async server_word => {
-          if (server_word.original == storage_word.original && has_word == false) {
-            has_word = true;
-          }
-        })
-        if (has_word == false) {
-          if (storage_word.offline == true) {
-            await new Request('/api/v1/dictionary/words', {
-              original: storage_word.original,
-              user_id: this.props.root.state.current_user.id
-            }, {
-              do_not_show_error: true
-            }).post();
-            storage_word.offline = false;
-            
-            await new Storage().set('word_' + storage_word.original, JSON.stringify(storage_word));
-          } else {
-            ar_delete_keys.push('word_' + storage_word.original);
-          }
-        }
-      }));
-
-      await Promise.all(server_words.reverse().map(async server_word => {
-        // Добавляем, если на сервере есть новые
-        var has_word = false;
-        this.storage_words.forEach((storage_word) => {
-          if (server_word.original == storage_word.original && has_word == false) {
-            has_word = true;
-          }
-        });
-
-        if (has_word == false) {
-          await new Storage().set('word_' + server_word.original, JSON.stringify({
-            original: server_word.original,
-            transcription: server_word.transcription,
-            translate: server_word.translate,
-            created_at: server_word.created_at
-          }));
-          ar_add_keys.push('word_' + server_word.original);
-        }
-      }));
-
-      words_keys = await new Storage().get('words_keys', '[]');
-      words_keys = JSON.parse(words_keys);
-
-      ar_add_keys.forEach(function (add_key) {
-        var index = words_keys.indexOf(add_key);
-        if (index > -1) {
-          words_keys.splice(index, 1);
-        }
-        words_keys.unshift(add_key);
-      });
-
-      ar_delete_keys.forEach(function (delete_key) {
-        var index = words_keys.indexOf(delete_key);
-        if (index > -1) {
-          words_keys.splice(index, 1);
-        }
-      });
-
-      await new Storage().set('words_keys', JSON.stringify(words_keys));
-    }
+    await SyncManager.syncWords(this.props.root.state.current_user.id);
   }
 
   async deleteWord(rowMap, data) {
@@ -153,16 +90,11 @@ class Dictionary extends React.Component {
       words_keys.splice(index, 1);
     }
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
-
-    await new Request('/api/v1/dictionary/words', {
-      original: data.original,
-      user_id: this.props.root.state.current_user.id
-    }, {
-      desciption_error: 'Слово удалено только с этого устройства.'
-    }).delete();
-
-    this.getWords();
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().remove('word_' + data.original);
+    await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
+    await SyncManager.flush(this.props.root.state.current_user.id);
+    await this.getWords();
   }
 
   set_sorting_by(sorting_by) {
@@ -171,6 +103,143 @@ class Dictionary extends React.Component {
     }, function () {
       this.getWords();
     });
+  }
+
+  shuffle(items) {
+    var result = items.slice();
+    for (var i = result.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temporary = result[i];
+      result[i] = result[j];
+      result[j] = temporary;
+    }
+    return result;
+  }
+
+  startLearning(words) {
+    var source = (words || this.state.words).filter(word => word.original && word.translate);
+    var selectedWords = this.shuffle(source).slice(0, 10);
+    var questions = selectedWords.map(word => {
+      var wrongAnswers = this.shuffle(source
+        .filter(otherWord => otherWord.original != word.original && otherWord.translate != word.translate)
+        .map(otherWord => otherWord.translate)
+        .filter((translate, index, translations) => translations.indexOf(translate) == index))
+        .slice(0, 3);
+
+      return {
+        word: word,
+        answers: this.shuffle([word.translate].concat(wrongAnswers))
+      };
+    });
+
+    this.setState({
+      learning: true,
+      learning_questions: questions,
+      learning_index: 0,
+      learning_answer: null,
+      learning_correct: 0,
+      learning_mistakes: [],
+      learning_complete: false
+    });
+  }
+
+  selectLearningAnswer(answer) {
+    if (this.state.learning_answer != null) return;
+
+    var question = this.state.learning_questions[this.state.learning_index];
+    var isCorrect = answer == question.word.translate;
+    this.setState({
+      learning_answer: answer,
+      learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
+      learning_mistakes: isCorrect
+        ? this.state.learning_mistakes
+        : this.state.learning_mistakes.concat([question.word])
+    });
+  }
+
+  nextLearningQuestion() {
+    if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
+      this.setState({ learning_complete: true });
+    } else {
+      this.setState({
+        learning_index: this.state.learning_index + 1,
+        learning_answer: null
+      });
+    }
+  }
+
+  renderLearning() {
+    if (this.state.learning_complete) {
+      return (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
+          <Text style={dictionaryStyles.learningTitle}>Тест завершён</Text>
+          <Text style={dictionaryStyles.learningResult}>
+            Правильно: {this.state.learning_correct} из {this.state.learning_questions.length}
+          </Text>
+          {this.state.learning_mistakes.length > 0 &&
+            <TouchableOpacity style={dictionaryStyles.learningPrimaryButton} onPress={() => this.startLearning(this.state.learning_mistakes)}>
+              <Text style={dictionaryStyles.learningPrimaryButtonText}>Повторить ошибки</Text>
+            </TouchableOpacity>
+          }
+          <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
+            <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={dictionaryStyles.learningBackButton} onPress={() => this.setState({ learning: false })}>
+            <Text style={dictionaryStyles.learningBackButtonText}>Вернуться в словарь</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      );
+    }
+
+    var question = this.state.learning_questions[this.state.learning_index];
+    if (!question) return null;
+
+    return (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
+        <View style={dictionaryStyles.learningHeader}>
+          <TouchableOpacity onPress={() => this.setState({ learning: false })}>
+            <Text style={dictionaryStyles.learningClose}>Закрыть</Text>
+          </TouchableOpacity>
+          <Text style={dictionaryStyles.learningProgress}>
+            {this.state.learning_index + 1} из {this.state.learning_questions.length}
+          </Text>
+        </View>
+        <View style={dictionaryStyles.learningCard}>
+          <Text style={dictionaryStyles.learningWord}>{question.word.original}</Text>
+          {question.word.transcription != null &&
+            <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
+          }
+        </View>
+        <Text style={dictionaryStyles.learningPrompt}>Выберите перевод</Text>
+        {question.answers.map(answer => {
+          var answerStyle = null;
+          if (this.state.learning_answer != null) {
+            if (answer == question.word.translate) {
+              answerStyle = dictionaryStyles.learningAnswerCorrect;
+            } else if (answer == this.state.learning_answer) {
+              answerStyle = dictionaryStyles.learningAnswerWrong;
+            }
+          }
+
+          return (
+            <TouchableOpacity
+              key={answer}
+              disabled={this.state.learning_answer != null}
+              style={[dictionaryStyles.learningAnswer, answerStyle]}
+              onPress={() => this.selectLearningAnswer(answer)}>
+              <Text style={dictionaryStyles.learningAnswerText}>{answer}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        {this.state.learning_answer != null &&
+          <TouchableOpacity style={dictionaryStyles.learningPrimaryButton} onPress={() => this.nextLearningQuestion()}>
+            <Text style={dictionaryStyles.learningPrimaryButtonText}>
+              {this.state.learning_index + 1 == this.state.learning_questions.length ? 'Показать результат' : 'Следующее слово'}
+            </Text>
+          </TouchableOpacity>
+        }
+      </ScrollView>
+    );
   }
 
   render() {
@@ -212,9 +281,13 @@ class Dictionary extends React.Component {
                 </View>
               </View>
             }
-            {this.state.do_not_find == false &&
+            {this.state.do_not_find == false && (this.state.learning ? this.renderLearning() :
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
+
+                  <TouchableOpacity style={dictionaryStyles.learningStartButton} onPress={() => this.startLearning()}>
+                    <Text style={dictionaryStyles.learningPrimaryButtonText}>Учить слова</Text>
+                  </TouchableOpacity>
 
                   {this.props.root.state.has_subscription == false &&
                     <React.Fragment>
@@ -288,7 +361,7 @@ class Dictionary extends React.Component {
                   }}
                 />
               </View>
-            }
+            )}
           </React.Fragment>
         )}
       </SafeAreaView>

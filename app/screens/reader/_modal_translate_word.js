@@ -206,20 +206,24 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     } else {
       AppMetrica.reportEvent('addWordToDictionary', { word: this.props.original });
 
-      var add_to_server = await new Request('/api/v1/dictionary/words', {
+      var previousWord = await new Storage().get('word_' + this.props.original, '{}');
+      previousWord = JSON.parse(previousWord);
+      var wordPayload = {
         original: this.props.original,
-        user_id: this.props.current_user.id
-      }, {
-        desciption_error: 'Слово добавлено только на этом устройстве.'
-      }).post();
+        transcription: this.props.transcription,
+        translate: this.props.translate
+      };
 
       await new Storage().set('word_' + this.props.original, JSON.stringify({
         original: this.props.original,
         transcription: this.props.transcription,
         translate: this.props.translate,
-        offline: add_to_server == false
+        version: previousWord.version,
+        offline: true
       }));
       await this.addWordToKeys('word_' + this.props.original);
+      await SyncManager.enqueue('word', 'upsert', wordPayload, previousWord.version);
+      await SyncManager.flush(this.props.current_user.id);
 
       this.props.setWordInDictionary(true);
 
@@ -245,30 +249,29 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     words_keys.unshift(value);
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
   async deleteWordFromDictionary() {
     this.props.setWordInDictionary(false);
 
-    this.deleteBookmarkKey('word_' + this.props.original);
+    var storedWord = await new Storage().get('word_' + this.props.original, '{}');
+    storedWord = JSON.parse(storedWord);
+    await this.deleteBookmarkKey('word_' + this.props.original);
 
     this.setState({
       count_words: this.state.count_words - 1
     });
 
-    new Storage().remove('word_' + this.props.original);
-
-    await new Request('/api/v1/dictionary/words', {
-      original: this.props.original,
-      user_id: this.props.current_user.id
-    }, {
-      desciption_error: 'Слово удалено только с этого устройства.'
-    }).delete();
+    await new Storage().remove('word_' + this.props.original);
+    await SyncManager.enqueue('word', 'delete', {
+      original: this.props.original
+    }, storedWord.version);
+    await SyncManager.flush(this.props.current_user.id);
   }
 
   async deleteBookmarkKey(value) {
-    var words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys', '[]');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf(value);
@@ -276,7 +279,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       words_keys.splice(index, 1);
     }
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
   openSubscription() {

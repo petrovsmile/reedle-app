@@ -90,6 +90,83 @@ class ReaderStore {
 }
 const readerStore = new ReaderStore();
 
+// ==================== DownloadStore ====================
+class DownloadStore {
+  downloads = {};
+  completed = {};
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  get(bookId) {
+    return this.downloads[bookId] || null;
+  }
+
+  isCompleted(bookId) {
+    return this.completed[bookId] === true;
+  }
+
+  setDownload(bookId, changes) {
+    this.downloads = Object.assign({}, this.downloads, {
+      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
+    });
+  }
+
+  async start(book) {
+    if (!book || this.completed[book.id]) return;
+    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
+    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
+
+    this.setDownload(book.id, {
+      bookId: book.id,
+      name: book.name,
+      nameEn: book.name_en,
+      color: book.color,
+      progress: 0,
+      status: 'preparing',
+    });
+
+    AppMetrica.reportEvent('loader', { status: 'start' });
+
+    try {
+      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
+      if (!files || files.length === 0) throw new Error('download_list is empty');
+
+      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
+      this.setDownload(book.id, { status: 'downloading', progress: 2 });
+
+      for (var index = 0; index < files.length; index++) {
+        var requestPath = files[index];
+        var response = await new Request(requestPath, {}).get();
+        if (response === false) throw new Error('Failed to download ' + requestPath);
+
+        var filePath = requestPath.replace('/result', '');
+        await RNFS.writeFile(file_root + filePath, JSON.stringify(response), 'utf8');
+
+        var progress = Math.max(2, ((index + 1) / files.length) * 100);
+        this.setDownload(book.id, { progress: progress, status: 'downloading' });
+      }
+
+      await AsyncStorage.setItem('have_file_' + book.id, 'true');
+      this.completed = Object.assign({}, this.completed, { [book.id]: true });
+      this.setDownload(book.id, { progress: 100, status: 'completed' });
+      AppMetrica.reportEvent('loader', { status: 'finish' });
+      AppMetrica.reportEvent('loader', { progress: 100 });
+    } catch (error) {
+      this.setDownload(book.id, { status: 'error', error: error.message });
+      AppMetrica.reportEvent('loader', { status: 'error' });
+    }
+  }
+
+  dismiss(bookId) {
+    var downloads = Object.assign({}, this.downloads);
+    delete downloads[bookId];
+    this.downloads = downloads;
+  }
+}
+const downloadStore = new DownloadStore();
+
 // ==================== HomeStore ====================
 class HomeStore {
   open_property = false;

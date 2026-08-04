@@ -1,4 +1,31 @@
 var readerScreenStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    minHeight: 0,
+    position: 'relative',
+    ...(Platform.OS === 'web' ? {
+      height: '100vh',
+      maxHeight: '100vh',
+      overflow: 'hidden',
+    } : {}),
+  },
+  layout: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  header: {
+    height: 40,
+    flexShrink: 0,
+    flexDirection: 'row',
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    } : {}),
+  },
   bookTitle: {
     marginTop: 20,
     paddingLeft: 40,
@@ -69,11 +96,20 @@ var readerScreenStyles = StyleSheet.create({
   },
   readerContainer: {
     flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
     position: 'relative',
     zIndex: 1,
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      top: 40,
+      bottom: 50,
+      left: 0,
+      right: 0,
+    } : {}),
   },
   footerSpacer: {
-    height: 50,
+    height: Platform.OS === 'web' ? 0 : 50,
   },
   safeRoot: {
     flex: 1,
@@ -87,8 +123,16 @@ var readerScreenStyles = StyleSheet.create({
   },
   footerNav: {
     height: 50,
+    flexShrink: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    } : {}),
   },
   navButton: {
     padding: 10,

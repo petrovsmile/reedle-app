@@ -97,36 +97,34 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
       if (readerStore.bookmark == this.props.data['name']) {
         this.props.setBookmark(false);
-
-        this.deleteBookmarkKey('bookmark_' + this.props.book_id);
-
-        new Storage().remove('bookmark_' + this.props.book_id);
-
-        await new Request('/api/v1/bookmarks', {
-          book_id: this.props.book_id,
-          user_id: this.props.current_user.id
-        }, {
-          desciption_error: 'Закладка удалена только с этого устройства.'
-        }).delete();
+        var storedBookmark = await new Storage().get('bookmark_' + this.props.book_id, '{}');
+        storedBookmark = JSON.parse(storedBookmark);
+        await this.deleteBookmarkKey('bookmark_' + this.props.book_id);
+        await new Storage().remove('bookmark_' + this.props.book_id);
+        await SyncManager.enqueue('bookmark', 'delete', {
+          book_id: this.props.book_id
+        }, storedBookmark.version);
+        await SyncManager.flush(this.props.current_user.id);
       } else {
-        var add_to_server = await new Request('/api/v1/bookmarks', {
+        var previousBookmark = await new Storage().get('bookmark_' + this.props.book_id, '{}');
+        previousBookmark = JSON.parse(previousBookmark);
+        var bookmarkPayload = {
           book_id: this.props.book_id,
-          user_id: this.props.current_user.id,
           page: this.props.page,
           paragraph: this.props.data['name']
-        }, {
-          desciption_error: 'Закладка добавлена только на этом устройстве.'
-        }).post();
+        };
 
         await new Storage().set('bookmark_' + this.props.book_id, JSON.stringify({
           book_id: this.props.book_id,
           book_name: this.props.book_name,
           page: this.props.page,
           paragraph: this.props.data['name'],
-          offline: add_to_server == false
+          version: previousBookmark.version,
+          offline: true
         }));
         await this.addBookmarkToKeys('bookmark_' + this.props.book_id);
-
+        await SyncManager.enqueue('bookmark', 'upsert', bookmarkPayload, previousBookmark.version);
+        await SyncManager.flush(this.props.current_user.id);
         await this.props.setBookmark(this.props.data['name']);
       }
 
@@ -134,7 +132,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   async addBookmarkToKeys(value) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    let bookmarks_keys = await new Storage().get('bookmarks_keys');
     if (bookmarks_keys == undefined) {
       bookmarks_keys = []
     } else {
@@ -148,11 +146,11 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     bookmarks_keys.unshift(value);
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
   }
 
   async deleteBookmarkKey(value) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    var bookmarks_keys = await new Storage().get('bookmarks_keys', '[]');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
     var index = bookmarks_keys.indexOf(value);
@@ -160,7 +158,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
       bookmarks_keys.splice(index, 1);
     }
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
   }
 
   translateWord(word_id) {

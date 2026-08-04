@@ -4,6 +4,36 @@ const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3000';
+
+class EmitPwaAssetsPlugin {
+    apply(compiler) {
+        compiler.hooks.thisCompilation.tap('EmitPwaAssetsPlugin', (compilation) => {
+            compilation.hooks.processAssets.tap(
+                {
+                    name: 'EmitPwaAssetsPlugin',
+                    stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
+                },
+                () => {
+                    const { RawSource } = compiler.webpack.sources;
+                    const assets = {
+                        'manifest.webmanifest': './public/manifest.webmanifest',
+                        'sw.js': './public/sw.js',
+                        'icons/icon-192.png': './public/icons/icon-192.png',
+                        'icons/icon-512.png': './public/icons/icon-512.png',
+                    };
+
+                    Object.entries(assets).forEach(([outputPath, sourcePath]) => {
+                        compilation.emitAsset(
+                            outputPath,
+                            new RawSource(compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath)))
+                        );
+                    });
+                }
+            );
+        });
+    }
+}
 
 module.exports = {
     mode: isProduction ? 'production' : 'development',
@@ -12,7 +42,10 @@ module.exports = {
     entry: './index.web.js',
 
     output: {
-        path: path.resolve(__dirname, 'web'),
+        path: isProduction
+            ? path.resolve(__dirname, '../../ruby/read/public/app')
+            : path.resolve(__dirname, 'web'),
+        publicPath: isProduction ? '/app/' : '/',
         filename: 'bundle.js',
         clean: true,
     },
@@ -111,9 +144,12 @@ module.exports = {
     plugins: [
         new HtmlWebpackPlugin({
             template: './public/index.html',
+            favicon: './ios/reedle/Images.xcassets/AppIcon.appiconset/Icon-180.png',
             inject: 'body',
             scriptLoading: 'defer',
+            ...(isProduction ? { base: '/app/' } : {}),
         }),
+        new EmitPwaAssetsPlugin(),
         new webpack.DefinePlugin({
             '__DEV__': JSON.stringify(!isProduction),
             'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
@@ -130,7 +166,7 @@ module.exports = {
             directory: path.join(__dirname, 'public'),
         },
         compress: true,
-        port: 3000,
+        port: 3001,
         hot: true,
         open: true,
         historyApiFallback: true,
@@ -142,8 +178,8 @@ module.exports = {
         },
         proxy: [
             {
-                context: ['/api'],
-                target: 'https://reedle.ru',
+                context: ['/api', '/books'],
+                target: apiProxyTarget,
                 changeOrigin: true,
                 secure: false,
                 onProxyReq: (proxyReq) => {

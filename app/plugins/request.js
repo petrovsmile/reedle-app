@@ -72,15 +72,22 @@ class Request {
         }
 
 
-        if (response.data['response'] != undefined) {
-          return response.data['response'];
-        } else {
-          return response.data;
+        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
+        if (this.options.detailed_response == true) {
+          return { ok: true, status: response.status, data: data };
         }
+        return data;
 
       } catch (e) {
         if (this.options.do_not_show_error != true) {
           appStore.showError('Ошибка подключения к серверу', this.options.desciption_error);
+        }
+        if (this.options.detailed_response == true) {
+          return {
+            ok: false,
+            status: e.response ? e.response.status : 0,
+            data: e.response && e.response.data ? e.response.data.response : null
+          };
         }
         return false;
       }
@@ -88,6 +95,9 @@ class Request {
     } else {
       if (this.options.do_not_show_error != true) {
         appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
+      }
+      if (this.options.detailed_response == true) {
+        return { ok: false, status: 0, data: null };
       }
       return false;
     }

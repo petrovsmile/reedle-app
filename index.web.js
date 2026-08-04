@@ -10,3 +10,14 @@ if (typeof document !== 'undefined') {
     rootTag: document.getElementById('root')
   });
 }
+
+if (
+  process.env.NODE_ENV === 'production' &&
+  typeof window !== 'undefined' &&
+  'serviceWorker' in navigator
+) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })
+      .catch((error) => console.error('Service worker registration failed:', error));
+  });
+}

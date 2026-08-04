@@ -192,14 +192,15 @@ const CURRENT_IOS_VERSION = '1.3.1'
 const CURRENT_ANDROID_VERSION = '1.3.2'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
-const HOST="https://reedle.ru"
+//const HOST="https://reedle.ru"
 //const HOST="https://stage.reedle.ru"
-//const HOST = "http://localhost:3000";
+const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
 // Перевод предложений — временно отключён в приложении, доступен только на сайте
 const FEATURE_SENTENCE_TRANSLATE = false;
+
 const app_theme_colors = {
   background: "#FFF",
   backgroundLight: "#eee",
@@ -383,7 +384,79 @@ const homeStyles = StyleSheet.create({
     height: 20,
     margin: 5
   },
+  downloadsPanel: {
+    marginLeft: 15,
+    marginRight: 15,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  downloadsTitle: {
+    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222',
+  },
+  downloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  downloadBookName: {
+    marginBottom: 5,
+    fontSize: 13,
+    color: '#333',
+  },
+  downloadProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: '#e5e5e5',
+  },
+  downloadProgressValue: {
+    height: 6,
+    borderRadius: 3,
+  },
+  downloadStatus: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#777',
+  },
+  downloadDismiss: {
+    width: 30,
+    height: 30,
+    marginLeft: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadDismissText: {
+    fontSize: 24,
+    lineHeight: 26,
+    color: '#999',
+  },
+  swipeMenuButton: {
+    width: 65,
+    height: 130,
+    marginTop: 5,
+    marginLeft: -10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  swipeMenuButtonText: {
+    width: 130,
+    color: '#FFF',
+    textAlign: 'center',
+    transform: [{ rotate: '-90deg' }],
+  },
 });
+
 const bookmarksStyles = StyleSheet.create({
   auth_content: {
     margin: 15,
@@ -410,8 +483,134 @@ const dictionaryStyles = StyleSheet.create({
     paddingRight: 8, 
     borderRadius: 4,
     height: 24
+  },
+  learningStartButton: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#f05458',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  learningContainer: {
+    flex: 1,
+    padding: 16
+  },
+  learningHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24
+  },
+  learningClose: {
+    color: '#f05458',
+    fontSize: 16
+  },
+  learningProgress: {
+    color: '#777',
+    fontSize: 16
+  },
+  learningCard: {
+    minHeight: 150,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#FFF'
+  },
+  learningWord: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
+  learningTranscription: {
+    color: '#999',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center'
+  },
+  learningPrompt: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 24,
+    marginBottom: 12
+  },
+  learningAnswer: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFF'
+  },
+  learningAnswerCorrect: {
+    borderColor: '#75b641',
+    backgroundColor: '#eaf6df'
+  },
+  learningAnswerWrong: {
+    borderColor: '#f05458',
+    backgroundColor: '#fdebec'
+  },
+  learningAnswerText: {
+    fontSize: 16
+  },
+  learningPrimaryButton: {
+    minHeight: 48,
+    borderRadius: 8,
+    backgroundColor: '#f05458',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 16
+  },
+  learningPrimaryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  learningSecondaryButton: {
+    minHeight: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f05458',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 12
+  },
+  learningSecondaryButtonText: {
+    color: '#f05458',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  learningBackButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12
+  },
+  learningBackButtonText: {
+    color: '#777',
+    fontSize: 15
+  },
+  learningTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 50
+  },
+  learningResult: {
+    fontSize: 20,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 20
   }
 });
+
 const profileStyles = StyleSheet.create({
   content: {
     padding: 15,
@@ -539,6 +738,33 @@ const profileStyles = StyleSheet.create({
   }
 });
 var readerScreenStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    minHeight: 0,
+    position: 'relative',
+    ...(Platform.OS === 'web' ? {
+      height: '100vh',
+      maxHeight: '100vh',
+      overflow: 'hidden',
+    } : {}),
+  },
+  layout: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  header: {
+    height: 40,
+    flexShrink: 0,
+    flexDirection: 'row',
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    } : {}),
+  },
   bookTitle: {
     marginTop: 20,
     paddingLeft: 40,
@@ -609,11 +835,20 @@ var readerScreenStyles = StyleSheet.create({
   },
   readerContainer: {
     flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
     position: 'relative',
     zIndex: 1,
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      top: 40,
+      bottom: 50,
+      left: 0,
+      right: 0,
+    } : {}),
   },
   footerSpacer: {
-    height: 50,
+    height: Platform.OS === 'web' ? 0 : 50,
   },
   safeRoot: {
     flex: 1,
@@ -627,8 +862,16 @@ var readerScreenStyles = StyleSheet.create({
   },
   footerNav: {
     height: 50,
+    flexShrink: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    ...(Platform.OS === 'web' ? {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 2,
+    } : {}),
   },
   navButton: {
     padding: 10,
@@ -740,6 +983,83 @@ class ReaderStore {
 }
 const readerStore = new ReaderStore();
 
+// ==================== DownloadStore ====================
+class DownloadStore {
+  downloads = {};
+  completed = {};
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  get(bookId) {
+    return this.downloads[bookId] || null;
+  }
+
+  isCompleted(bookId) {
+    return this.completed[bookId] === true;
+  }
+
+  setDownload(bookId, changes) {
+    this.downloads = Object.assign({}, this.downloads, {
+      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
+    });
+  }
+
+  async start(book) {
+    if (!book || this.completed[book.id]) return;
+    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
+    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
+
+    this.setDownload(book.id, {
+      bookId: book.id,
+      name: book.name,
+      nameEn: book.name_en,
+      color: book.color,
+      progress: 0,
+      status: 'preparing',
+    });
+
+    AppMetrica.reportEvent('loader', { status: 'start' });
+
+    try {
+      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
+      if (!files || files.length === 0) throw new Error('download_list is empty');
+
+      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
+      this.setDownload(book.id, { status: 'downloading', progress: 2 });
+
+      for (var index = 0; index < files.length; index++) {
+        var requestPath = files[index];
+        var response = await new Request(requestPath, {}).get();
+        if (response === false) throw new Error('Failed to download ' + requestPath);
+
+        var filePath = requestPath.replace('/result', '');
+        await RNFS.writeFile(file_root + filePath, JSON.stringify(response), 'utf8');
+
+        var progress = Math.max(2, ((index + 1) / files.length) * 100);
+        this.setDownload(book.id, { progress: progress, status: 'downloading' });
+      }
+
+      await AsyncStorage.setItem('have_file_' + book.id, 'true');
+      this.completed = Object.assign({}, this.completed, { [book.id]: true });
+      this.setDownload(book.id, { progress: 100, status: 'completed' });
+      AppMetrica.reportEvent('loader', { status: 'finish' });
+      AppMetrica.reportEvent('loader', { progress: 100 });
+    } catch (error) {
+      this.setDownload(book.id, { status: 'error', error: error.message });
+      AppMetrica.reportEvent('loader', { status: 'error' });
+    }
+  }
+
+  dismiss(bookId) {
+    var downloads = Object.assign({}, this.downloads);
+    delete downloads[bookId];
+    this.downloads = downloads;
+  }
+}
+const downloadStore = new DownloadStore();
+
 // ==================== HomeStore ====================
 class HomeStore {
   open_property = false;
@@ -826,15 +1146,22 @@ class Request {
         }
 
 
-        if (response.data['response'] != undefined) {
-          return response.data['response'];
-        } else {
-          return response.data;
+        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
+        if (this.options.detailed_response == true) {
+          return { ok: true, status: response.status, data: data };
         }
+        return data;
 
       } catch (e) {
         if (this.options.do_not_show_error != true) {
           appStore.showError('Ошибка подключения к серверу', this.options.desciption_error);
+        }
+        if (this.options.detailed_response == true) {
+          return {
+            ok: false,
+            status: e.response ? e.response.status : 0,
+            data: e.response && e.response.data ? e.response.data.response : null
+          };
         }
         return false;
       }
@@ -843,10 +1170,14 @@ class Request {
       if (this.options.do_not_show_error != true) {
         appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
       }
+      if (this.options.detailed_response == true) {
+        return { ok: false, status: 0, data: null };
+      }
       return false;
     }
   }
 }
+
 class Storage {
   async get(key, default_value) {
     var value = await AsyncStorage.getItem(key);
@@ -872,6 +1203,233 @@ class Storage {
     await AsyncStorage.removeItem(key);
   }
 }
+class SyncManager {
+  static queue_key = 'sync_operations_v1';
+  static _flush_promise = null;
+
+  static operationId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  static entityKey(entity, payload) {
+    return entity == 'bookmark' ? payload.book_id.toString() : payload.original;
+  }
+
+  static async operations() {
+    var value = await new Storage().get(this.queue_key, '[]');
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static async enqueue(entity, action, payload, base_version) {
+    var operations = await this.operations();
+    var key = this.entityKey(entity, payload);
+    operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
+    operations.push({
+      operation_id: this.operationId(),
+      entity: entity,
+      entity_key: key,
+      action: action,
+      payload: payload,
+      base_version: base_version,
+      created_at: new Date().toISOString()
+    });
+    await new Storage().set(this.queue_key, JSON.stringify(operations));
+  }
+
+  static async pendingKeys(entity) {
+    var operations = await this.operations();
+    return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
+  }
+
+  static async flush(user_id) {
+    if (this._flush_promise != null) return this._flush_promise;
+    this._flush_promise = this._flush(user_id).finally(() => { this._flush_promise = null; });
+    return this._flush_promise;
+  }
+
+  static async _flush(user_id) {
+    var operations = await this.operations();
+    var startedOperationIds = operations.map(operation => operation.operation_id);
+    var remaining = [];
+
+    for (var operation of operations) {
+      var result = await this.send(operation, user_id);
+      if (!result.ok && result.status == 409 && result.data && result.data.item) {
+        operation.base_version = result.data.item.version;
+        operation.operation_id = this.operationId();
+        result = await this.send(operation, user_id);
+      }
+
+      if (result.ok) {
+        var currentOperations = await this.operations();
+        var hasNewerOperation = currentOperations.some(value =>
+          value.entity == operation.entity &&
+          value.entity_key == operation.entity_key &&
+          value.operation_id != operation.operation_id &&
+          startedOperationIds.indexOf(value.operation_id) == -1
+        );
+        if (!hasNewerOperation) await this.applyAcknowledgement(operation, result.data);
+      } else {
+        remaining.push(operation);
+        if (result.status == 0) {
+          var currentIndex = operations.indexOf(operation);
+          remaining = remaining.concat(operations.slice(currentIndex + 1));
+          break;
+        }
+      }
+    }
+
+    var currentOperations = await this.operations();
+    var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
+    remaining = remaining.concat(newlyQueued);
+    await new Storage().set(this.queue_key, JSON.stringify(remaining));
+    return remaining.length == 0;
+  }
+
+  static async send(operation, user_id) {
+    var url = operation.entity == 'bookmark' ? '/api/v1/bookmarks' : '/api/v1/dictionary/words';
+    var params = Object.assign({}, operation.payload, {
+      user_id: user_id,
+      operation_id: operation.operation_id
+    });
+    if (operation.base_version != undefined && operation.base_version != null) {
+      params.base_version = operation.base_version;
+    }
+    var request = new Request(url, params, { do_not_show_error: true, detailed_response: true });
+    return operation.action == 'delete' ? request.delete() : request.post();
+  }
+
+  static async applyAcknowledgement(operation, data) {
+    var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
+    if (operation.action == 'delete') {
+      await new Storage().remove(key);
+      return;
+    }
+    var stored = await new Storage().get(key, '{}');
+    stored = JSON.parse(stored);
+    stored.version = data.version;
+    stored.updated_at = data.updated_at;
+    stored.offline = false;
+    await new Storage().set(key, JSON.stringify(stored));
+  }
+
+  static async syncBookmarks(user_id) {
+    await this.migrateLegacyBookmarks();
+    await this.flush(user_id);
+    var response = await new Request('/api/v1/bookmarks', {
+      user_id: user_id,
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('bookmark');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.book.id.toString();
+      var storageKey = 'bookmark_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await new Storage().remove(storageKey);
+      } else {
+        await new Storage().set(storageKey, JSON.stringify({
+          book_id: item.book.id,
+          book_name: item.book.name,
+          page: item.page,
+          paragraph: item.paragraph,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'bookmark' && value.action == 'upsert')) {
+      keys.push('bookmark_' + operation.payload.book_id);
+    }
+    keys = Array.from(new Set(keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async syncWords(user_id) {
+    await this.migrateLegacyWords();
+    await this.flush(user_id);
+    var response = await new Request('/api/v1/dictionary/words', {
+      user_id: user_id,
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('word');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.original;
+      var storageKey = 'word_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await new Storage().remove(storageKey);
+      } else {
+        await new Storage().set(storageKey, JSON.stringify({
+          original: item.original,
+          transcription: item.transcription,
+          translate: item.translate,
+          created_at: item.created_at,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'word' && value.action == 'upsert')) {
+      keys.push('word_' + operation.payload.original);
+    }
+    keys = Array.from(new Set(keys));
+    await new Storage().set('words_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async migrateLegacyBookmarks() {
+    var keys = JSON.parse(await new Storage().get('bookmarks_keys', '[]'));
+    var pending = await this.pendingKeys('bookmark');
+    for (var key of keys) {
+      var value = await new Storage().get(key);
+      if (!value) continue;
+      var bookmark = JSON.parse(value);
+      if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
+        await this.enqueue('bookmark', 'upsert', {
+          book_id: bookmark.book_id,
+          page: bookmark.page,
+          paragraph: bookmark.paragraph
+        }, bookmark.version);
+      }
+    }
+  }
+
+  static async migrateLegacyWords() {
+    var keys = JSON.parse(await new Storage().get('words_keys', '[]'));
+    var pending = await this.pendingKeys('word');
+    for (var key of keys) {
+      var value = await new Storage().get(key);
+      if (!value) continue;
+      var word = JSON.parse(value);
+      if (word.offline == true && pending.indexOf(word.original) == -1) {
+        await this.enqueue('word', 'upsert', {
+          original: word.original,
+          transcription: word.transcription,
+          translate: word.translate
+        }, word.version);
+      }
+    }
+  }
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -913,6 +1471,10 @@ class BookmarkStack extends React.Component {
     super(props);
   }
 
+  refresh() {
+    if (this.bookmarksRef) this.bookmarksRef.getBookmarks();
+  }
+
   render() {
     const RootStack = createStackNavigator();
 
@@ -920,13 +1482,14 @@ class BookmarkStack extends React.Component {
       <RootStack.Navigator initialRouteName="Bookmark">
         <RootStack.Screen name="Bookmark" options={() => ({ headerShown: false })}>
           {(stack) => (
-            <Bookmarks root={this.props.root} stack={stack} root_stack={this.props.stack} />
+            <Bookmarks ref={(ref) => this.bookmarksRef = ref} root={this.props.root} stack={stack} root_stack={this.props.stack} />
           )}
         </RootStack.Screen>
       </RootStack.Navigator>
     );
   }
 }
+
 class Bookmarks extends React.Component {
   constructor(props) {
     super(props);
@@ -958,8 +1521,14 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarks() {
+    if (this._get_bookmarks_promise) return this._get_bookmarks_promise;
+    this._get_bookmarks_promise = this._getBookmarks().finally(() => { this._get_bookmarks_promise = null; });
+    return this._get_bookmarks_promise;
+  }
+
+  async _getBookmarks() {
     if (this.props.root.state.current_user != false) {
-      await this.setState({
+      this.setState({
         do_not_find: false,
         bookmarks: [],
       });
@@ -976,101 +1545,7 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarksFromServer() {
-    var server_bookmarks = await new Request('/api/v1/bookmarks', {
-      user_id: this.props.root.state.current_user.id
-    }, {
-      do_not_show_error: true
-    }).get();
-    if (server_bookmarks != false) {
-
-      var ar_delete_keys = [];
-      var ar_add_keys = [];
-
-      // Удаляем с устройства если на сервере удалили и добавляем на сервере, если есть добавленные на устройстве offline
-      await Promise.all(this.storage_bookmarks.reverse().map(async storage_bookmark => {
-        var has_bookmark = false;
-        server_bookmarks.map(async server_bookmark => {
-          if (server_bookmark.book.id == storage_bookmark.book_id && has_bookmark == false) {
-            has_bookmark = true;
-          }
-        })
-        if (has_bookmark == false) {
-          if (storage_bookmark.offline == true) {
-            await new Request('/api/v1/bookmarks', {
-              book_id: storage_bookmark.book_id,
-              user_id: this.props.root.state.current_user.id,
-              page: storage_bookmark.page,
-              paragraph: storage_bookmark.paragraph
-            }, {
-              do_not_show_error: true
-            }).post();
-            storage_bookmark.offline = false;
-            await new Storage().set('bookmark_' + storage_bookmark.book_id, JSON.stringify(storage_bookmark));
-          } else {
-            ar_delete_keys.push('bookmark_' + storage_bookmark.book_id);
-          }
-        }
-      }));
-
-      await Promise.all(server_bookmarks.reverse().map(async server_bookmark => {
-        // Добавляем, если на сервере есть новые
-        var has_bookmark = false;
-        this.storage_bookmarks.forEach((storage_bookmark) => {
-          if (server_bookmark.book.id == storage_bookmark.book_id && has_bookmark == false) {
-            has_bookmark = true;
-          }
-        });
-
-        if (has_bookmark == false) {
-          await new Storage().set('bookmark_' + server_bookmark.book.id, JSON.stringify({
-            book_id: server_bookmark.book.id,
-            book_name: server_bookmark.book.name,
-            page: server_bookmark.page,
-            paragraph: server_bookmark.paragraph
-          }));
-          ar_add_keys.push('bookmark_' + server_bookmark.book.id);
-        }
-
-        // Обновляем, если на сервере параграф больше
-        this.storage_bookmarks.forEach((storage_bookmark) => {
-          if (server_bookmark.book.id == storage_bookmark.book_id) {
-            if (server_bookmark.paragraph > storage_bookmark.paragraph) {
-              new Storage().set('bookmark_' + storage_bookmark.book_id, JSON.stringify({
-                book_id: storage_bookmark.book_id,
-                book_name: storage_bookmark.book_name,
-                page: server_bookmark.page,
-                paragraph: server_bookmark.paragraph
-              }));
-              ar_add_keys.push('bookmark_' + server_bookmark.book.id);
-            }
-          }
-        });
-      }));
-
-      var bookmarks_keys = await new Storage().get('bookmarks_keys');
-      if (bookmarks_keys == undefined || bookmarks_keys == null) {
-        bookmarks_keys = [];
-      } else {
-        bookmarks_keys = JSON.parse(bookmarks_keys);
-      }
-
-      ar_add_keys.forEach(function (add_key) {
-        var index = bookmarks_keys.indexOf(add_key);
-        if (index > -1) {
-          bookmarks_keys.splice(index, 1);
-        }
-        bookmarks_keys.unshift(add_key);
-      });
-
-      ar_delete_keys.forEach(function (delete_key) {
-        var index = bookmarks_keys.indexOf(delete_key);
-        if (index > -1) {
-          bookmarks_keys.splice(index, 1);
-        }
-      });
-
-      await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
-    }
+    await SyncManager.syncBookmarks(this.props.root.state.current_user.id);
   }
 
   async getBookmarksFromStorage() {
@@ -1084,10 +1559,10 @@ class Bookmarks extends React.Component {
     var bookmarks = await Promise.all(bookmarks_keys.map(async bookmark_key => {
       var bookmark = await new Storage().get(bookmark_key);
 
-      return JSON.parse(bookmark);
+      return bookmark ? JSON.parse(bookmark) : null;
     }));
 
-    return bookmarks;
+    return bookmarks.filter(bookmark => bookmark != null);
   }
 
   async deleteBookmark(rowMap, data) {
@@ -1099,16 +1574,11 @@ class Bookmarks extends React.Component {
       bookmarks_keys.splice(index, 1);
     }
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
-
-    await new Request('/api/v1/bookmarks', {
-      book_id: data.book_id,
-      user_id: this.props.root.state.current_user.id
-    }, {
-      desciption_error: 'Закладка удалена только с этого устройства.'
-    }).delete();
-
-    this.getBookmarks();
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().remove('bookmark_' + data.book_id);
+    await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
+    await SyncManager.flush(this.props.root.state.current_user.id);
+    await this.getBookmarks();
   }
 
   openBook(book_id, bookmark) {
@@ -1225,6 +1695,7 @@ function PreviewBookmark() {
     </React.Fragment>
   );
 }
+
 class Dictionary extends React.Component {
   constructor(props) {
     super(props);
@@ -1234,7 +1705,14 @@ class Dictionary extends React.Component {
       auth_method: 'login',
       words: [],
       do_not_find: false,
-      sorting_by: 'date'
+      sorting_by: 'date',
+      learning: false,
+      learning_questions: [],
+      learning_index: 0,
+      learning_answer: null,
+      learning_correct: 0,
+      learning_mistakes: [],
+      learning_complete: false
     };
 
     this.storage_words = [];
@@ -1255,8 +1733,14 @@ class Dictionary extends React.Component {
   }
 
   async getWords() {
+    if (this._get_words_promise) return this._get_words_promise;
+    this._get_words_promise = this._getWords().finally(() => { this._get_words_promise = null; });
+    return this._get_words_promise;
+  }
+
+  async _getWords() {
     if (this.props.root.state.current_user != false) {
-      await this.setState({
+      this.setState({
         do_not_find: false,
         words: [],
       });
@@ -1266,9 +1750,7 @@ class Dictionary extends React.Component {
       var words = await this.getWordsFromStorage();
 
       if (this.state.sorting_by == 'alphabet') {
-        words = words.sort((a, b) => {
-          return a.original >= b.original ? 0 : - 1;
-        });
+        words = words.sort((a, b) => a.original.localeCompare(b.original));
       } else {
         words = words.reverse();
       }
@@ -1287,88 +1769,14 @@ class Dictionary extends React.Component {
     var words = await Promise.all(words_keys.map(async word_key => {
       var word = await new Storage().get(word_key, '{}');
 
-      return JSON.parse(word);
+      return word ? JSON.parse(word) : null;
     }));
 
-    return words;
+    return words.filter(word => word != null);
   }
 
   async getWordsFromServer() {
-    var server_words = await new Request('/api/v1/dictionary/words', {
-      user_id: this.props.root.state.current_user.id
-    }, {
-      do_not_show_error: true
-    }).get();
-
-    if (server_words != false) {
-      var ar_delete_keys = [];
-      var ar_add_keys = [];
-
-      // Удаляем с устройства если на сервере удалили и добавляем на сервере, если есть добавленные на устройстве offline
-      await Promise.all(this.storage_words.reverse().map(async storage_word => {
-        var has_word = false;
-        server_words.map(async server_word => {
-          if (server_word.original == storage_word.original && has_word == false) {
-            has_word = true;
-          }
-        })
-        if (has_word == false) {
-          if (storage_word.offline == true) {
-            await new Request('/api/v1/dictionary/words', {
-              original: storage_word.original,
-              user_id: this.props.root.state.current_user.id
-            }, {
-              do_not_show_error: true
-            }).post();
-            storage_word.offline = false;
-            
-            await new Storage().set('word_' + storage_word.original, JSON.stringify(storage_word));
-          } else {
-            ar_delete_keys.push('word_' + storage_word.original);
-          }
-        }
-      }));
-
-      await Promise.all(server_words.reverse().map(async server_word => {
-        // Добавляем, если на сервере есть новые
-        var has_word = false;
-        this.storage_words.forEach((storage_word) => {
-          if (server_word.original == storage_word.original && has_word == false) {
-            has_word = true;
-          }
-        });
-
-        if (has_word == false) {
-          await new Storage().set('word_' + server_word.original, JSON.stringify({
-            original: server_word.original,
-            transcription: server_word.transcription,
-            translate: server_word.translate,
-            created_at: server_word.created_at
-          }));
-          ar_add_keys.push('word_' + server_word.original);
-        }
-      }));
-
-      words_keys = await new Storage().get('words_keys', '[]');
-      words_keys = JSON.parse(words_keys);
-
-      ar_add_keys.forEach(function (add_key) {
-        var index = words_keys.indexOf(add_key);
-        if (index > -1) {
-          words_keys.splice(index, 1);
-        }
-        words_keys.unshift(add_key);
-      });
-
-      ar_delete_keys.forEach(function (delete_key) {
-        var index = words_keys.indexOf(delete_key);
-        if (index > -1) {
-          words_keys.splice(index, 1);
-        }
-      });
-
-      await new Storage().set('words_keys', JSON.stringify(words_keys));
-    }
+    await SyncManager.syncWords(this.props.root.state.current_user.id);
   }
 
   async deleteWord(rowMap, data) {
@@ -1380,16 +1788,11 @@ class Dictionary extends React.Component {
       words_keys.splice(index, 1);
     }
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
-
-    await new Request('/api/v1/dictionary/words', {
-      original: data.original,
-      user_id: this.props.root.state.current_user.id
-    }, {
-      desciption_error: 'Слово удалено только с этого устройства.'
-    }).delete();
-
-    this.getWords();
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().remove('word_' + data.original);
+    await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
+    await SyncManager.flush(this.props.root.state.current_user.id);
+    await this.getWords();
   }
 
   set_sorting_by(sorting_by) {
@@ -1398,6 +1801,143 @@ class Dictionary extends React.Component {
     }, function () {
       this.getWords();
     });
+  }
+
+  shuffle(items) {
+    var result = items.slice();
+    for (var i = result.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temporary = result[i];
+      result[i] = result[j];
+      result[j] = temporary;
+    }
+    return result;
+  }
+
+  startLearning(words) {
+    var source = (words || this.state.words).filter(word => word.original && word.translate);
+    var selectedWords = this.shuffle(source).slice(0, 10);
+    var questions = selectedWords.map(word => {
+      var wrongAnswers = this.shuffle(source
+        .filter(otherWord => otherWord.original != word.original && otherWord.translate != word.translate)
+        .map(otherWord => otherWord.translate)
+        .filter((translate, index, translations) => translations.indexOf(translate) == index))
+        .slice(0, 3);
+
+      return {
+        word: word,
+        answers: this.shuffle([word.translate].concat(wrongAnswers))
+      };
+    });
+
+    this.setState({
+      learning: true,
+      learning_questions: questions,
+      learning_index: 0,
+      learning_answer: null,
+      learning_correct: 0,
+      learning_mistakes: [],
+      learning_complete: false
+    });
+  }
+
+  selectLearningAnswer(answer) {
+    if (this.state.learning_answer != null) return;
+
+    var question = this.state.learning_questions[this.state.learning_index];
+    var isCorrect = answer == question.word.translate;
+    this.setState({
+      learning_answer: answer,
+      learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
+      learning_mistakes: isCorrect
+        ? this.state.learning_mistakes
+        : this.state.learning_mistakes.concat([question.word])
+    });
+  }
+
+  nextLearningQuestion() {
+    if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
+      this.setState({ learning_complete: true });
+    } else {
+      this.setState({
+        learning_index: this.state.learning_index + 1,
+        learning_answer: null
+      });
+    }
+  }
+
+  renderLearning() {
+    if (this.state.learning_complete) {
+      return (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
+          <Text style={dictionaryStyles.learningTitle}>Тест завершён</Text>
+          <Text style={dictionaryStyles.learningResult}>
+            Правильно: {this.state.learning_correct} из {this.state.learning_questions.length}
+          </Text>
+          {this.state.learning_mistakes.length > 0 &&
+            <TouchableOpacity style={dictionaryStyles.learningPrimaryButton} onPress={() => this.startLearning(this.state.learning_mistakes)}>
+              <Text style={dictionaryStyles.learningPrimaryButtonText}>Повторить ошибки</Text>
+            </TouchableOpacity>
+          }
+          <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
+            <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={dictionaryStyles.learningBackButton} onPress={() => this.setState({ learning: false })}>
+            <Text style={dictionaryStyles.learningBackButtonText}>Вернуться в словарь</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      );
+    }
+
+    var question = this.state.learning_questions[this.state.learning_index];
+    if (!question) return null;
+
+    return (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
+        <View style={dictionaryStyles.learningHeader}>
+          <TouchableOpacity onPress={() => this.setState({ learning: false })}>
+            <Text style={dictionaryStyles.learningClose}>Закрыть</Text>
+          </TouchableOpacity>
+          <Text style={dictionaryStyles.learningProgress}>
+            {this.state.learning_index + 1} из {this.state.learning_questions.length}
+          </Text>
+        </View>
+        <View style={dictionaryStyles.learningCard}>
+          <Text style={dictionaryStyles.learningWord}>{question.word.original}</Text>
+          {question.word.transcription != null &&
+            <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
+          }
+        </View>
+        <Text style={dictionaryStyles.learningPrompt}>Выберите перевод</Text>
+        {question.answers.map(answer => {
+          var answerStyle = null;
+          if (this.state.learning_answer != null) {
+            if (answer == question.word.translate) {
+              answerStyle = dictionaryStyles.learningAnswerCorrect;
+            } else if (answer == this.state.learning_answer) {
+              answerStyle = dictionaryStyles.learningAnswerWrong;
+            }
+          }
+
+          return (
+            <TouchableOpacity
+              key={answer}
+              disabled={this.state.learning_answer != null}
+              style={[dictionaryStyles.learningAnswer, answerStyle]}
+              onPress={() => this.selectLearningAnswer(answer)}>
+              <Text style={dictionaryStyles.learningAnswerText}>{answer}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        {this.state.learning_answer != null &&
+          <TouchableOpacity style={dictionaryStyles.learningPrimaryButton} onPress={() => this.nextLearningQuestion()}>
+            <Text style={dictionaryStyles.learningPrimaryButtonText}>
+              {this.state.learning_index + 1 == this.state.learning_questions.length ? 'Показать результат' : 'Следующее слово'}
+            </Text>
+          </TouchableOpacity>
+        }
+      </ScrollView>
+    );
   }
 
   render() {
@@ -1439,9 +1979,13 @@ class Dictionary extends React.Component {
                 </View>
               </View>
             }
-            {this.state.do_not_find == false &&
+            {this.state.do_not_find == false && (this.state.learning ? this.renderLearning() :
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
+
+                  <TouchableOpacity style={dictionaryStyles.learningStartButton} onPress={() => this.startLearning()}>
+                    <Text style={dictionaryStyles.learningPrimaryButtonText}>Учить слова</Text>
+                  </TouchableOpacity>
 
                   {this.props.root.state.has_subscription == false &&
                     <React.Fragment>
@@ -1515,7 +2059,7 @@ class Dictionary extends React.Component {
                   }}
                 />
               </View>
-            }
+            )}
           </React.Fragment>
         )}
       </SafeAreaView>
@@ -1553,6 +2097,7 @@ function PreviewWord() {
     </React.Fragment>
   );
 }
+
 class Book extends React.Component {
   constructor(props) {
     super(props);
@@ -1653,6 +2198,45 @@ class Book extends React.Component {
     )
   }
 }
+const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
+  var downloads = Object.values(downloadStore.downloads);
+  if (downloads.length === 0) return null;
+
+  return (
+    <View style={homeStyles.downloadsPanel}>
+      <Text style={homeStyles.downloadsTitle}>Загрузка книг</Text>
+      {downloads.map((download) =>
+        <View key={download.bookId} style={homeStyles.downloadRow}>
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={homeStyles.downloadBookName}>{download.nameEn || download.name}</Text>
+            <View style={homeStyles.downloadProgressTrack}>
+              <View style={[
+                homeStyles.downloadProgressValue,
+                {
+                  width: (download.progress || 0) + '%',
+                  backgroundColor: download.status === 'error' ? '#f05458' : (download.color || '#75b641'),
+                }
+              ]} />
+            </View>
+            <Text style={homeStyles.downloadStatus}>
+              {download.status === 'error'
+                ? 'Ошибка загрузки'
+                : download.status === 'completed'
+                  ? 'Загружено'
+                  : (download.progress || 0).toFixed(1) + '%'}
+            </Text>
+          </View>
+          {(download.status === 'completed' || download.status === 'error') &&
+            <TouchableOpacity onPress={() => downloadStore.dismiss(download.bookId)} style={homeStyles.downloadDismiss}>
+              <Text style={homeStyles.downloadDismissText}>×</Text>
+            </TouchableOpacity>
+          }
+        </View>
+      )}
+    </View>
+  );
+});
+
 class Home extends React.Component {
   constructor(props) {
     super(props);
@@ -1674,15 +2258,15 @@ class Home extends React.Component {
 
   async componentDidMount() {
     var not_show_read = await new Storage().get('not_show_read', 'false')
-    await this.setState({ not_show_read: not_show_read === 'true' });
-
     var sort_new_book = await new Storage().get('sort_new_book', 'false');
-    await this.setState({ sort_new_book: sort_new_book === 'true' });
-
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
-    await this.setState({ show_only_loaded: show_only_loaded === 'true' });
-
-    this.getBooks();
+    this.setState({
+      not_show_read: not_show_read === 'true',
+      sort_new_book: sort_new_book === 'true',
+      show_only_loaded: show_only_loaded === 'true',
+    }, () => {
+      this.getBooks();
+    });
 
     // this.props.stack.navigation.navigate('Reader', {
     //   book_id: 1
@@ -1690,127 +2274,129 @@ class Home extends React.Component {
   }
 
   async getBooks() {
-    await this.setState({
+    this.setState({
       books: [],
       filter_books: [],
-    });
+    }, async () => {
 
-    var exists = await RNFS.exists(file_root + '/' + BOOKS_FILENAME);
-    if (exists == false) {
-      await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, "[]", 'utf8');
-    }
-
-    var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
-    books = JSON.parse(books);
-
-    await this.setState({
-      books: books,
-    });
-
-    var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
-    if (server_books == false) {
-      this.filter_books();
-    } else {
-      if (server_books.length != books.length) {
-        books = server_books;
-        await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
-
-        this.setState({ books: books }, () => this.filter_books());
-      } else {
-        this.filter_books();
+      var exists = await RNFS.exists(file_root + '/' + BOOKS_FILENAME);
+      if (exists == false) {
+        await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, "[]", 'utf8');
       }
-    }
+
+      var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
+      books = JSON.parse(books);
+
+      this.setState({
+        books: books,
+      }, async () => {
+        var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+        if (server_books == false) {
+          this.filter_books();
+        } else {
+          if (server_books.length != books.length) {
+            books = server_books;
+            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
+
+            this.setState({ books: books }, () => this.filter_books());
+          } else {
+            this.filter_books();
+          }
+        }
+      });
+    });
   }
 
   //Фильтрует по Level, Названиям, Скачиванию
   async filter_books() {
-    await this.setState({
+    this.setState({
       books_filtered: false,
-    });
+    }, async () => {
 
-    var result = [];
+      var result = [];
 
-    for (const i in this.state.books) {
-      var book = this.state.books[i];
+      for (const i in this.state.books) {
+        var book = this.state.books[i];
 
-      if (this.state.level == 'all' || this.state.level == book.level) {
+        if (this.state.level == 'all' || this.state.level == book.level) {
 
-        var check = false;
+          var check = false;
 
-        //Названия
-        if (this.search_value.length == 0) {
-          check = true;
-        } else {
-          var search_array = this.search_value.split(' ').map(name => name.toLowerCase());
-          search_array = search_array.filter(word => word.length > 0);
+          //Названия
+          if (this.search_value.length == 0) {
+            check = true;
+          } else {
+            var search_array = this.search_value.split(' ').map(name => name.toLowerCase());
+            search_array = search_array.filter(word => word.length > 0);
 
-          book.name.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.name.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
 
-          book.author.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.author.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
 
-          book.name_en.split(' ').forEach(function (subname) {
-            subname = subname.toLowerCase();
-            search_array.forEach(function (subsearch) {
-              if (subname.includes(subsearch)) {
-                check = true;
-              }
+            book.name_en.split(' ').forEach(function (subname) {
+              subname = subname.toLowerCase();
+              search_array.forEach(function (subsearch) {
+                if (subname.includes(subsearch)) {
+                  check = true;
+                }
+              });
             });
-          });
-        }
-
-        //Скачана книга
-        if (check == true) {
-          var have_file = await new Storage().get('have_file_' + book.id, 'false');
-          book['have_file'] = have_file == 'true';
-          if (this.state.show_only_loaded == true) {
-            check = book['have_file'];
           }
 
-          var percent = await new Storage().get('percent_' + book.id, 0);
-          book['percent'] = percent;
+          //Скачана книга
+          if (check == true) {
+            var have_file = await new Storage().get('have_file_' + book.id, 'false');
+            book['have_file'] = have_file == 'true';
+            if (this.state.show_only_loaded == true) {
+              check = book['have_file'];
+            }
 
-          if (percent == 100) {
-            if (this.state.not_show_read == true) {
-              check = false;
+            var percent = await new Storage().get('percent_' + book.id, 0);
+            book['percent'] = percent;
+
+            if (percent == 100) {
+              if (this.state.not_show_read == true) {
+                check = false;
+              }
             }
           }
-        }
 
 
-        if (check == true) {
-          result.push(book);
+          if (check == true) {
+            result.push(book);
+          }
         }
       }
-    }
 
-    var percents = {}
-    result.forEach(function (book) {
-      percents[book.id] = book.percent;
-    });
+      var percents = {}
+      result.forEach(function (book) {
+        percents[book.id] = book.percent;
+      });
 
-    await this.props.root.setState({
-      books_percents: percents
-    });
+      this.props.root.setState({
+        books_percents: percents
+      });
 
-    this.setState({
-      books_filtered: result,
-      do_not_find: result.length == 0,
-    }, function () {
-      this.showReview();
+      this.setState({
+        books_filtered: result,
+        do_not_find: result.length == 0,
+      }, function () {
+        this.showReview();
+      });
     });
   }
 
@@ -1952,6 +2538,8 @@ class Home extends React.Component {
           )}
         </View>
 
+        <HomeDownloadsPanel />
+
         <View style={homeStyles.search}>
           <Image
             style={homeStyles.search_image}
@@ -2077,14 +2665,14 @@ class Home extends React.Component {
                     <View style={{ zIndex: 2, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#FFF' }}>
                     </View>
                     <TouchableWithoutFeedback onPress={() => readBook(rowMap, data.item)} >
-                      <View style={{ zIndex: 1, marginLeft: -10, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#75b641' }}>
-                        <Text numberOfLines={1} style={{ width: 130, position: 'absolute', bottom: 37, left: -27, color: '#FFF', lineHeight: 55, textAlign: 'center', fontSize: 16, transform: [{ rotate: '-90deg' }] }}>Прочитана</Text>
+                      <View style={[homeStyles.swipeMenuButton, { zIndex: 1, backgroundColor: '#75b641' }]}>
+                        <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 14 }]}>Прочитана</Text>
                       </View>
                     </TouchableWithoutFeedback>
                     {data.item.have_file == true &&
                       <TouchableWithoutFeedback onPress={() => deleteBook(rowMap, data.item)}>
-                        <View style={{ zIndex: 0, marginLeft: -10, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#f05458' }}>
-                          <Text numberOfLines={1} style={{ width: 130, position: 'absolute', bottom: 37, left: -27, color: '#FFF', lineHeight: 55, textAlign: 'center', fontSize: 12, transform: [{ rotate: '-90deg' }] }}>Удалить из памяти</Text>
+                        <View style={[homeStyles.swipeMenuButton, { zIndex: 0, backgroundColor: '#f05458' }]}>
+                          <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 10 }]}>Удалить из памяти</Text>
                         </View>
                       </TouchableWithoutFeedback>
                     }
@@ -2182,7 +2770,7 @@ class ChangePassword extends React.Component {
       repeat_password: this.state.repeat_password
     }).put();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -2194,7 +2782,7 @@ class ChangePassword extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           success: true,
         });
       }
@@ -2273,6 +2861,7 @@ class ChangePassword extends React.Component {
     )
   }
 }
+
 class UpdateProfile extends React.Component {
   constructor(props) {
     super(props);
@@ -2299,7 +2888,7 @@ class UpdateProfile extends React.Component {
       email: this.state.email,
     }).put();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -2311,7 +2900,7 @@ class UpdateProfile extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           success: true,
         });
       }
@@ -2365,6 +2954,7 @@ class UpdateProfile extends React.Component {
     )
   }
 }
+
 class Auth extends React.Component {
   constructor(props) {
     super(props);
@@ -2403,19 +2993,19 @@ class Auth extends React.Component {
 
   async sendForm(method) {
     if (this.state.button_loader == false) {
-      await this.setState({
+      this.setState({
         button_loader: true
+      }, () => {
+        if (method == 'login') {
+          this.login();
+        }
+        if (method == 'reg') {
+          this.reg();
+        }
+        if (method == 'remember_password') {
+          this.remember_password();
+        }
       });
-
-      if (method == 'login') {
-        this.login();
-      }
-      if (method == 'reg') {
-        this.reg();
-      }
-      if (method == 'remember_password') {
-        this.remember_password();
-      }
     }
   }
 
@@ -2425,7 +3015,7 @@ class Auth extends React.Component {
       password: this.state.password
     }).get();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -2437,7 +3027,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 
@@ -2461,7 +3051,7 @@ class Auth extends React.Component {
       repeat_password: this.state.repeat_password
     }).post();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -2473,7 +3063,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 
@@ -2494,7 +3084,7 @@ class Auth extends React.Component {
       repeat_password: this.state.repeat_password
     }).post();
 
-    await this.setState({
+    this.setState({
       button_loader: false
     });
 
@@ -2506,7 +3096,7 @@ class Auth extends React.Component {
           error: response['error']
         });
       } else {
-        await this.setState({
+        this.setState({
           error: false
         });
 
@@ -3130,20 +3720,24 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     } else {
       AppMetrica.reportEvent('addWordToDictionary', { word: this.props.original });
 
-      var add_to_server = await new Request('/api/v1/dictionary/words', {
+      var previousWord = await new Storage().get('word_' + this.props.original, '{}');
+      previousWord = JSON.parse(previousWord);
+      var wordPayload = {
         original: this.props.original,
-        user_id: this.props.current_user.id
-      }, {
-        desciption_error: 'Слово добавлено только на этом устройстве.'
-      }).post();
+        transcription: this.props.transcription,
+        translate: this.props.translate
+      };
 
       await new Storage().set('word_' + this.props.original, JSON.stringify({
         original: this.props.original,
         transcription: this.props.transcription,
         translate: this.props.translate,
-        offline: add_to_server == false
+        version: previousWord.version,
+        offline: true
       }));
       await this.addWordToKeys('word_' + this.props.original);
+      await SyncManager.enqueue('word', 'upsert', wordPayload, previousWord.version);
+      await SyncManager.flush(this.props.current_user.id);
 
       this.props.setWordInDictionary(true);
 
@@ -3169,30 +3763,29 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     words_keys.unshift(value);
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
   async deleteWordFromDictionary() {
     this.props.setWordInDictionary(false);
 
-    this.deleteBookmarkKey('word_' + this.props.original);
+    var storedWord = await new Storage().get('word_' + this.props.original, '{}');
+    storedWord = JSON.parse(storedWord);
+    await this.deleteBookmarkKey('word_' + this.props.original);
 
     this.setState({
       count_words: this.state.count_words - 1
     });
 
-    new Storage().remove('word_' + this.props.original);
-
-    await new Request('/api/v1/dictionary/words', {
-      original: this.props.original,
-      user_id: this.props.current_user.id
-    }, {
-      desciption_error: 'Слово удалено только с этого устройства.'
-    }).delete();
+    await new Storage().remove('word_' + this.props.original);
+    await SyncManager.enqueue('word', 'delete', {
+      original: this.props.original
+    }, storedWord.version);
+    await SyncManager.flush(this.props.current_user.id);
   }
 
   async deleteBookmarkKey(value) {
-    var words_keys = await new Storage().get('words_keys');
+    var words_keys = await new Storage().get('words_keys', '[]');
     words_keys = JSON.parse(words_keys);
 
     var index = words_keys.indexOf(value);
@@ -3200,7 +3793,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       words_keys.splice(index, 1);
     }
 
-    new Storage().set('words_keys', JSON.stringify(words_keys));
+    await new Storage().set('words_keys', JSON.stringify(words_keys));
   }
 
   openSubscription() {
@@ -3467,36 +4060,34 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
       if (readerStore.bookmark == this.props.data['name']) {
         this.props.setBookmark(false);
-
-        this.deleteBookmarkKey('bookmark_' + this.props.book_id);
-
-        new Storage().remove('bookmark_' + this.props.book_id);
-
-        await new Request('/api/v1/bookmarks', {
-          book_id: this.props.book_id,
-          user_id: this.props.current_user.id
-        }, {
-          desciption_error: 'Закладка удалена только с этого устройства.'
-        }).delete();
+        var storedBookmark = await new Storage().get('bookmark_' + this.props.book_id, '{}');
+        storedBookmark = JSON.parse(storedBookmark);
+        await this.deleteBookmarkKey('bookmark_' + this.props.book_id);
+        await new Storage().remove('bookmark_' + this.props.book_id);
+        await SyncManager.enqueue('bookmark', 'delete', {
+          book_id: this.props.book_id
+        }, storedBookmark.version);
+        await SyncManager.flush(this.props.current_user.id);
       } else {
-        var add_to_server = await new Request('/api/v1/bookmarks', {
+        var previousBookmark = await new Storage().get('bookmark_' + this.props.book_id, '{}');
+        previousBookmark = JSON.parse(previousBookmark);
+        var bookmarkPayload = {
           book_id: this.props.book_id,
-          user_id: this.props.current_user.id,
           page: this.props.page,
           paragraph: this.props.data['name']
-        }, {
-          desciption_error: 'Закладка добавлена только на этом устройстве.'
-        }).post();
+        };
 
         await new Storage().set('bookmark_' + this.props.book_id, JSON.stringify({
           book_id: this.props.book_id,
           book_name: this.props.book_name,
           page: this.props.page,
           paragraph: this.props.data['name'],
-          offline: add_to_server == false
+          version: previousBookmark.version,
+          offline: true
         }));
         await this.addBookmarkToKeys('bookmark_' + this.props.book_id);
-
+        await SyncManager.enqueue('bookmark', 'upsert', bookmarkPayload, previousBookmark.version);
+        await SyncManager.flush(this.props.current_user.id);
         await this.props.setBookmark(this.props.data['name']);
       }
 
@@ -3504,7 +4095,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   async addBookmarkToKeys(value) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    let bookmarks_keys = await new Storage().get('bookmarks_keys');
     if (bookmarks_keys == undefined) {
       bookmarks_keys = []
     } else {
@@ -3518,11 +4109,11 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
     bookmarks_keys.unshift(value);
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
   }
 
   async deleteBookmarkKey(value) {
-    bookmarks_keys = await new Storage().get('bookmarks_keys');
+    var bookmarks_keys = await new Storage().get('bookmarks_keys', '[]');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
     var index = bookmarks_keys.indexOf(value);
@@ -3530,7 +4121,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
       bookmarks_keys.splice(index, 1);
     }
 
-    new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
   }
 
   translateWord(word_id) {
@@ -3665,6 +4256,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     );
   }
 });
+
 class ReaderSettings extends React.Component {
   constructor(props) {
     super(props);
@@ -4027,10 +4619,12 @@ class Reader extends React.Component {
     });
 
     var bookmark = await new Storage().get('bookmark_' + this.props.stack.route.params.book_id);
+    var bookmarkParagraph = false;
 
     if (bookmark != undefined) {
-      await this.setState({
-        bookmark: JSON.parse(bookmark).paragraph,
+      bookmarkParagraph = JSON.parse(bookmark).paragraph;
+      this.setState({
+        bookmark: bookmarkParagraph,
       });
     }
 
@@ -4051,6 +4645,17 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = settings['backgroundColorTheme'];
+      this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.style.backgroundColor = this.state.backgroundColorTheme || settings['backgroundColorTheme'];
+      });
+      this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
+        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      });
+    }
+
     var ttsVoice = await new Storage().get('ttsVoice');
     var ttsVoiceApplied = false;
 
@@ -4063,13 +4668,13 @@ class Reader extends React.Component {
           try {
             Speech.configure({ voice: ttsVoice });
             ttsVoiceApplied = true;
-          } catch (e) {}
+          } catch (e) { }
           new Storage().set('ttsVoice', ttsVoice);
         }
-      } catch(e) {}
+      } catch (e) { }
     }
 
-    await this.setState({
+    this.setState({
       translate_icon_size: settings['translate_icon_size'],
       fontSize: settings['fontSize'],
       textAlign: settings['textAlign'],
@@ -4081,7 +4686,7 @@ class Reader extends React.Component {
     });
 
     readerStore.setThemeSettings(settings);
-    readerStore.setBookmark(this.state.bookmark);
+    readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
     if (ttsVoice) {
       readerStore.setTtsVoice(ttsVoice);
@@ -4112,13 +4717,12 @@ class Reader extends React.Component {
     }
 
 
-    await this.setState({
+    this.setState({
       page: parseInt(page),
       pages: Object.keys(pagination).length,
+    }, () => {
+      this.openPage(true);
     });
-
-
-    this.openPage(true);
 
     var haveTraining = await new Storage().get('haveTraining') == 'true';
     if (haveTraining == false) {
@@ -4129,6 +4733,11 @@ class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
+      if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
+      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+    }
     this.setState({
       paragraphs: false,
     });
@@ -4148,7 +4757,7 @@ class Reader extends React.Component {
 
       scroll_percent = 0;
 
-      await this.setState({ show_list: false, paragraphs: false });
+      this.setState({ show_list: false, paragraphs: false });
 
       await new Storage().set('page_' + this.props.stack.route.params.book_id, this.state.page.toString());
 
@@ -4178,7 +4787,7 @@ class Reader extends React.Component {
             return sentences !== false ? { name: paragraphId, sentences: sentences } : null;
           }
         }));
-        results.forEach(function(p) { if (p !== null) paragraphs.push(p); });
+        results.forEach(function (p) { if (p !== null) paragraphs.push(p); });
       }
 
       if (paragraphs.length != 0) {
@@ -4187,7 +4796,7 @@ class Reader extends React.Component {
           if (paragraphs.length > 8) paragraphs.splice(8, 0, { _type: 'ad', _key: 'ad_8' });
         }
 
-        await this.setState({
+        this.setState({
           paragraphs: paragraphs,
           show_list: true,
         });
@@ -4205,7 +4814,7 @@ class Reader extends React.Component {
                     if (!isNaN(offset) && offset >= 0) {
                       this.flatListRef.scrollToOffset({ offset: offset, animated: false });
                     }
-                  } catch (e) {}
+                  } catch (e) { }
                 }
               }, 500);
             }
@@ -4224,7 +4833,7 @@ class Reader extends React.Component {
                     try {
                       var approximateOffset = bookmarkIndex * 200; // примерная высота элемента
                       this.flatListRef.scrollToOffset({ offset: approximateOffset, animated: false });
-                    } catch (e2) {}
+                    } catch (e2) { }
                   }
                 }
               }, 500);
@@ -4240,19 +4849,19 @@ class Reader extends React.Component {
   }
 
   async prevPage() {
-    await this.setState({
+    this.setState({
       page: this.state.page - 1,
+    }, () => {
+      this.checkAd();
     });
-
-    this.checkAd();
   }
 
   async nextPage() {
-    await this.setState({
+    this.setState({
       page: this.state.page + 1,
+    }, () => {
+      this.checkAd();
     });
-
-    this.checkAd();
   }
 
   async checkAd() {
@@ -4322,7 +4931,7 @@ class Reader extends React.Component {
   }
 
   async showAd() {
-    await this.setState({
+    this.setState({
       showAdInfo: false,
       showAdOpacity: true,
     });
@@ -4502,6 +5111,10 @@ class Reader extends React.Component {
   }
 
   changeColorTheme(backgroundColor, textColor, secondColor) {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.body.style.backgroundColor = backgroundColor;
+    }
+
     this.setState({
       show_list: false,
     }, function () {
@@ -4651,14 +5264,14 @@ class Reader extends React.Component {
     if (!voiceId) return;
 
     // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Speech.stop(); } catch (e) {}
+    try { Speech.stop(); } catch (e) { }
     readerStore.setCurrentSpeaking(null);
 
     var applied = false;
     try {
       Speech.configure({ voice: voiceId });
       applied = true;
-    } catch (e) {}
+    } catch (e) { }
 
     new Storage().set('ttsVoice', voiceId);
     readerStore.setTtsVoice(voiceId);           // сбрасывает ttsVoiceApplied в false
@@ -4672,7 +5285,7 @@ class Reader extends React.Component {
     });
   }
 
-  renderParagraphItem({item}) {
+  renderParagraphItem({ item }) {
     if (item._type === 'ad') {
       return (
         <View style={readerScreenStyles.adContainer}>
@@ -4742,6 +5355,7 @@ class Reader extends React.Component {
         ) : (
 
           <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
@@ -4817,173 +5431,171 @@ class Reader extends React.Component {
               openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
             />
 
-            <View style={[
-              readerScreenStyles.readerHeader,
-              {
+            <View style={readerScreenStyles.layout}>
+              <View style={[readerScreenStyles.header, {
                 backgroundColor: this.state.backgroundColorTheme,
+                borderBottomWidth: 1,
                 borderColor: this.state.secondColorTheme,
-              }
-            ]}>
-              <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                {this.state.textColorTheme == '#ffffff' &&
-                  <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                    source={require('./app/images/header/arrow-left-white.png')} />
-                }
-                {this.state.textColorTheme == '#000000' &&
-                  <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                    source={require('./app/images/header/arrow-left.png')} />
-                }
-              </TouchableOpacity>
-
-              {this.state.pages == 1 ? (
-                <View style={{ flex: 1 }}></View>
-              ) : (
-                <Slider
-                  style={{
-                    flex: 1,
-                    marginLeft: 5,
-                    marginRight: 5,
-                    width: Dimensions.get('window').width - 100
-                  }}
-                  value={this.state.percent}
-                  minimumValue={1}
-                  maximumValue={100}
-                  step={1}
-                  minimumTrackTintColor="#fe4444"
-                  maximumTrackTintColor={this.state.secondColorTheme}
-                  thumbImage={require("./app/images/reader/sliderThumb.png")}
-                  onValueChange={(value) => this.sliderValueChange(value)}
-                  onSlidingComplete={() => this.onSlidingComplete()}
-                />
-              )}
-
-              <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
-                <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                  <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                    <Circle
-                      cx="12" cy="12" r="3"
-                      stroke={this.state.textColorTheme || '#000000'}
-                      strokeWidth={1.4}
-                    />
-                    <Path
-                      stroke={this.state.textColorTheme || '#000000'}
-                      strokeWidth={1.4}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-                    />
-                  </Svg>
-                </View>
-              </TouchableWithoutFeedback>
-
-              <ReaderSettings
-                visible={this.state.showThemeSetting}
-                closeSettings={() => this.setState({ showThemeSetting: false })}
-
-                fontSize={this.state.fontSize}
-                changeFontSize={(value) => this.changeFontSize(value)}
-
-                textAlign={this.state.textAlign}
-                textAlignChange={() => this.textAlignChange()}
-
-                backgroundColorTheme={this.state.backgroundColorTheme}
-                changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
-
-                fontFamily={this.state.fontFamily}
-                chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
-
-                ttsVoice={this.state.ttsVoice}
-                changeVoice={(voiceId) => this.changeVoice(voiceId)}
-              />
-
-            </View>
-
-            <View style={readerScreenStyles.readerContainer}>
-              {this.state.show_list &&
-                <FlatList
-                  ref={(ref) => this.flatListRef = ref}
-                  data={this.state.paragraphs}
-                  keyExtractor={(item) => item._type === 'ad' ? item._key : 'p_' + item.name}
-                  renderItem={(itemInfo) => this.renderParagraphItem(itemInfo)}
-                  initialNumToRender={5}
-                  maxToRenderPerBatch={3}
-                  windowSize={7}
-                  onScroll={(event) => this.onScroll(event)}
-                  onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
-                  scrollEventThrottle={8}
-                  ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
-                  style={{ flex: 1 }}
-                />
-              }
-            </View>
-
-            <View style={[
-              readerScreenStyles.footerNav,
-              {
-                height: 50 + safeAreaBottom,
-                paddingBottom: safeAreaBottom,
-                borderTopWidth: 1,
-                borderTopColor: this.state.secondColorTheme
-              }
-            ]}>
-
-              {this.state.page > 1 &&
-                <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
+              }]}>
+                <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                   {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={readerScreenStyles.navArrow}
+                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
                       source={require('./app/images/header/arrow-left-white.png')} />
                   }
                   {this.state.textColorTheme == '#000000' &&
-                    <Image style={readerScreenStyles.navArrow}
+                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
                       source={require('./app/images/header/arrow-left.png')} />
                   }
                 </TouchableOpacity>
-              }
-              {this.state.page == 1 &&
-                <React.Fragment>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-left.png')} />
-                  }
 
-                </React.Fragment>
-              }
+                {this.state.pages == 1 ? (
+                  <View style={{ flex: 1 }}></View>
+                ) : (
+                  <Slider
+                    style={{
+                      flex: 1,
+                      marginLeft: 5,
+                      marginRight: 5,
+                      width: Dimensions.get('window').width - 100
+                    }}
+                    value={this.state.percent}
+                    minimumValue={1}
+                    maximumValue={100}
+                    step={1}
+                    minimumTrackTintColor="#fe4444"
+                    maximumTrackTintColor={this.state.secondColorTheme}
+                    thumbImage={require("./app/images/reader/sliderThumb.png")}
+                    onValueChange={(value) => this.sliderValueChange(value)}
+                    onSlidingComplete={() => this.onSlidingComplete()}
+                  />
+                )}
 
+                <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
+                  <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
+                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                      <Circle
+                        cx="12" cy="12" r="3"
+                        stroke={this.state.textColorTheme || '#000000'}
+                        strokeWidth={1.4}
+                      />
+                      <Path
+                        stroke={this.state.textColorTheme || '#000000'}
+                        strokeWidth={1.4}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+                      />
+                    </Svg>
+                  </View>
+                </TouchableWithoutFeedback>
 
-              <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                <Text style={{ color: this.state.textColorTheme, lineHeight: 30, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                <ReaderSettings
+                  visible={this.state.showThemeSetting}
+                  closeSettings={() => this.setState({ showThemeSetting: false })}
+
+                  fontSize={this.state.fontSize}
+                  changeFontSize={(value) => this.changeFontSize(value)}
+
+                  textAlign={this.state.textAlign}
+                  textAlignChange={() => this.textAlignChange()}
+
+                  backgroundColorTheme={this.state.backgroundColorTheme}
+                  changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
+
+                  fontFamily={this.state.fontFamily}
+                  chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
+
+                  ttsVoice={this.state.ttsVoice}
+                  changeVoice={(voiceId) => this.changeVoice(voiceId)}
+                />
+
               </View>
 
-              {this.state.page < this.state.pages &&
-                <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30 }}
-                      source={require('./app/images/header/arrow-right-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30 }}
-                      source={require('./app/images/header/arrow-right.png')} />
-                  }
-                </TouchableOpacity>
-              }
-              {this.state.page == this.state.pages &&
-                <React.Fragment>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-right-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                      source={require('./app/images/header/arrow-right.png')} />
-                  }
+              <View style={readerScreenStyles.readerContainer}>
+                {this.state.show_list &&
+                  <FlatList
+                    ref={(ref) => this.flatListRef = ref}
+                    data={this.state.paragraphs}
+                    keyExtractor={(item) => item._type === 'ad' ? item._key : 'p_' + item.name}
+                    renderItem={(itemInfo) => this.renderParagraphItem(itemInfo)}
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={3}
+                    windowSize={7}
+                    onScroll={(event) => this.onScroll(event)}
+                    onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
+                    scrollEventThrottle={8}
+                    ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
+                    style={{ flex: 1 }}
+                  />
+                }
+              </View>
 
-                </React.Fragment>
-              }
+              <View style={[readerScreenStyles.footerNav, {
+                height: 50 + safeAreaBottom,
+                paddingBottom: safeAreaBottom,
+                backgroundColor: this.state.backgroundColorTheme,
+                borderTopWidth: 1,
+                borderTopColor: this.state.secondColorTheme,
+              }]}>
 
+                {this.state.page > 1 &&
+                  <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={readerScreenStyles.navArrow}
+                        source={require('./app/images/header/arrow-left-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={readerScreenStyles.navArrow}
+                        source={require('./app/images/header/arrow-left.png')} />
+                    }
+                  </TouchableOpacity>
+                }
+                {this.state.page == 1 &&
+                  <React.Fragment>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-left-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-left.png')} />
+                    }
+
+                  </React.Fragment>
+                }
+
+
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <Text style={{ color: this.state.textColorTheme, lineHeight: 30, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                </View>
+
+                {this.state.page < this.state.pages &&
+                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30 }}
+                        source={require('./app/images/header/arrow-right-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30 }}
+                        source={require('./app/images/header/arrow-right.png')} />
+                    }
+                  </TouchableOpacity>
+                }
+                {this.state.page == this.state.pages &&
+                  <React.Fragment>
+                    {this.state.textColorTheme == '#ffffff' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-right-white.png')} />
+                    }
+                    {this.state.textColorTheme == '#000000' &&
+                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
+                        source={require('./app/images/header/arrow-right.png')} />
+                    }
+
+                  </React.Fragment>
+                }
+
+              </View>
             </View>
 
 
@@ -5155,7 +5767,7 @@ class RootApp extends React.Component {
 
     if (current_user != undefined) {
       var parsed_user = JSON.parse(current_user);
-      await this.setState({
+      this.setState({
         current_user: parsed_user,
       });
       appStore.setCurrentUser(parsed_user);
@@ -5163,7 +5775,7 @@ class RootApp extends React.Component {
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
-    await this.setState({
+    this.setState({
       confirm_conditions: confirm_val
     });
     appStore.setConfirmConditions(confirm_val);
@@ -5175,6 +5787,9 @@ class RootApp extends React.Component {
         has_internet: state.isConnected,
       });
       appStore.setInternet(state.isConnected);
+      if (state.isConnected && this.state.current_user != false) {
+        SyncManager.flush(this.state.current_user.id);
+      }
     });
 
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
@@ -5434,7 +6049,7 @@ class RootApp extends React.Component {
     const Stack = createStackNavigator();
 
     return (
-      <React.Fragment>
+      <View style={{ flex: 1 }}>
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
           <View style={{ flex: 1, backgroundColor: '#fff' }} />
@@ -5467,7 +6082,7 @@ class RootApp extends React.Component {
 
           </View>
         ) : (
-          <React.Fragment>
+          <View style={{ flex: 1 }}>
             <NavigationContainer>
               <Stack.Navigator initialRouteName="Home">
                 <Stack.Screen name="Home" options={() => ({ headerShown: false })}>
@@ -5482,6 +6097,7 @@ class RootApp extends React.Component {
                     borderColor: 'transparent',
                     shadowColor: 'transparent'
                   },
+                  headerShadowVisible: false,
                   headerBackTitle: 'Список книг',
                   headerBackTitleStyle: {
                     color: '#FFF',
@@ -5536,9 +6152,9 @@ class RootApp extends React.Component {
                 </View>
               </TouchableOpacity>
             }
-          </React.Fragment>
+          </View>
         )}
-      </React.Fragment>
+      </View>
     );
   }
 }
@@ -5558,6 +6174,11 @@ class TabStack extends React.Component {
           tabBarActiveTintColor: '#f05458'
         })}>
         <Tab.Screen name="Books"
+          listeners={{
+            tabPress: () => {
+              if (this.homeRef) this.homeRef.getBooks();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -5576,6 +6197,7 @@ class TabStack extends React.Component {
             <SafeAreaInsetsContext.Consumer>
               {(insets) => (
                 <Home
+                  ref={(ref) => this.homeRef = ref}
                   tabs={tabs}
                   stack={this.props.stack}
                   parent={this}
@@ -5587,6 +6209,11 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="Bookmarks"
+          listeners={{
+            tabPress: () => {
+              if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -5601,10 +6228,15 @@ class TabStack extends React.Component {
             title: 'Закладки',
           })}>
           {(tabs) => (
-            <BookmarkStack tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <BookmarkStack ref={(ref) => this.bookmarkStackRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="Dictionary"
+          listeners={{
+            tabPress: () => {
+              if (this.dictionaryRef) this.dictionaryRef.getWords();
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -5619,7 +6251,7 @@ class TabStack extends React.Component {
             title: 'Словарь',
           })}>
           {(tabs) => (
-            <Dictionary tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="Subscription"
@@ -5663,205 +6295,95 @@ class TabStack extends React.Component {
   }
 }
 
-
-class ButtonRead extends React.Component {
-
-  _isMounted = false;
-
+const ButtonRead = observer(class ButtonRead extends React.Component {
   constructor(props) {
-
     super(props);
-
     this.state = {
       have_file: false,
-      show_load_status: false,
-      progress: 2,
-      progress_text: '0',
-      have_internet: true,
       button_loader: true,
-    }
+    };
   }
 
   async componentDidMount() {
-
-    this._isMounted = true;
-    
     var have_file = await AsyncStorage.getItem('have_file_' + this.props.book_id);
-
     this.setState({
       have_file: have_file == 'true',
       button_loader: false,
     });
-
-    this._unsubNet = NetInfo.addEventListener(state => {
-      this.setState({
-        have_internet: state.isConnected,
-      });
-    });
-
-
   }
 
-  async loadFiles(ar_files, index, count, book_id) {
-
-    if (this._isMounted == true) {
-      var path = ar_files[index]; 
-
-      var response = await axios.get("https://reedle.ru" + path, { params: {} });
-
-      var response = await new Request(path, {}).get();
-      var file_data = JSON.stringify(response);
-
-      path = path.replace('/result', '');
-      
-      await RNFS.writeFile(file_root + path, file_data, 'utf8');
-      
-      index++;
-
-      var progress = (index / count) * 100;
-      if (progress < 2) {
-        progress = 2;
-      }
-
-      
-
-      await this.setState({
-        progress: progress,
-        progress_text: progress.toFixed(0),
-      });
-
-      if (index < count) {
-        this.loadFiles(ar_files, index, count, book_id);
-      } else {
-
-        AppMetrica.reportEvent('loader',{status: 'finish'});
-        AppMetrica.reportEvent('loader',{progress: 100});
-
-        await this.setState({
-          progress: 100,
-          have_file: true,
-          show_load_status: false,
-        });
-
-        await AsyncStorage.setItem('have_file_' + book_id, 'true');
-
-        this.openBook(book_id);
-
-      }
-    }
-  }
-
-  componentWillUnmount() {
-    this._isMounted = false;
-    if (this._unsubNet) {
-      this._unsubNet();
-    }
-  }
-
-  async openBook(book_id) {
-    if (this.state.have_file == false) {
-      AppMetrica.reportEvent('loader',{status: 'start'});
-
-      await this.setState({
-        show_load_status: true,
-      });
-      var response = await new Request('/api/v1/books/download_list', { book_id: book_id }).get();
-     
-      await RNFS.mkdir(file_root + '/books/' + book_id + '/paragraphs/');
-
-      this.setState({
-        progress: 2,
-      });
-
-      this.loadFiles(response, 0, response.length, book_id);
-    } else {
+  componentDidUpdate() {
+    if (!this.state.have_file && downloadStore.isCompleted(this.props.book_id)) {
+      this.setState({ have_file: true });
       this.props.set_have_file();
-      // this.props.navigation.navigate('Reader', {
-      //   book_id: book_id
-      // });
     }
+  }
+
+  startDownload() {
+    downloadStore.start({
+      id: this.props.book_id,
+      name: this.props.book_name,
+      name_en: this.props.book_name_en,
+      color: this.props.color,
+    });
+  }
+
+  renderProgress(download) {
+    var progress = download.progress || 0;
+    return (
+      <View style={{ position: 'absolute', left: -15, top: -15 }}>
+        <AnimatedCircularProgress
+          size={90}
+          width={20}
+          fill={progress}
+          tintColor={this.props.color}
+          backgroundColor="#FFF"
+          rotation={0}
+          duration={0}>
+          {() => progress === 0 ? (
+            <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+          ) : (
+            <Text style={{ color: this.props.color, textAlign: 'center', lineHeight: 40, fontSize: 12 }}>{progress.toFixed(1)}%</Text>
+          )}
+        </AnimatedCircularProgress>
+      </View>
+    );
   }
 
   render() {
+    var download = downloadStore.get(this.props.book_id);
+    var downloading = download && download.status !== 'completed' && download.status !== 'error';
+    var haveFile = this.state.have_file || downloadStore.isCompleted(this.props.book_id);
 
-    return <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
-      <React.Fragment>
-        {this.state.button_loader == true &&
+    return (
+      <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
+        {this.state.button_loader ? (
           <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
-        }
-        {this.state.button_loader == false &&
-          <React.Fragment>
-            {this.state.show_load_status == true &&
-              <View style={{
-                position: 'absolute',
-                left: -15,
-                top: -15,
-              }}>
-                <AnimatedCircularProgress
-                  size={90}
-                  width={20}
-                  fill={this.state.progress}
-                  tintColor={this.props.color}
-                  backgroundColor="#FFF"
-                  rotation={0}
-                  duration={0}>
-                  {
-                    (fill) => (
-                      <React.Fragment>
-                        {this.state.progress_text == '0' &&
-                          <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
-                        }
-                        {this.state.progress_text != '0' &&
-                          <Text style={{ color: this.props.color, textAlign: 'center', lineHeight: 40, fontSize: 14 }}>{this.state.progress_text}%</Text>
-                        }
-                      </React.Fragment>
-                    )
-                  }
-                </AnimatedCircularProgress>
-                {this.state.progress_text != '0' &&
-                  <Text style={{ color: this.props.color, textAlign: 'center', lineHeight: 40, fontSize: 14 }}>{this.state.progress_text}%</Text>
-                }
-              </View>
-            }
-
-
-            {this.state.show_load_status == false &&
-              <React.Fragment>
-
-                {this.state.have_file == false &&
-                  <React.Fragment>
-                    {this.state.have_internet == false &&
-                      <Image
-                        style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
-                        source={require('./app/images/books/no-connect.png')}
-                      />
-                    }
-                    {this.state.have_internet == true &&
-                      <TouchableOpacity onPress={() => this.openBook(this.props.book_id)}>
-                        <Image
-                          style={{ height: 30, width: 30, margin: 15 }}
-                          source={require('./app/images/books/download.png')}
-                        />
-                      </TouchableOpacity>
-                    }
-                  </React.Fragment>
-                }
-                {this.state.have_file == true &&
-                  <TouchableOpacity onPress={() => this.openBook(this.props.book_id)}>
-                    <Image
-                      style={{ height: 20, width: 20, margin: 20 }}
-                      source={require('./app/images/books/arrow-button-read.png')}
-                    />
-                  </TouchableOpacity>
-                }
-              </React.Fragment>
-            }
-          </React.Fragment>
-        }
-      </React.Fragment>
-    </View>
+        ) : downloading ? (
+          this.renderProgress(download)
+        ) : haveFile ? (
+          <Image
+            style={{ height: 20, width: 20, margin: 20 }}
+            source={require('./app/images/books/arrow-button-read.png')}
+          />
+        ) : !appStore.has_internet ? (
+          <Image
+            style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
+            source={require('./app/images/books/no-connect.png')}
+          />
+        ) : (
+          <TouchableOpacity onPress={() => this.startDownload()}>
+            <Image
+              style={{ height: 30, width: 30, margin: 15 }}
+              source={require('./app/images/books/download.png')}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   }
-}
+});
+
 class Show extends React.Component {
   constructor(props) {
     super(props);
@@ -5875,6 +6397,17 @@ class Show extends React.Component {
 
   async componentDidMount() {
     homeStore.setOpenProperty(false);
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = this.props.stack.route.params.color;
+      this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.style.backgroundColor = this.props.stack.route.params.color;
+      });
+      this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
+        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      });
+    }
 
     var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
     books = JSON.parse(books);
@@ -5895,6 +6428,14 @@ class Show extends React.Component {
         }
       })
     )
+  }
+
+  componentWillUnmount() {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
+      if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
+      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+    }
   }
 
   openBook(book_id) {
@@ -6014,7 +6555,6 @@ class Show extends React.Component {
 
   }
 };
-
 
 const Subscription = observer(class Subscription extends React.Component {
   constructor() {
@@ -6228,6 +6768,16 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   render() {
+    const isCompact = Dimensions.get('window').width <= 360;
+    const pageHorizontalMargin = isCompact ? 16 : 30;
+    const planPadding = isCompact ? 11 : 15;
+    const planTitleFontSize = isCompact ? 19 : 22;
+    const planPriceFontSize = isCompact ? 16 : 18;
+    const badgeFontSize = isCompact ? 9 : 11;
+    const selectedPlanStyle = isCompact
+      ? { borderColor: '#f05458', borderWidth: 2, zIndex: 2 }
+      : { borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
+
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
 
@@ -6280,7 +6830,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
         <ScrollView style={{ flex: 1 }} >
 
-          <View style={{ marginLeft: 30, marginRight: 30, }}>
+          <View style={{ marginLeft: pageHorizontalMargin, marginRight: pageHorizontalMargin }}>
 
             <React.Fragment>
               {this.props.root.state.has_subscription == true ? (
@@ -6393,22 +6943,20 @@ const Subscription = observer(class Subscription extends React.Component {
                   {appStore.type_payment == 'by_store' ? 'Варианты подписки:' : 'Варианты оплаты:'}
                 </Text>
 
-                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: 'visible' }}>
+                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 1 && {
-                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
-                    }]}>
-                      <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
+                    }, this.state.active_subscription == 1 && selectedPlanStyle]}>
+                      <View style={{ flexShrink: 1, minWidth: 0 }}>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_month', this.read_1_month, 1)}</Text>
+                        <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_month', this.read_1_month, 1)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -6418,20 +6966,18 @@ const Subscription = observer(class Subscription extends React.Component {
                   {/* 6 месяцев */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(2)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 2 && {
-                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
-                    }]}>
-                      <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
+                    }, this.state.active_subscription == 2 && selectedPlanStyle]}>
+                      <View style={{ flexShrink: 1, minWidth: 0 }}>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
+                        <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
+                        <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -6441,20 +6987,18 @@ const Subscription = observer(class Subscription extends React.Component {
                   {/* 1 год */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(3)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 3 && {
-                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
-                    }]}>
-                      <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
+                    }, this.state.active_subscription == 3 && selectedPlanStyle]}>
+                      <View style={{ flexShrink: 1, minWidth: 0 }}>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Лучшее предложение</Text>
+                        <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Лучшее предложение</Text>
                         </View>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
+                        <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -6464,20 +7008,18 @@ const Subscription = observer(class Subscription extends React.Component {
                   {/* Навсегда */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(4)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: 15, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 4 && {
-                      borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2,
-                    }]}>
-                      <View>
-                        <Text style={[{ fontSize: 22, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>Единоразовый платёж</Text>
+                    }, this.state.active_subscription == 4 && selectedPlanStyle]}>
+                      <View style={{ flexShrink: 1, minWidth: 0 }}>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
+                        <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 5 }}>Единоразовый платёж</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>Один раз и навсегда</Text>
+                        <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Один раз и навсегда</Text>
                         </View>
-                        <Text style={{ fontSize: 18, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
+                        <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
                       </View>
                     </View>
                   </TouchableWithoutFeedback>
@@ -6497,7 +7039,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   {this.state.load_payment_button == true ? (
                     <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
                   ) : (
-                    <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16, fontWeight: 'bold' }}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit={true} style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16, fontWeight: 'bold', paddingHorizontal: 10 }}>
                       {this.props.root.state.has_subscription ? 'Продлить' : this.getButtonLabel()}
                     </Text>
                   )}
@@ -6520,7 +7062,7 @@ const Subscription = observer(class Subscription extends React.Component {
               </React.Fragment>
             }
 
-            <View style={{ marginTop: 30, marginBottom: 30, flexDirection: 'row', justifyContent: 'center' }}>
+            <View style={{ marginTop: 30, marginBottom: 30, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
               <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")} style={{ marginRight: 15 }}>
                 <Text style={{ color: '#aaa', textAlign: 'center', fontSize: 14 }}>Terms of Use</Text>
               </TouchableOpacity>
