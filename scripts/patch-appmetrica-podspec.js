@@ -15,19 +15,14 @@ if (!fs.existsSync(podspecPath)) {
 }
 
 const original = 's.dependency "AppMetricaAnalytics", "5.16.0"';
-const patched  = 's.dependency "AppMetricaAnalytics", "~> 6.0"';
+const stalePatch = 's.dependency "AppMetricaAnalytics", "~> 6.0"';
 
 const content = fs.readFileSync(podspecPath, 'utf8');
 
-if (content.includes(patched)) {
-  console.log('[patch-appmetrica] already patched, skipping');
+if (content.includes(stalePatch)) {
+  fs.writeFileSync(podspecPath, content.replace(stalePatch, original), 'utf8');
+  console.log('[patch-appmetrica] reverted stale AppMetrica 6.x patch to 5.16.0');
   process.exit(0);
 }
 
-if (!content.includes(original)) {
-  console.warn('[patch-appmetrica] expected string not found, skipping');
-  process.exit(0);
-}
-
-fs.writeFileSync(podspecPath, content.replace(original, patched), 'utf8');
-console.log('[patch-appmetrica] patched AppMetricaAnalytics dependency: 5.16.0 -> ~> 6.0');
+console.log('[patch-appmetrica] no patch needed, skipping');
