@@ -188,13 +188,13 @@ const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416
 //   AsyncStorage.setItem('time_short_ad', moment().format());
 // });
 
-const CURRENT_IOS_VERSION = '1.3.1'
-const CURRENT_ANDROID_VERSION = '1.3.2'
+const CURRENT_IOS_VERSION = '1.4.0'
+const CURRENT_ANDROID_VERSION = '1.4.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
-//const HOST="https://reedle.ru"
+const HOST="https://reedle.ru"
 //const HOST="https://stage.reedle.ru"
-const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
+//const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
