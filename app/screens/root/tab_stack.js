@@ -8,11 +8,11 @@ class TabStack extends React.Component {
 
 
     return (
-      <Tab.Navigator initialRouteName="Books"
+      <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
           tabBarActiveTintColor: '#f05458'
         })}>
-        <Tab.Screen name="Books"
+        <Tab.Screen name="books"
           listeners={{
             tabPress: () => {
               if (this.homeRef) this.homeRef.getBooks();
@@ -47,7 +47,7 @@ class TabStack extends React.Component {
             </SafeAreaInsetsContext.Consumer>
           )}
         </Tab.Screen>
-        <Tab.Screen name="Bookmarks"
+        <Tab.Screen name="bookmarks"
           listeners={{
             tabPress: () => {
               if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
@@ -70,7 +70,7 @@ class TabStack extends React.Component {
             <BookmarkStack ref={(ref) => this.bookmarkStackRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Dictionary"
+        <Tab.Screen name="dictionary"
           listeners={{
             tabPress: () => {
               if (this.dictionaryRef) this.dictionaryRef.getWords();
@@ -93,7 +93,7 @@ class TabStack extends React.Component {
             <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Subscription"
+        <Tab.Screen name="subscription"
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -111,7 +111,7 @@ class TabStack extends React.Component {
             <Subscription tabs={tabs} root={this.props.root} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Profile"
+        <Tab.Screen name="profile"
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>

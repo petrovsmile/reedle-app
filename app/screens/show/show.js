@@ -12,11 +12,13 @@ class Show extends React.Component {
   async componentDidMount() {
     homeStore.setOpenProperty(false);
 
+    var initialColor = this.props.stack.route.params.color || '#f05458';
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
-      document.body.style.backgroundColor = this.props.stack.route.params.color;
+      document.body.style.backgroundColor = initialColor;
       this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
-        document.body.style.backgroundColor = this.props.stack.route.params.color;
+        document.body.style.backgroundColor = this.state.book.color || initialColor;
       });
       this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
         document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
@@ -39,6 +41,17 @@ class Show extends React.Component {
             book: book,
             have_file: have_file == 'true'
           });
+          this.props.stack.navigation.setOptions({
+            title: book.name_en,
+            headerStyle: {
+              backgroundColor: book.color,
+              borderColor: 'transparent',
+              shadowColor: 'transparent'
+            }
+          });
+          if (Platform.OS === 'web' && typeof document !== 'undefined') {
+            document.body.style.backgroundColor = book.color;
+          }
         }
       })
     )
@@ -53,7 +66,7 @@ class Show extends React.Component {
   }
 
   openBook(book_id) {
-    this.props.stack.navigation.navigate('Reader', {
+    this.props.stack.navigation.navigate('reader', {
       book_id: book_id
     });
   }
@@ -67,7 +80,7 @@ class Show extends React.Component {
   render() {
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: this.props.stack.route.params.color }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 

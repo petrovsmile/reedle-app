@@ -1,8 +1,21 @@
 var root_app;
+const appLinking = {
+  prefixes: ['read://', 'https://reedle.ru/app/', 'http://localhost:3001/app/'],
+  config: {
+    screens: {
+      home: 'home',
+      show: 'books/:book_id',
+      reader: 'books/:book_id/reader',
+    },
+  },
+};
+
 class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
+    this.navigationRef = React.createRef();
+    this.pendingDeepLink = this.deepLinkFromWebLocation();
 
     this.state = {
       has_internet: true,
@@ -20,6 +33,29 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
+  }
+
+  deepLinkFromWebLocation() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+
+    var match = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
+    if (!match) return null;
+    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+  }
+
+  deepLinkFromUrl(url) {
+    if (!url) return null;
+    var match = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
+    if (!match) return null;
+    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+  }
+
+  openPendingDeepLink() {
+    if (!this.pendingDeepLink || !this.navigationRef.current) return;
+
+    var target = this.pendingDeepLink;
+    this.pendingDeepLink = null;
+    this.navigationRef.current.navigate(target.screen, { book_id: target.bookId });
   }
 
   async componentDidMount() {
@@ -57,11 +93,17 @@ class RootApp extends React.Component {
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
     this._linkSub = Linking.addEventListener('url', (e) => {
       this.handleOAuthURL(e.url);
+      this.pendingDeepLink = this.deepLinkFromUrl(e.url);
+      this.openPendingDeepLink();
     });
 
     // Обработка URL-схемы когда приложение было убито iOS и запускается заново
     Linking.getInitialURL().then((url) => {
-      if (url) this.handleOAuthURL(url);
+      if (url) {
+        this.handleOAuthURL(url);
+        this.pendingDeepLink = this.deepLinkFromUrl(url) || this.pendingDeepLink;
+        this.openPendingDeepLink();
+      }
     }).catch(() => { });
 
     if (await new Storage().get('openAppFirst') == undefined) {
@@ -345,15 +387,18 @@ class RootApp extends React.Component {
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            <NavigationContainer>
-              <Stack.Navigator initialRouteName="Home">
-                <Stack.Screen name="Home" options={() => ({ headerShown: false })}>
+            <NavigationContainer
+              ref={this.navigationRef}
+              linking={Platform.OS === 'web' ? undefined : appLinking}
+              onReady={() => this.openPendingDeepLink()}>
+              <Stack.Navigator initialRouteName="home">
+                <Stack.Screen name="home" options={() => ({ headerShown: false })}>
                   {(stack) => (
                     <TabStack root={this} stack={stack} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="Show" options={({ navigation, route }) => ({
-                  title: false,
+                <Stack.Screen name="show" options={({ navigation, route }) => ({
+                  title: 'Книга',
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
@@ -376,7 +421,7 @@ class RootApp extends React.Component {
                     <Show stack={stack} root={this} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="Reader"
+                <Stack.Screen name="reader"
                   options={({ navigation, route }) => ({
                     headerShown: false
                   })}>
@@ -416,6 +461,7 @@ class RootApp extends React.Component {
             }
           </View>
         )}
+        <PwaInstallBanner />
       </View>
     );
   }

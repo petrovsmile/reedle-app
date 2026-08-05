@@ -92,7 +92,7 @@ class Bookmarks extends React.Component {
   openBook(book_id, bookmark) {
     // Открываем Reader через корневой стек (над табами), чтобы не было
     // ни нижней таб-панели, ни заголовка вложенного стека закладок.
-    this.props.root_stack.navigation.navigate('Reader', {
+    this.props.root_stack.navigation.navigate('reader', {
       book_id: book_id,
       bookmark: bookmark,
     });

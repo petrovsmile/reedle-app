@@ -68,7 +68,7 @@ class Home extends React.Component {
       this.getBooks();
     });
 
-    // this.props.stack.navigation.navigate('Reader', {
+    // this.props.stack.navigation.navigate('reader', {
     //   book_id: 1
     // });
   }
@@ -330,7 +330,7 @@ class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('Subscription')}>
+            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('subscription')}>
               <Image style={{ width: 30, height: 30, marginTop: 2.5 }} source={require('./app/images/header/ads.jpg')} />
             </TouchableOpacity>
           ) : (
@@ -448,7 +448,7 @@ class Home extends React.Component {
               renderItem={(book) => <Book
                 books_percents={this.props.root.state.books_percents}
                 book={book}
-                onPress={(book_id, color) => this.props.stack.navigation.navigate('Show', {
+                onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
                   book_id: book_id,
                   color: color,
                 })}

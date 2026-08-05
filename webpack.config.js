@@ -5,6 +5,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3000';
+const webOutputPath = process.env.WEB_OUTPUT_PATH || path.resolve(__dirname, 'dist/web');
 
 class EmitPwaAssetsPlugin {
     apply(compiler) {
@@ -21,6 +22,8 @@ class EmitPwaAssetsPlugin {
                         'sw.js': './public/sw.js',
                         'icons/icon-192.png': './public/icons/icon-192.png',
                         'icons/icon-512.png': './public/icons/icon-512.png',
+                        'icons/icon-maskable.png': './public/icons/icon-maskable.png',
+                        'icons/apple-touch-icon.png': './public/icons/apple-touch-icon.png',
                     };
 
                     Object.entries(assets).forEach(([outputPath, sourcePath]) => {
@@ -42,9 +45,7 @@ module.exports = {
     entry: './index.web.js',
 
     output: {
-        path: isProduction
-            ? path.resolve(__dirname, '../../ruby/read/public/app')
-            : path.resolve(__dirname, 'web'),
+        path: isProduction ? webOutputPath : path.resolve(__dirname, 'web'),
         publicPath: isProduction ? '/app/' : '/',
         filename: 'bundle.js',
         clean: true,

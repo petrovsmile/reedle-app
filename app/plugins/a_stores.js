@@ -150,7 +150,7 @@ class DownloadStore {
 
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
       this.completed = Object.assign({}, this.completed, { [book.id]: true });
-      this.setDownload(book.id, { progress: 100, status: 'completed' });
+      this.dismiss(book.id);
       AppMetrica.reportEvent('loader', { status: 'finish' });
       AppMetrica.reportEvent('loader', { progress: 100 });
     } catch (error) {

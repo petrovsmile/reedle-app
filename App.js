@@ -1043,7 +1043,7 @@ class DownloadStore {
 
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
       this.completed = Object.assign({}, this.completed, { [book.id]: true });
-      this.setDownload(book.id, { progress: 100, status: 'completed' });
+      this.dismiss(book.id);
       AppMetrica.reportEvent('loader', { status: 'finish' });
       AppMetrica.reportEvent('loader', { progress: 100 });
     } catch (error) {
@@ -1479,8 +1479,8 @@ class BookmarkStack extends React.Component {
     const RootStack = createStackNavigator();
 
     return (
-      <RootStack.Navigator initialRouteName="Bookmark">
-        <RootStack.Screen name="Bookmark" options={() => ({ headerShown: false })}>
+      <RootStack.Navigator initialRouteName="bookmark">
+        <RootStack.Screen name="bookmark" options={() => ({ headerShown: false })}>
           {(stack) => (
             <Bookmarks ref={(ref) => this.bookmarksRef = ref} root={this.props.root} stack={stack} root_stack={this.props.stack} />
           )}
@@ -1584,7 +1584,7 @@ class Bookmarks extends React.Component {
   openBook(book_id, bookmark) {
     // Открываем Reader через корневой стек (над табами), чтобы не было
     // ни нижней таб-панели, ни заголовка вложенного стека закладок.
-    this.props.root_stack.navigation.navigate('Reader', {
+    this.props.root_stack.navigation.navigate('reader', {
       book_id: book_id,
       bookmark: bookmark,
     });
@@ -2268,7 +2268,7 @@ class Home extends React.Component {
       this.getBooks();
     });
 
-    // this.props.stack.navigation.navigate('Reader', {
+    // this.props.stack.navigation.navigate('reader', {
     //   book_id: 1
     // });
   }
@@ -2530,7 +2530,7 @@ class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('Subscription')}>
+            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('subscription')}>
               <Image style={{ width: 30, height: 30, marginTop: 2.5 }} source={require('./app/images/header/ads.jpg')} />
             </TouchableOpacity>
           ) : (
@@ -2648,7 +2648,7 @@ class Home extends React.Component {
               renderItem={(book) => <Book
                 books_percents={this.props.root.state.books_percents}
                 book={book}
-                onPress={(book_id, color) => this.props.stack.navigation.navigate('Show', {
+                onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
                   book_id: book_id,
                   color: color,
                 })}
@@ -5395,7 +5395,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -5428,7 +5428,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('Home', { screen: 'Subscription' })}
+              openSubscription={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })}
             />
 
             <View style={readerScreenStyles.layout}>
@@ -5720,6 +5720,80 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
     )
   }
 });
+function PwaInstallBanner() {
+  const [installEvent, setInstallEvent] = React.useState(null);
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+
+    var standalone = window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    if (standalone || window.localStorage.getItem('reedle_install_banner_dismissed') === 'true') {
+      return undefined;
+    }
+
+    setVisible(true);
+    var handleInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallEvent(event);
+    };
+    var handleInstalled = () => setVisible(false);
+
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  if (!visible) return null;
+
+  var isIos = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var instruction = isIos
+    ? 'Нажмите «Поделиться», затем «На экран Домой».'
+    : installEvent
+      ? 'Установите Reedle, чтобы открывать его как обычное приложение.'
+      : 'Откройте меню браузера и выберите «Установить приложение».';
+
+  var close = () => {
+    window.localStorage.setItem('reedle_install_banner_dismissed', 'true');
+    setVisible(false);
+  };
+
+  var install = async () => {
+    if (!installEvent) return;
+    await installEvent.prompt();
+    var choice = await installEvent.userChoice;
+    AppMetrica.reportEvent('installPrompt', { outcome: choice.outcome });
+    if (choice.outcome === 'accepted') setVisible(false);
+    setInstallEvent(null);
+  };
+
+  return (
+    <View style={{
+      position: 'absolute', top: 8, left: 8, right: 8, zIndex: 10000,
+      padding: 12, borderRadius: 12, backgroundColor: '#fff',
+      shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8,
+      flexDirection: 'row', alignItems: 'center'
+    }}>
+      <View style={{ flex: 1, paddingRight: 10 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 3 }}>Установить Reedle</Text>
+        <Text style={{ fontSize: 12, color: '#555' }}>{instruction}</Text>
+      </View>
+      {installEvent &&
+        <TouchableOpacity onPress={install} style={{ backgroundColor: '#f05458', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 }}>
+          <Text style={{ color: '#fff', fontSize: 12 }}>Установить</Text>
+        </TouchableOpacity>
+      }
+      <TouchableOpacity accessibilityLabel="Закрыть" onPress={close} style={{ padding: 8 }}>
+        <Text style={{ color: '#777', fontSize: 20 }}>×</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 class Header extends React.Component {
   render(){
     return(
@@ -5737,10 +5811,23 @@ class Header extends React.Component {
   }
 }
 var root_app;
+const appLinking = {
+  prefixes: ['read://', 'https://reedle.ru/app/', 'http://localhost:3001/app/'],
+  config: {
+    screens: {
+      home: 'home',
+      show: 'books/:book_id',
+      reader: 'books/:book_id/reader',
+    },
+  },
+};
+
 class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
+    this.navigationRef = React.createRef();
+    this.pendingDeepLink = this.deepLinkFromWebLocation();
 
     this.state = {
       has_internet: true,
@@ -5758,6 +5845,29 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
+  }
+
+  deepLinkFromWebLocation() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+
+    var match = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
+    if (!match) return null;
+    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+  }
+
+  deepLinkFromUrl(url) {
+    if (!url) return null;
+    var match = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
+    if (!match) return null;
+    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+  }
+
+  openPendingDeepLink() {
+    if (!this.pendingDeepLink || !this.navigationRef.current) return;
+
+    var target = this.pendingDeepLink;
+    this.pendingDeepLink = null;
+    this.navigationRef.current.navigate(target.screen, { book_id: target.bookId });
   }
 
   async componentDidMount() {
@@ -5795,11 +5905,17 @@ class RootApp extends React.Component {
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
     this._linkSub = Linking.addEventListener('url', (e) => {
       this.handleOAuthURL(e.url);
+      this.pendingDeepLink = this.deepLinkFromUrl(e.url);
+      this.openPendingDeepLink();
     });
 
     // Обработка URL-схемы когда приложение было убито iOS и запускается заново
     Linking.getInitialURL().then((url) => {
-      if (url) this.handleOAuthURL(url);
+      if (url) {
+        this.handleOAuthURL(url);
+        this.pendingDeepLink = this.deepLinkFromUrl(url) || this.pendingDeepLink;
+        this.openPendingDeepLink();
+      }
     }).catch(() => { });
 
     if (await new Storage().get('openAppFirst') == undefined) {
@@ -6083,15 +6199,18 @@ class RootApp extends React.Component {
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            <NavigationContainer>
-              <Stack.Navigator initialRouteName="Home">
-                <Stack.Screen name="Home" options={() => ({ headerShown: false })}>
+            <NavigationContainer
+              ref={this.navigationRef}
+              linking={Platform.OS === 'web' ? undefined : appLinking}
+              onReady={() => this.openPendingDeepLink()}>
+              <Stack.Navigator initialRouteName="home">
+                <Stack.Screen name="home" options={() => ({ headerShown: false })}>
                   {(stack) => (
                     <TabStack root={this} stack={stack} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="Show" options={({ navigation, route }) => ({
-                  title: false,
+                <Stack.Screen name="show" options={({ navigation, route }) => ({
+                  title: 'Книга',
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
@@ -6114,7 +6233,7 @@ class RootApp extends React.Component {
                     <Show stack={stack} root={this} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="Reader"
+                <Stack.Screen name="reader"
                   options={({ navigation, route }) => ({
                     headerShown: false
                   })}>
@@ -6154,6 +6273,7 @@ class RootApp extends React.Component {
             }
           </View>
         )}
+        <PwaInstallBanner />
       </View>
     );
   }
@@ -6169,11 +6289,11 @@ class TabStack extends React.Component {
 
 
     return (
-      <Tab.Navigator initialRouteName="Books"
+      <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
           tabBarActiveTintColor: '#f05458'
         })}>
-        <Tab.Screen name="Books"
+        <Tab.Screen name="books"
           listeners={{
             tabPress: () => {
               if (this.homeRef) this.homeRef.getBooks();
@@ -6208,7 +6328,7 @@ class TabStack extends React.Component {
             </SafeAreaInsetsContext.Consumer>
           )}
         </Tab.Screen>
-        <Tab.Screen name="Bookmarks"
+        <Tab.Screen name="bookmarks"
           listeners={{
             tabPress: () => {
               if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
@@ -6231,7 +6351,7 @@ class TabStack extends React.Component {
             <BookmarkStack ref={(ref) => this.bookmarkStackRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Dictionary"
+        <Tab.Screen name="dictionary"
           listeners={{
             tabPress: () => {
               if (this.dictionaryRef) this.dictionaryRef.getWords();
@@ -6254,7 +6374,7 @@ class TabStack extends React.Component {
             <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Subscription"
+        <Tab.Screen name="subscription"
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -6272,7 +6392,7 @@ class TabStack extends React.Component {
             <Subscription tabs={tabs} root={this.props.root} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="Profile"
+        <Tab.Screen name="profile"
           options={() => ({
             tabBarIcon: ({ focused, color }) => (
               <React.Fragment>
@@ -6398,11 +6518,13 @@ class Show extends React.Component {
   async componentDidMount() {
     homeStore.setOpenProperty(false);
 
+    var initialColor = this.props.stack.route.params.color || '#f05458';
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
-      document.body.style.backgroundColor = this.props.stack.route.params.color;
+      document.body.style.backgroundColor = initialColor;
       this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
-        document.body.style.backgroundColor = this.props.stack.route.params.color;
+        document.body.style.backgroundColor = this.state.book.color || initialColor;
       });
       this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
         document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
@@ -6425,6 +6547,17 @@ class Show extends React.Component {
             book: book,
             have_file: have_file == 'true'
           });
+          this.props.stack.navigation.setOptions({
+            title: book.name_en,
+            headerStyle: {
+              backgroundColor: book.color,
+              borderColor: 'transparent',
+              shadowColor: 'transparent'
+            }
+          });
+          if (Platform.OS === 'web' && typeof document !== 'undefined') {
+            document.body.style.backgroundColor = book.color;
+          }
         }
       })
     )
@@ -6439,7 +6572,7 @@ class Show extends React.Component {
   }
 
   openBook(book_id) {
-    this.props.stack.navigation.navigate('Reader', {
+    this.props.stack.navigation.navigate('reader', {
       book_id: book_id
     });
   }
@@ -6453,7 +6586,7 @@ class Show extends React.Component {
   render() {
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: this.props.stack.route.params.color }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 
