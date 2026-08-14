@@ -8,6 +8,7 @@ gulp.task('js', function () {
     './app/stylesheets/application.js',
     './app/stylesheets/home/*.js',
     './app/stylesheets/bookmarks/*.js',
+    './app/stylesheets/blog/*.js',
     './app/stylesheets/dictionary/*.js',
     './app/stylesheets/profile/*.js',
     './app/stylesheets/reader/*.js',

@@ -330,8 +330,8 @@ class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('subscription')}>
-              <Image style={{ width: 30, height: 30, marginTop: 2.5 }} source={require('./app/images/header/ads.jpg')} />
+            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')}>
+              <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginTop: 3 }} />
             </TouchableOpacity>
           ) : (
             <View style={homeStyles.header_empty_block}></View>
@@ -341,11 +341,7 @@ class Home extends React.Component {
         <HomeDownloadsPanel />
 
         <View style={homeStyles.search}>
-          <Image
-            style={homeStyles.search_image}
-            resizeMode={'contain'}
-            source={require('./app/images/home/search.png')}
-          />
+          <AppIcon icon={SearchIcon} size={24} color="#999" style={homeStyles.search_image} />
           <TextInput
             style={homeStyles.search_input}
             onChangeText={(value) => this.onChangeText(value)}
@@ -367,16 +363,10 @@ class Home extends React.Component {
             <TouchableOpacity onPress={() => this.openProperty()}>
               <View style={{ backgroundColor: '#ddd', borderRadius: 7, marginLeft: 3 }}>
                 {this.state.open_property == false &&
-                  <Image
-                    style={homeStyles.settings_image}
-                    source={require('./app/images/home/settings.png')}
-                  />
+                  <AppIcon icon={SlidersIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <Image
-                    style={homeStyles.settings_image}
-                    source={require('./app/images/home/settings-close.png')}
-                  />
+                  <AppIcon icon={CloseIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>

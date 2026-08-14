@@ -102,10 +102,7 @@ class Show extends React.Component {
               <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 22 }}>
                 <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginRight: 15 }}>
-                    <Image
-                      style={{ height: 20, width: 20, marginRight: 8 }}
-                      source={require('./app/images/books/book-white.png')}
-                    />
+                    <AppIcon icon={BookOpenIcon} size={20} color="#FFF" style={{ marginRight: 8 }} />
                     <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{this.props.root.state.books_percents[this.props.stack.route.params.book_id]}%</Text>
                   </View>
                 </View>
@@ -113,16 +110,10 @@ class Show extends React.Component {
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
                   {this.props.root.state.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
-                      <Image
-                        style={{ height: 20, width: 20, margin: 20 }}
-                        source={require('./app/images/books/arrow-button-read.png')}
-                      />
+                      <AppIcon icon={ChevronRightIcon} size={28} color='#000' style={{ margin: 16 }} />
                     </TouchableOpacity>
                   ) : (
-                    <Image
-                      style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
-                      source={require('./app/images/books/no-connect.png')}
-                    />
+                    <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
                   )}
                 </View>
 
@@ -142,10 +133,7 @@ class Show extends React.Component {
                       </React.Fragment>
                     ) : (
                       <View style={{ opacity: 0.3, height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
-                        <Image
-                          style={{ height: 30, width: 30, margin: 15 }}
-                          source={require('./app/images/books/download.png')}
-                        />
+                        <AppIcon icon={DownloadIcon} size={28} color={app_theme_colors.red} style={{ margin: 16 }} />
                       </View>
                     )}
                   </View>

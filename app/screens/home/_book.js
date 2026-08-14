@@ -63,18 +63,7 @@ class Book extends React.Component {
               </Text>
             </View>
             <View style={{ marginTop: 10, flexDirection: 'row' }}>
-              {percent == 100 &&
-                <Image
-                  style={{ height: 20, width: 20, marginRight: 8 }}
-                  source={require('./app/images/books/book_read.png')}
-                />
-              }
-              {percent != 100 &&
-                <Image
-                  style={{ height: 20, width: 20, marginRight: 8 }}
-                  source={require('./app/images/books/book.png')}
-                />
-              }
+              <AppIcon icon={BookOpenIcon} size={20} color={percent == 100 ? '#0fa90f' : '#777'} style={{ marginRight: 8 }} />
               <Text style={{ lineHeight: 20, fontSize: 12 }}>
                 <Text style={percent == 100 && { color: '#0fa90f' }}>
                   {percent}%
@@ -84,12 +73,7 @@ class Book extends React.Component {
               <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: "#444" }}>{book.pages} стр.</Text>
 
 
-              {book.have_file == true &&
-                <Image
-                  style={{ height: 20, width: 20, marginLeft: 8 }}
-                  source={require('./app/images/books/downloaded.png')}
-                />
-              }
+              {book.have_file == true && <AppIcon icon={GlobeCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
             </View>
           </View>
 

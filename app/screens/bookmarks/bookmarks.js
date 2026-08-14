@@ -157,7 +157,7 @@ class Bookmarks extends React.Component {
                   return (
                     <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 10, }}>
                       <TouchableOpacity onPress={() => this.deleteBookmark(rowMap, data.item)}>
-                        <Image style={{ width: 20, height: 20, margin: 10 }} source={require('./app/images/bookmarks/delete.png')} />
+                        <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
                       </TouchableOpacity>
                     </View>
                   )

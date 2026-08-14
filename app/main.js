@@ -77,7 +77,49 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
 import Speech from '@mhpdev/react-native-speech';
-import Svg, { Path, Circle } from 'react-native-svg';
+import {
+  AlignCenter as AlignCenterIcon,
+  AlignJustify as AlignJustifyIcon,
+  AlignLeft as AlignLeftIcon,
+  AlignRight as AlignRightIcon,
+  Book as BookIcon,
+  BookOpen as BookOpenIcon,
+  Bookmark as BookmarkIcon,
+  Check as CheckIcon,
+  CheckCircle as CheckCircleIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  CloudDownload as CloudDownloadIcon,
+  Download as DownloadIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  Menu as MenuIcon,
+  Minus as MinusIcon,
+  Newspaper as NewspaperIcon,
+  Pilcrow as ParagraphIcon,
+  Play as PlayIcon,
+  Plus as PlusIcon,
+  RectangleHorizontal as AdvertisementIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  SlidersHorizontal as SlidersIcon,
+  Trash2 as TrashIcon,
+  User as UserIcon,
+  Volume2 as VolumeIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  X as CloseIcon,
+  ArrowDownToLine as ArrowDownToLineIcon,
+  GlobeCheck as GlobeCheckIcon,
+  BookA as BookAIcon,
+  Ellipsis as EllipsisIcon,
+  EllipsisVertical as EllipsisVerticalIcon,
+  MegaphoneOff as MegaphoneOffIcon
+} from 'lucide-react-native';
+
+const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
+  <Icon strokeWidth={strokeWidth} {...props} />
+);
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 

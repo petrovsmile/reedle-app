@@ -21,20 +21,14 @@ class ModalFastLearning extends React.Component {
 
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
 
-                <Image
-                  style={{ width: 20, height: 20 }}
-                  source={require('./app/images/reader/sentence-translate.png')}
-                />
+                <AppIcon icon={BookAIcon} size={20} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод предложения.
                 </Text>
               </View>
 
               <View style={{ flexDirection: 'row', marginTop: 15 }}>
-                <Image
-                  style={{ width: 20, height: 20 }}
-                  source={require('./app/images/reader/paragraph-translate.png')}
-                />
+                <AppIcon icon={ParagraphIcon} size={20} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод абзаца.
                 </Text>

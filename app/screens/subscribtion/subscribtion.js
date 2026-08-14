@@ -26,7 +26,7 @@ const Subscription = observer(class Subscription extends React.Component {
         '/api/v1/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
       if (result) this.setState({ api_prices: result });
-    } catch (e) {}
+    } catch (e) { }
   }
 
   setActiveSubscription(active_subscription) {
@@ -242,10 +242,7 @@ const Subscription = observer(class Subscription extends React.Component {
                 height: 55, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1
               }}>
                 <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                  <Image
-                    style={{ height: 20, width: 20, margin: 7.5 }}
-                    source={require('./app/images/header/right-menu-close.png')}
-                  />
+                  <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
                 </TouchableOpacity>
 
               </View>
@@ -274,118 +271,96 @@ const Subscription = observer(class Subscription extends React.Component {
 
           <View style={{ marginLeft: pageHorizontalMargin, marginRight: pageHorizontalMargin }}>
 
-            <React.Fragment>
-              {this.props.root.state.has_subscription == true ? (
-                <React.Fragment>
-                  <View style={{ marginTop: 30, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
-                    {this.props.root.state.subscription_info.subscription_id == 4 ? (
-                      <React.Fragment>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          У вас активирован
-                        </Text>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          вечный PRO-доступ
-                        </Text>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          Ваш PRO-доступ активен до:
-                        </Text>
-                        <View style={{ marginTop: 5 }}>
-                          <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: '#f05458' }}> {moment(this.props.root.state.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
-                        </View>
-                      </React.Fragment>
-                    )}
-                  </View>
-
-                  {appStore.type_payment == 'by_store' &&
+            {this.props.root.state.has_subscription == true &&
+              <React.Fragment>
+                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
+                  {this.props.root.state.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
-                      <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
-                        {this.state.load_sync_button == true ? (
-                          <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
-                        ) : (
-                          <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Синхронизировать с сайтом</Text>
-                        )}
-                      </TouchableOpacity>
-                      <Text style={{ marginTop: 10 }}>
-                        Если вы оплатили подписку через AppStore, но на сайте ваша подписка не отображается, синхронизуруйте данные.
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        У вас активирован
+                      </Text>
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        вечный PRO-доступ
                       </Text>
                     </React.Fragment>
-                  }
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  <Text style={{
-                    textAlign: 'center',
-                    fontSize: 25,
-                    fontWeight: 'bold',
-                    marginTop: 30,
-                  }}>
-                    У Вас нет активного PRO-доступа
-                  </Text>
-                </React.Fragment>
-              )}
-              <View style={{ height: 1, backgroundColor: '#ddd', marginTop: 30 }}></View>
-            </React.Fragment>
-
-
-            {this.props.root.state.has_subscription == false &&
-              <React.Fragment>
-                <View style={{ marginTop: 30, flexDirection: 'column', justifyContent: 'center' }}>
-                  {this.props.root.state.has_subscription == true ? (
-                    <Text style={{ textAlign: 'center', fontSize: 24, fontWeight: 'bold' }}>Продлить доступ</Text>
                   ) : (
-                    <Text style={{ textAlign: 'center', fontSize: 24, fontWeight: 'bold' }}>Приобрести PRO-доступ</Text>
+                    <React.Fragment>
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        Ваш PRO-доступ активен до:
+                      </Text>
+                      <View style={{ marginTop: 5 }}>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: '#f05458' }}> {moment(this.props.root.state.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                      </View>
+                    </React.Fragment>
                   )}
                 </View>
 
-                <View style={{ flexDirection: 'row', marginTop: 20, marginBottom: 15 }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/no_ads.png')} />
-                    </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Выключить</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>рекламу</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/offline.png')} />
-                    </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Чтение</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без интернета</Text>
-                  </View>
+                {appStore.type_payment == 'by_store' &&
+                  <React.Fragment>
+                    <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
+                      {this.state.load_sync_button == true ? (
+                        <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
+                      ) : (
+                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Синхронизировать с сайтом</Text>
+                      )}
+                    </TouchableOpacity>
+                    <Text style={{ marginTop: 10 }}>
+                      Если вы оплатили подписку через AppStore, но на сайте ваша подписка не отображается, синхронизуруйте данные.
+                    </Text>
+                  </React.Fragment>
+                }
+              </React.Fragment>
+            }
+
+            {this.props.root.state.has_subscription == false &&
+              <React.Fragment>
+                <View style={{ marginTop: 16, flexDirection: 'column', justifyContent: 'center' }}>
+                  {this.props.root.state.has_subscription == true &&
+                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Продлить доступ</Text>
+                  }
                 </View>
 
-                <View style={{ flexDirection: 'row', marginTop: 20, marginBottom: 15 }}>
-                  <View style={{ flex: 1 }}>
+                <View>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/dictionary.png')} />
+                      <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
                     </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Словарь</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без ограничений</Text>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Выключить рекламу</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/voiceover.png')} />
+                      <AppIcon icon={WifiIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
                     </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Озвучка слов</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без ограничений</Text>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Чтение без интернета</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                      <AppIcon icon={BookAIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                    </View>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Словарь без лимитов</Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                      <AppIcon icon={VolumeIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                    </View>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Озвучка слов без лимитов</Text>
+                    </View>
                   </View>
                 </View>
-
-                <Text style={{ marginTop: 15 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
               </React.Fragment>
             }
 
             {this.can_show_pricing() &&
               <React.Fragment>
-
-                <Text style={{ marginTop: 20, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-                  {appStore.type_payment == 'by_store' ? 'Варианты подписки:' : 'Варианты оплаты:'}
-                </Text>
-
-                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
+                <View style={{ marginTop: 16, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
@@ -416,8 +391,8 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
+                        <View style={{ borderColor: '#ddd', borderWidth: 1, borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text numberOfLines={1} style={{ fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
                       </View>
@@ -437,7 +412,7 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                        <View style={{ backgroundColor: '#f05458', borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
                           <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Лучшее предложение</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
@@ -458,9 +433,6 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 5 }}>Единоразовый платёж</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Один раз и навсегда</Text>
-                        </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
                       </View>
                     </View>
@@ -469,11 +441,13 @@ const Subscription = observer(class Subscription extends React.Component {
                 </View>
 
                 {this.state.active_subscription == 4 &&
-                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
+                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
                 }
                 {appStore.type_payment == 'by_yoo_kassa' && this.state.active_subscription != 4 &&
-                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
+                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
                 }
+
+                <Text style={{ marginTop: 8, color: '#888', fontSize: 13 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
 
                 <TouchableOpacity
                   onPress={() => this.state.active_subscription == 4 ? this.initForeverPayment() : this.initSubscriptionPayment()}

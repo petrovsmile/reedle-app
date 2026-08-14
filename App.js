@@ -77,7 +77,49 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
 import Speech from '@mhpdev/react-native-speech';
-import Svg, { Path, Circle } from 'react-native-svg';
+import {
+  AlignCenter as AlignCenterIcon,
+  AlignJustify as AlignJustifyIcon,
+  AlignLeft as AlignLeftIcon,
+  AlignRight as AlignRightIcon,
+  Book as BookIcon,
+  BookOpen as BookOpenIcon,
+  Bookmark as BookmarkIcon,
+  Check as CheckIcon,
+  CheckCircle as CheckCircleIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  CloudDownload as CloudDownloadIcon,
+  Download as DownloadIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  Menu as MenuIcon,
+  Minus as MinusIcon,
+  Newspaper as NewspaperIcon,
+  Pilcrow as ParagraphIcon,
+  Play as PlayIcon,
+  Plus as PlusIcon,
+  RectangleHorizontal as AdvertisementIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  SlidersHorizontal as SlidersIcon,
+  Trash2 as TrashIcon,
+  User as UserIcon,
+  Volume2 as VolumeIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  X as CloseIcon,
+  ArrowDownToLine as ArrowDownToLineIcon,
+  GlobeCheck as GlobeCheckIcon,
+  BookA as BookAIcon,
+  Ellipsis as EllipsisIcon,
+  EllipsisVertical as EllipsisVerticalIcon,
+  MegaphoneOff as MegaphoneOffIcon
+} from 'lucide-react-native';
+
+const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
+  <Icon strokeWidth={strokeWidth} {...props} />
+);
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 
@@ -192,9 +234,9 @@ const CURRENT_IOS_VERSION = '1.4.0'
 const CURRENT_ANDROID_VERSION = '1.4.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
-const HOST="https://reedle.ru"
+//const HOST="https://reedle.ru"
 //const HOST="https://stage.reedle.ru"
-//const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
+const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
@@ -323,8 +365,7 @@ const homeStyles = StyleSheet.create({
     marginTop: 10
   },
   search_image: {
-    width: 40,
-    height: 40
+    margin: 8
   },
   search_input: { 
     flex: 1,
@@ -467,6 +508,41 @@ const bookmarksStyles = StyleSheet.create({
     fontSize: 18 
   }
 });
+const blogStyles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#fff' },
+  content: { padding: 10, paddingBottom: 24 },
+  title: { fontSize: 30, fontWeight: 'bold', margin: 5, marginBottom: 12 },
+  row: { flex: 1, padding: 5 },
+  card: { flex: 1 },
+  cardImageWrap: { height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#eee' },
+  cardImage: { width: '100%', height: '100%' },
+  infoOverlay: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)'
+  },
+  infoOverlayText: { color: '#fff', fontSize: 12 },
+  look: { flexDirection: 'row', alignItems: 'center' },
+  cardTitle: { marginTop: 9, color: '#111', fontSize: 15, fontWeight: 'bold', lineHeight: 20 },
+  loader: { padding: 24 },
+  empty: { padding: 30, textAlign: 'center', color: '#777' },
+  articleContent: { padding: 15, paddingBottom: 40 },
+  articleTitle: { fontSize: 30, lineHeight: 38, fontWeight: 'bold', marginBottom: 10 },
+  articleInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  articleInfoText: { color: '#aaa', fontSize: 14 },
+  articleImage: { width: '100%', height: 230, borderRadius: 10, backgroundColor: '#eee', marginBottom: 4 },
+  block: { marginTop: 16 },
+  paragraph: { fontSize: 16, lineHeight: 25, color: '#222' },
+  header: { fontSize: 23, lineHeight: 30, fontWeight: 'bold' },
+  delimiter: { textAlign: 'center', fontSize: 18, letterSpacing: 6 },
+  listRow: { flexDirection: 'row', paddingLeft: 6, marginBottom: 7 },
+  listMarker: { width: 25, fontSize: 16, lineHeight: 24 },
+  listText: { flex: 1, fontSize: 16, lineHeight: 24 },
+  contentImage: { width: '100%', height: 230, borderRadius: 10, backgroundColor: '#eee' },
+  caption: { marginTop: 5, color: '#aaa', fontSize: 14 }
+});
+
 const dictionaryStyles = StyleSheet.create({
   auth_content: {
     margin: 15,
@@ -615,6 +691,66 @@ const profileStyles = StyleSheet.create({
   content: {
     padding: 15,
   },
+  page: {
+    alignItems: 'center',
+    paddingTop: 28,
+    paddingBottom: 30,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatar_text: {
+    color: app_theme_colors.inverseText,
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  email: {
+    marginTop: 12,
+    marginBottom: 28,
+    fontSize: 16,
+    color: app_theme_colors.text,
+  },
+  menu: {
+    alignSelf: 'stretch',
+    marginBottom: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: app_theme_colors.backgroundLight,
+  },
+  menu_item: {
+    minHeight: 54,
+    marginLeft: 15,
+    paddingRight: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: app_theme_colors.backgroundLight,
+  },
+  menu_item_last: {
+    borderBottomWidth: 0,
+  },
+  menu_item_text: {
+    flex: 1,
+    fontSize: 16,
+  },
+  menu_item_arrow: {
+    color: '#aaa',
+    fontSize: 28,
+    lineHeight: 30,
+  },
+  section: {
+    alignSelf: 'stretch',
+    padding: 15,
+  },
+  section_title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
   title: {
     textAlign: 'center',
     fontSize: 20,
@@ -691,13 +827,69 @@ const profileStyles = StyleSheet.create({
     height: 40,
     backgroundColor: app_theme_colors.red,
     borderRadius: 5,
-    marginTop: 15
+    marginTop: 30
   },
   log_out_text: {
     textAlign: 'center',
     flex: 1,
     color: app_theme_colors.inverseText,
     lineHeight: 40,
+  },
+  delete_button: {
+    height: 40,
+    marginTop: 10,
+    justifyContent: 'center',
+  },
+  delete_button_text: {
+    color: app_theme_colors.red,
+    textAlign: 'center',
+  },
+  social_title: {
+    marginTop: 30,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  social_description: {
+    marginTop: 6,
+    marginBottom: 14,
+    color: '#777',
+  },
+  social_list: {
+    borderWidth: 1,
+    borderColor: app_theme_colors.backgroundLight,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  social_row: {
+    minHeight: 58,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: app_theme_colors.backgroundLight,
+  },
+  social_row_last: {
+    borderBottomWidth: 0,
+  },
+  social_icon: {
+    width: 38,
+    height: 38,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  social_icon_image: {
+    width: 23,
+    height: 23,
+  },
+  social_name: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  social_action: {
+    color: app_theme_colors.red,
+    fontSize: 14,
   },
   remember_password_thanks: {
     marginBottom: 10,
@@ -737,6 +929,7 @@ const profileStyles = StyleSheet.create({
     lineHeight: 30
   }
 });
+
 var readerScreenStyles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -793,7 +986,7 @@ var readerScreenStyles = StyleSheet.create({
   },
   bookmarkImage: {
     height: 20,
-    width: 15,
+    width: 20,
     marginTop: 5,
   },
   sentencesContainer: {
@@ -1438,6 +1631,169 @@ export default function App() {
   );
 }
 
+function articleImageUrl(path) {
+  if (!path) return null;
+  return /^https?:\/\//.test(path) ? path : HOST + path;
+}
+
+function plainArticleText(value) {
+  if (!value) return '';
+  return String(value)
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function BlogEye({ color }) {
+  return <AppIcon icon={EyeIcon} size={16} color={color} style={{ marginRight: 5 }} />;
+}
+
+class Blog extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { articles: [], page: 1, nextPage: null, loading: true, loadingMore: false };
+  }
+
+  componentDidMount() {
+    this.loadArticles(1);
+  }
+
+  async loadArticles(page) {
+    if (page > 1 && this.state.loadingMore) return;
+    this.setState(page > 1 ? { loadingMore: true } : { loading: true });
+
+    var result = await new Request('/api/v1/articles', { page: page }, { do_not_show_error: true }).get();
+    if (result != false) {
+      this.setState({
+        articles: page == 1 ? result.items : this.state.articles.concat(result.items),
+        page: page,
+        nextPage: result.pagination.next_page,
+        loading: false,
+        loadingMore: false
+      });
+    } else {
+      this.setState({ loading: false, loadingMore: false });
+    }
+  }
+
+  openArticle(article) {
+    this.props.stack.navigation.navigate('article', { code: article.code, title: article.title });
+  }
+
+  renderArticle({ item }) {
+    var uri = articleImageUrl(item.image_url);
+    return (
+      <View style={blogStyles.row}>
+        <TouchableOpacity style={blogStyles.card} onPress={() => this.openArticle(item)}>
+          <View style={blogStyles.cardImageWrap}>
+            {uri && <Image source={{ uri: uri }} style={blogStyles.cardImage} resizeMode="cover" />}
+            <View style={blogStyles.infoOverlay}>
+              <View style={blogStyles.look}>
+                <BlogEye color="#fff" />
+                <Text style={blogStyles.infoOverlayText}>{item.look}</Text>
+              </View>
+              <Text style={blogStyles.infoOverlayText}>{item.created_at}</Text>
+            </View>
+          </View>
+          <Text style={blogStyles.cardTitle}>{item.title}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  render() {
+    return (
+      <SafeAreaView style={blogStyles.screen}>
+        <FlatList
+          data={this.state.articles}
+          keyExtractor={(item) => String(item.id)}
+          numColumns={2}
+          contentContainerStyle={blogStyles.content}
+          ListEmptyComponent={!this.state.loading ? <Text style={blogStyles.empty}>Статей пока нет</Text> : null}
+          ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color="#aaa" /> : null}
+          renderItem={(item) => this.renderArticle(item)}
+          onEndReached={() => this.state.nextPage && this.loadArticles(this.state.nextPage)}
+          onEndReachedThreshold={0.4}
+        />
+      </SafeAreaView>
+    );
+  }
+}
+
+class BlogArticle extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { article: null, loading: true };
+  }
+
+  async componentDidMount() {
+    var article = await new Request('/api/v1/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
+    this.setState({ article: article || null, loading: false });
+    if (article) this.props.stack.navigation.setOptions({ title: article.title });
+  }
+
+  renderBlock(block, index) {
+    var data = block.data || {};
+    if (block.type == 'paragraph') {
+      return <Text key={index} style={[blogStyles.block, blogStyles.paragraph]}>{plainArticleText(data.text)}</Text>;
+    }
+    if (block.type == 'header') {
+      return <Text key={index} style={[blogStyles.block, blogStyles.header]}>{plainArticleText(data.text)}</Text>;
+    }
+    if (block.type == 'delimiter') {
+      return <Text key={index} style={[blogStyles.block, blogStyles.delimiter]}>* * *</Text>;
+    }
+    if (block.type == 'list') {
+      return (
+        <View key={index} style={blogStyles.block}>
+          {(data.items || []).map((item, itemIndex) => (
+            <View key={itemIndex} style={blogStyles.listRow}>
+              <Text style={blogStyles.listMarker}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
+              <Text style={blogStyles.listText}>{plainArticleText(item)}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    if (block.type == 'image' && data.file && data.file.url) {
+      return (
+        <View key={index} style={blogStyles.block}>
+          <Image source={{ uri: articleImageUrl(data.file.url) }} style={blogStyles.contentImage} resizeMode="cover" />
+          {data.caption ? <Text style={blogStyles.caption}>{plainArticleText(data.caption)}</Text> : null}
+        </View>
+      );
+    }
+    return null;
+  }
+
+  render() {
+    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />;
+    if (!this.state.article) return <Text style={blogStyles.empty}>Статья не найдена</Text>;
+
+    var article = this.state.article;
+    return (
+      <SafeAreaView style={blogStyles.screen}>
+        <ScrollView contentContainerStyle={blogStyles.articleContent}>
+          <View style={blogStyles.articleInfo}>
+            <View style={blogStyles.look}>
+              <BlogEye color="#aaa" />
+              <Text style={blogStyles.articleInfoText}>{article.look}</Text>
+            </View>
+            <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
+          </View>
+          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={blogStyles.articleImage} resizeMode="cover" />}
+          {(article.content || []).map((block, index) => this.renderBlock(block, index))}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+}
+
 class Bookmark extends React.Component {
   constructor(props) {
     super(props);
@@ -1649,7 +2005,7 @@ class Bookmarks extends React.Component {
                   return (
                     <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 10, }}>
                       <TouchableOpacity onPress={() => this.deleteBookmark(rowMap, data.item)}>
-                        <Image style={{ width: 20, height: 20, margin: 10 }} source={require('./app/images/bookmarks/delete.png')} />
+                        <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
                       </TouchableOpacity>
                     </View>
                   )
@@ -1936,6 +2292,7 @@ class Dictionary extends React.Component {
             </Text>
           </TouchableOpacity>
         }
+        <View style={{ height: 100 }}></View>
       </ScrollView>
     );
   }
@@ -2052,7 +2409,7 @@ class Dictionary extends React.Component {
                     return (
                       <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 8 }}>
                         <TouchableOpacity onPress={() => this.deleteWord(rowMap, data.item)}>
-                          <Image style={{ width: 20, height: 20, margin: 10 }} source={require('./app/images/bookmarks/delete.png')} />
+                          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
                         </TouchableOpacity>
                       </View>
                     )
@@ -2163,18 +2520,7 @@ class Book extends React.Component {
               </Text>
             </View>
             <View style={{ marginTop: 10, flexDirection: 'row' }}>
-              {percent == 100 &&
-                <Image
-                  style={{ height: 20, width: 20, marginRight: 8 }}
-                  source={require('./app/images/books/book_read.png')}
-                />
-              }
-              {percent != 100 &&
-                <Image
-                  style={{ height: 20, width: 20, marginRight: 8 }}
-                  source={require('./app/images/books/book.png')}
-                />
-              }
+              <AppIcon icon={BookOpenIcon} size={20} color={percent == 100 ? '#0fa90f' : '#777'} style={{ marginRight: 8 }} />
               <Text style={{ lineHeight: 20, fontSize: 12 }}>
                 <Text style={percent == 100 && { color: '#0fa90f' }}>
                   {percent}%
@@ -2184,12 +2530,7 @@ class Book extends React.Component {
               <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: "#444" }}>{book.pages} стр.</Text>
 
 
-              {book.have_file == true &&
-                <Image
-                  style={{ height: 20, width: 20, marginLeft: 8 }}
-                  source={require('./app/images/books/downloaded.png')}
-                />
-              }
+              {book.have_file == true && <AppIcon icon={GlobeCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
             </View>
           </View>
 
@@ -2198,6 +2539,7 @@ class Book extends React.Component {
     )
   }
 }
+
 const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   var downloads = Object.values(downloadStore.downloads);
   if (downloads.length === 0) return null;
@@ -2530,8 +2872,8 @@ class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.tabs.navigation.navigate('subscription')}>
-              <Image style={{ width: 30, height: 30, marginTop: 2.5 }} source={require('./app/images/header/ads.jpg')} />
+            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')}>
+              <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginTop: 3 }} />
             </TouchableOpacity>
           ) : (
             <View style={homeStyles.header_empty_block}></View>
@@ -2541,11 +2883,7 @@ class Home extends React.Component {
         <HomeDownloadsPanel />
 
         <View style={homeStyles.search}>
-          <Image
-            style={homeStyles.search_image}
-            resizeMode={'contain'}
-            source={require('./app/images/home/search.png')}
-          />
+          <AppIcon icon={SearchIcon} size={24} color="#999" style={homeStyles.search_image} />
           <TextInput
             style={homeStyles.search_input}
             onChangeText={(value) => this.onChangeText(value)}
@@ -2567,16 +2905,10 @@ class Home extends React.Component {
             <TouchableOpacity onPress={() => this.openProperty()}>
               <View style={{ backgroundColor: '#ddd', borderRadius: 7, marginLeft: 3 }}>
                 {this.state.open_property == false &&
-                  <Image
-                    style={homeStyles.settings_image}
-                    source={require('./app/images/home/settings.png')}
-                  />
+                  <AppIcon icon={SlidersIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <Image
-                    style={homeStyles.settings_image}
-                    source={require('./app/images/home/settings-close.png')}
-                  />
+                  <AppIcon icon={CloseIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>
@@ -2817,12 +3149,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                {this.state.securePassword == true &&
-                  <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                }
-                {this.state.securePassword == false &&
-                  <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                }
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
               </TouchableOpacity>
             </View>
 
@@ -2835,12 +3162,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                {this.state.securePassword == true &&
-                  <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                }
-                {this.state.securePassword == false &&
-                  <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                }
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
               </TouchableOpacity>
             </View>
 
@@ -3110,13 +3432,13 @@ class Auth extends React.Component {
   socialLink(type){
     let link;
     if(type == 'vk'){
-      link = HOST+"/oauth/vk_redirect?oauth_app=true"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/vk" : "https://reedle.ru/oauth/vk_redirect?oauth_app=true"
     }
     if(type == 'yandex'){
-      link = "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri="+HOST+"/oauth_app/yandex"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex"
     }
     if(type == 'google'){
-      link = "https://accounts.google.com/o/oauth2/auth?redirect_uri="+HOST+"/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
     }
 
     Linking.openURL(link);
@@ -3129,10 +3451,7 @@ class Auth extends React.Component {
           {this.props.modal == true &&
             <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
               <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                <Image
-                  style={{ height: 20, width: 20, margin: 7.5 }}
-                  source={require('./app/images/header/right-menu-close.png')}
-                />
+                <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
               </TouchableOpacity>
             </View>
           }
@@ -3206,12 +3525,7 @@ class Auth extends React.Component {
                       placeholder={"Пароль"}
                     />
                     <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      {this.state.securePassword == true &&
-                        <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                      }
-                      {this.state.securePassword == false &&
-                        <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                      }
+                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
                     </TouchableOpacity>
                   </View>
                 }
@@ -3226,12 +3540,7 @@ class Auth extends React.Component {
                       placeholder={"Пароль"}
                     />
                     <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      {this.state.securePassword == true &&
-                        <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                      }
-                      {this.state.securePassword == false &&
-                        <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                      }
+                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
                     </TouchableOpacity>
                   </View>
                 }
@@ -3293,6 +3602,161 @@ class Auth extends React.Component {
 }
 
 class Profile extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      book_colors: [],
+    };
+  }
+
+  componentDidMount() {
+    this.loadBookColors();
+  }
+
+  async loadBookColors() {
+    try {
+      var exists = await RNFS.exists(file_root + '/' + BOOKS_FILENAME);
+      if (exists) {
+        var cached_books = JSON.parse(await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8'));
+        this.setBookColors(cached_books);
+      }
+
+      var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+      if (server_books != false) this.setBookColors(server_books);
+    } catch (error) {
+      // У страницы всегда остаётся резервный цвет, даже если кэш книг повреждён.
+    }
+  }
+
+  setBookColors(books) {
+    var colors = books
+      .map((book) => book.color)
+      .filter((color, index, list) => typeof color == 'string' && color.length > 0 && list.indexOf(color) == index);
+
+    this.setState({ book_colors: colors });
+  }
+
+  avatarColor(user) {
+    if (this.state.book_colors.length == 0) return app_theme_colors.red;
+
+    var numeric_id = parseInt(user.id, 10);
+    if (isNaN(numeric_id)) {
+      numeric_id = String(user.id || user.email || '')
+        .split('')
+        .reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    }
+
+    return this.state.book_colors[Math.abs(numeric_id) % this.state.book_colors.length];
+  }
+
+  avatarLetters(email) {
+    var email_name = String(email || '').split('@')[0];
+    return email_name.replace(/[^a-zа-яё0-9]/gi, '').slice(0, 2).toUpperCase() || '?';
+  }
+
+  renderMenuItem(title, onPress, last) {
+    return (
+      <TouchableOpacity
+        style={[profileStyles.menu_item, last && profileStyles.menu_item_last]}
+        onPress={onPress}>
+        <Text style={profileStyles.menu_item_text}>{title}</Text>
+        <Text style={profileStyles.menu_item_arrow}>›</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  render() {
+    var current_user = this.props.root.state.current_user;
+
+    return (
+      <SafeAreaView style={applicationStyles.save_area_view}>
+        {current_user == false ? (
+          <Auth />
+        ) : (
+          <ScrollView contentContainerStyle={profileStyles.page}>
+            <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
+              <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
+            </View>
+            <Text style={profileStyles.email}>{current_user.email}</Text>
+
+            <View style={profileStyles.menu}>
+              {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
+              {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
+              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'), true)}
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    );
+  }
+}
+
+class ProfileDetails extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      social_loader: false,
+    };
+  }
+
+  socialLink(type) {
+    var link;
+
+    if (type == 'vk') {
+      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/vk' : 'https://reedle.ru/oauth/vk_redirect?oauth_app=true';
+    }
+    if (type == 'yandex') {
+      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/yandex' : 'https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex';
+    }
+    if (type == 'google') {
+      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/google' : 'https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email';
+    }
+
+    if (link) Linking.openURL(link);
+  }
+
+  async disconnectSocial(type) {
+    if (this.state.social_loader) return;
+
+    this.setState({ social_loader: type });
+    var response = await new Request('/api/v1/users/social/' + type, {}).delete();
+    this.setState({ social_loader: false });
+
+    if (response == false || response.error != undefined) return;
+
+    appStore.setCurrentUser(response);
+    this.props.root.setState({ current_user: response });
+    await new Storage().set('current_user', JSON.stringify(response));
+  }
+
+  socialAction(type, connected) {
+    if (connected) {
+      this.disconnectSocial(type);
+    } else {
+      this.socialLink(type);
+    }
+  }
+
+  renderSocialRow(type, title, color, image, connected, last) {
+    return (
+      <TouchableOpacity
+        style={[profileStyles.social_row, last && profileStyles.social_row_last]}
+        disabled={this.state.social_loader != false}
+        onPress={() => this.socialAction(type, connected)}>
+        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
+          <Image style={profileStyles.social_icon_image} source={image} />
+        </View>
+        <Text style={profileStyles.social_name}>{title}</Text>
+        {this.state.social_loader == type ? (
+          <ActivityIndicator size="small" color={app_theme_colors.red} />
+        ) : (
+          <Text style={profileStyles.social_action}>{connected ? 'Отключить' : 'Подключить'}</Text>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
   async log_out() {
     await new Storage().remove('current_user');
     await new Storage().set('has_subscription', 'false');
@@ -3309,38 +3773,74 @@ class Profile extends React.Component {
   }
 
   render() {
+    var current_user = this.props.root.state.current_user;
+    if (current_user == false) return <Auth />;
+
     return (
-      <SafeAreaView style={applicationStyles.save_area_view} >
-        {this.props.root.state.current_user == false ? (
-          <Auth />
-        ) : (
-          <ScrollView>
-            <View style={profileStyles.content}>
-              <Text style={[profileStyles.title, { marginTop: 15 }]}>Основная информация</Text>
-              <UpdateProfile current_user={this.props.root.state.current_user} />
+      <SafeAreaView style={applicationStyles.save_area_view}>
+        <ScrollView contentContainerStyle={profileStyles.section}>
+          <UpdateProfile current_user={current_user} />
 
-              <Text style={profileStyles.title}>Смена пароля</Text>
-              <ChangePassword current_user={this.props.root.state.current_user} />
+          <Text style={profileStyles.social_title}>Привязать соц. сети</Text>
+          <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
+          <View style={profileStyles.social_list}>
+            {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
+            {this.renderSocialRow('yandex', 'Яндекс', '#f9d657', require('./app/images/profile/auth/socials/ya.png'), current_user.yandex_connected)}
+            {this.renderSocialRow('google', 'Google', '#df432f', require('./app/images/profile/auth/socials/google.png'), current_user.google_connected, true)}
+          </View>
 
-              <Text style={profileStyles.title}>Выход из аккаунта</Text>
-              <TouchableOpacity style={profileStyles.log_out_button} onPress={() => this.log_out()}>
-                <Text style={profileStyles.log_out_text}>Выход</Text>
-              </TouchableOpacity>
+          <TouchableOpacity style={profileStyles.log_out_button} onPress={() => this.log_out()}>
+            <Text style={profileStyles.log_out_text}>Выйти из аккаунта</Text>
+          </TouchableOpacity>
 
-              <Text style={profileStyles.title}>Удалить аккаунт</Text>
-
-              <Text style={{ marginTop: 15, marginBottom: 15 }}>Для того, чтобы полностью удалить аккаунт, перейдите по ссылке ниже: </Text>
-
-              <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/profile/delete")}>
-                <Text style={{ color: app_theme_colors.red }}>Удаление аккаунта</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
+          <TouchableOpacity style={profileStyles.delete_button} onPress={() => Linking.openURL('https://reedle.ru/profile/delete')}>
+            <Text style={profileStyles.delete_button_text}>Удалить аккаунт</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </SafeAreaView>
-    )
+    );
   }
 }
+
+class ProfilePassword extends React.Component {
+  render() {
+    var current_user = this.props.root.state.current_user;
+    if (current_user == false) return <Auth />;
+
+    return (
+      <SafeAreaView style={applicationStyles.save_area_view}>
+        <ScrollView contentContainerStyle={profileStyles.section}>
+          <ChangePassword current_user={current_user} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+}
+
+class ProfileStack extends React.Component {
+  render() {
+    const RootStack = createStackNavigator();
+    const childScreenOptions = {
+      headerBackTitle: 'Аккаунт',
+      headerTintColor: app_theme_colors.red,
+    };
+
+    return (
+      <RootStack.Navigator initialRouteName="profile_home">
+        <RootStack.Screen name="profile_home" options={{ headerShown: false }}>
+          {(stack) => <Profile root={this.props.root} root_stack={this.props.root_stack} stack={stack} />}
+        </RootStack.Screen>
+        <RootStack.Screen name="profile_details" options={{ ...childScreenOptions, title: 'Аккаунт' }}>
+          {() => <ProfileDetails root={this.props.root} />}
+        </RootStack.Screen>
+        <RootStack.Screen name="profile_password" options={{ ...childScreenOptions, title: 'Изменить пароль' }}>
+          {() => <ProfilePassword root={this.props.root} />}
+        </RootStack.Screen>
+      </RootStack.Navigator>
+    );
+  }
+}
+
 class ModalFastLearning extends React.Component {
   render(){
     return(
@@ -3364,20 +3864,14 @@ class ModalFastLearning extends React.Component {
 
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
 
-                <Image
-                  style={{ width: 20, height: 20 }}
-                  source={require('./app/images/reader/sentence-translate.png')}
-                />
+                <AppIcon icon={BookAIcon} size={20} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод предложения.
                 </Text>
               </View>
 
               <View style={{ flexDirection: 'row', marginTop: 15 }}>
-                <Image
-                  style={{ width: 20, height: 20 }}
-                  source={require('./app/images/reader/paragraph-translate.png')}
-                />
+                <AppIcon icon={ParagraphIcon} size={20} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод абзаца.
                 </Text>
@@ -3405,6 +3899,7 @@ class ModalFastLearning extends React.Component {
     )
   }
 }
+
 class ModalNoAd extends React.Component {
   render(){
     return(
@@ -3829,15 +4324,9 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       {(this.state.count_voiceover < 15 || this.props.has_subscription) ? (
                         <TouchableWithoutFeedback onPress={() => this.voice_word(this.props.original)}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
-                            <Animated.Image
-                              style={[
-                                { width: 24, height: 24 },
-                                this.state.voiceover_playing && {
-                                  transform: [{ scale: this.scaleAnim }]
-                                }
-                              ]}
-                              source={this.state.voiceover_playing ? require('./app/images/reader/voiceover-active.png') : require('./app/images/reader/voiceover.png')}
-                            />
+                            <Animated.View style={this.state.voiceover_playing && { transform: [{ scale: this.scaleAnim }] }}>
+                              <AppIcon icon={VolumeIcon} size={24} color={this.state.voiceover_playing ? app_theme_colors.red : readerStore.textColorTheme} />
+                            </Animated.View>
                             {!this.props.has_subscription &&
                               <View style={{ marginTop: 5, width: 24 }}>
                                 <Text style={{ fontSize: 9, color: '#aaa', textAlign: 'center' }}>
@@ -3850,8 +4339,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       ) : (
                         <TouchableWithoutFeedback onPress={() => Alert.alert('Лимит на сегодня закончился.\nОплатите подписку, чтобы пользоваться озвучкой без ограничений\nБесплатно доступно 15 слов в день.')}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
-                            <Image style={{ width: 24, height: 24 }}
-                              source={require('./app/images/reader/voiceover-limited.png')} />
+                            <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                           </View>
                         </TouchableWithoutFeedback>
                       )}
@@ -3860,8 +4348,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                 ) : (
                   <TouchableWithoutFeedback onPress={() => Alert.alert('Нет подключения к интернету!')}>
                     <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
-                      <Image style={{ width: 24, height: 24 }}
-                        source={require('./app/images/reader/voiceover-limited.png')} />
+                      <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>
                   </TouchableWithoutFeedback>
                 )}
@@ -3914,11 +4401,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       {this.props.has_subscription == false &&
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
                           <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
-                            {this.state.show_limits_information ? (
-                              <Image style={{ width: 22, height: 22 }} source={require('./app/images/books/dictionary_info_close.png')} />
-                            ) : (
-                              <Image style={{ width: 22, height: 22 }} source={require('./app/images/books/dictionary_info.png')} />
-                            )}
+                            <AppIcon icon={this.state.show_limits_information ? CloseIcon : BookAIcon} size={20} color="#777" style={{ margin: 1 }} />
                           </View>
                         </TouchableOpacity>
                       }
@@ -4167,17 +4650,12 @@ const Paragraph = observer(class Paragraph extends React.Component {
         <View style={readerScreenStyles.paragraphRow}>
           <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={readerScreenStyles.bookmarkButton}>
             <Text style={[readerScreenStyles.bookmarkNumber, { color: readerStore.secondColorTheme }, (readerStore.bookmark == this.props.data['name']) && readerScreenStyles.bookmarkNumberActive]}>{this.props.data['name']}</Text>
-            {readerStore.bookmark == this.props.data['name'] ? (
-              <Image
-                style={readerScreenStyles.bookmarkImage}
-                source={require('./app/images/reader/bookmark-active.png')}
-              />
-            ) : (
-              <Image
-                style={readerScreenStyles.bookmarkImage}
-                source={require('./app/images/reader/bookmark.png')}
-              />
-            )}
+            <AppIcon
+              icon={BookmarkIcon}
+              size={20}
+              color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
+              style={readerScreenStyles.bookmarkImage}
+            />
 
           </TouchableOpacity>
           <View style={[readerScreenStyles.sentencesContainer, { justifyContent: readerStore.textAlign }]}>
@@ -4186,23 +4664,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
               <React.Fragment key={index}>
                 {FEATURE_SENTENCE_TRANSLATE && (appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Animated.Image
-                      style={[
-                        { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size },
-                        this.isSpeaking(index) && {
-                          tintColor: '#f05458',
-                          transform: [{ scale: this.scaleAnim }]
-                        }
-                      ]}
-                      source={require('./app/images/reader/voiceover.png')}
-                    />
+                    <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
+                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
+                    </Animated.View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={() => Alert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Image
-                      style={{ width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }}
-                      source={require('./app/images/reader/voiceover-limited.png')}
-                    />
+                    <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
                 ))}
                 {sentence['b'].map((block, index) => {
@@ -4231,10 +4699,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
                 {this.props.data['sentences'].length > 1 &&
                   <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
-                    <Image
-                      style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
-                      source={require('./app/images/reader/sentence-translate.png')}
-                    />
+                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
                   </TouchableWithoutFeedback>
                 }
 
@@ -4243,10 +4708,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
 
             <TouchableWithoutFeedback onPress={() => this.translateText(this.state.paragraph_translate)}>
-              <Image
-                style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
-                source={require('./app/images/reader/paragraph-translate.png')}
-              />
+              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
             </TouchableWithoutFeedback>
 
 
@@ -4320,18 +4782,12 @@ class ReaderSettings extends React.Component {
                   <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
                     {this.props.fontSize <= 14 &&
                       <View style={{ flex: 1, opacity: 0.3 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeLess.png')}
-                        />
+                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15  }} />
                       </View>
                     }
                     {this.props.fontSize > 14 &&
                       <TouchableOpacity onPress={() => this.props.changeFontSize('less')} style={{ flex: 1 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeLess.png')}
-                        />
+                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </TouchableOpacity>
                     }
                   </View>
@@ -4341,45 +4797,27 @@ class ReaderSettings extends React.Component {
                   <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
                     {this.props.fontSize >= 24 &&
                       <View style={{ flex: 1, opacity: 0.3 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeMore.png')}
-                        />
+                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </View>
                     }
                     {this.props.fontSize < 24 &&
                       <TouchableOpacity onPress={() => this.props.changeFontSize('more')} style={{ flex: 1 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeMore.png')}
-                        />
+                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </TouchableOpacity>
                     }
                   </View>
                   <TouchableOpacity onPress={() => this.props.textAlignChange()}>
                     {this.props.textAlign == 'flex-start' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/left.png')}
-                      />
+                      <AppIcon icon={AlignLeftIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'flex-end' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/right.png')}
-                      />
+                      <AppIcon icon={AlignRightIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'center' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/center.png')}
-                      />
+                      <AppIcon icon={AlignCenterIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'space-evenly' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/justify.png')}
-                      />
+                      <AppIcon icon={AlignJustifyIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                   </TouchableOpacity>
                 </View>
@@ -4387,44 +4825,29 @@ class ReaderSettings extends React.Component {
                 <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: '#ddd', borderBottomWidth: 1, paddingTop: 15, paddingBottom: 15 }}>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#ffffff', '#000000', '#dddddd')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#ffffff' }}>
                     {this.props.backgroundColorTheme == '#ffffff' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#eeeeee', '#000000', '#cccccc')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#eeeeee' }}>
                     {this.props.backgroundColorTheme == '#eeeeee' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#f8f4e9', '#000000', '#d4c8a0')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#f6f0e3' }}>
                     {this.props.backgroundColorTheme == '#f8f4e9' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#292c2c', '#ffffff', '#5a5d5d')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#292c2c', borderRadius: 20, backgroundColor: '#000000' }}>
                     {this.props.backgroundColorTheme == '#292c2c' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_white.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#000000', '#ffffff', '#444')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#000000', borderRadius: 20, backgroundColor: '#000000' }}>
                     {this.props.backgroundColorTheme == '#000000' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_white.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                 </View>
@@ -4490,6 +4913,7 @@ class ReaderSettings extends React.Component {
     )
   }
 }
+
 var scroll_percent = 0;
 
 // ============================================================
@@ -4743,6 +5167,7 @@ class Reader extends React.Component {
     });
     readerStore.clearListWords();
     clearTimeout(this._scrollRestoreTimer);
+    clearTimeout(this._scrollPercentSaveTimer);
   }
 
   async openPage(first_load) {
@@ -5007,13 +5432,26 @@ class Reader extends React.Component {
   }
 
   onScroll(event) {
-    if (event.nativeEvent.contentSize.height < event.nativeEvent.layoutMeasurement.height) {
+    if (event.nativeEvent.contentSize.height <= event.nativeEvent.layoutMeasurement.height) {
       scroll_percent = 100;
     } else {
       scroll_percent = (event.nativeEvent.contentOffset.y / (event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height)) * 100;
+      if (scroll_percent < 0) {
+        scroll_percent = 0;
+      }
       if (scroll_percent > 100) {
         scroll_percent = 100;
       }
+    }
+
+    var percent = this.calculatePercent();
+    if (percent !== this.state.percent) {
+      this.setState({ percent: percent }, () => {
+        if (Platform.OS === 'web') {
+          clearTimeout(this._scrollPercentSaveTimer);
+          this._scrollPercentSaveTimer = setTimeout(() => this.setPercent(), 250);
+        }
+      });
     }
   }
   onScrollEndDrag(event) {
@@ -5022,14 +5460,7 @@ class Reader extends React.Component {
   }
 
   async setPercent() {
-    var percent = parseInt(((parseFloat(this.state.page - 1) / parseFloat(this.state.pages)) * 100));
-
-    percent = percent + ((100 / this.state.pages) * (scroll_percent / 100));
-    percent = parseInt(percent.toFixed(0));
-
-    if (percent > 98) {
-      percent = 100
-    }
+    var percent = this.calculatePercent();
 
     await new Storage().set('percent_' + this.props.stack.route.params.book_id, percent.toString());
 
@@ -5043,6 +5474,19 @@ class Reader extends React.Component {
     this.setState({
       percent: percent,
     });
+  }
+
+  calculatePercent() {
+    var pages = parseFloat(this.state.pages);
+    if (!pages || pages < 1) {
+      return 0;
+    }
+
+    var percent = ((parseFloat(this.state.page - 1) / pages) * 100) +
+      ((100 / pages) * (scroll_percent / 100));
+    percent = parseInt(percent.toFixed(0));
+
+    return percent > 98 ? 100 : percent;
   }
 
 
@@ -5340,14 +5784,7 @@ class Reader extends React.Component {
         {(this.state.paragraphs == false) ? (
           <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-              {this.state.textColorTheme == '#ffffff' &&
-                <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                  source={require('./app/images/header/arrow-left-white.png')} />
-              }
-              {this.state.textColorTheme == '#000000' &&
-                <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                  source={require('./app/images/header/arrow-left.png')} />
-              }
+              <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
             </TouchableOpacity>
 
             <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
@@ -5395,7 +5832,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -5428,7 +5865,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })}
+              openSubscription={() => this.props.stack.navigation.navigate('subscription')}
             />
 
             <View style={readerScreenStyles.layout}>
@@ -5438,14 +5875,7 @@ class Reader extends React.Component {
                 borderColor: this.state.secondColorTheme,
               }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                      source={require('./app/images/header/arrow-left.png')} />
-                  }
+                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
                 </TouchableOpacity>
 
                 {this.state.pages == 1 ? (
@@ -5472,20 +5902,7 @@ class Reader extends React.Component {
 
                 <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
                   <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                      <Circle
-                        cx="12" cy="12" r="3"
-                        stroke={this.state.textColorTheme || '#000000'}
-                        strokeWidth={1.4}
-                      />
-                      <Path
-                        stroke={this.state.textColorTheme || '#000000'}
-                        strokeWidth={1.4}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-                      />
-                    </Svg>
+                    <AppIcon icon={SettingsIcon} size={26} color={this.state.textColorTheme || '#000000'} />
                   </View>
                 </TouchableWithoutFeedback>
 
@@ -5540,28 +5957,11 @@ class Reader extends React.Component {
 
                 {this.state.page > 1 &&
                   <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={readerScreenStyles.navArrow}
-                        source={require('./app/images/header/arrow-left-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={readerScreenStyles.navArrow}
-                        source={require('./app/images/header/arrow-left.png')} />
-                    }
+                    <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == 1 &&
-                  <React.Fragment>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-left-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-left.png')} />
-                    }
-
-                  </React.Fragment>
+                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
                 }
 
 
@@ -5571,28 +5971,11 @@ class Reader extends React.Component {
 
                 {this.state.page < this.state.pages &&
                   <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30 }}
-                        source={require('./app/images/header/arrow-right-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30 }}
-                        source={require('./app/images/header/arrow-right.png')} />
-                    }
+                    <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == this.state.pages &&
-                  <React.Fragment>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-right-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-right.png')} />
-                    }
-
-                  </React.Fragment>
+                  <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
                 }
 
               </View>
@@ -5800,7 +6183,7 @@ class Header extends React.Component {
       <SafeAreaView style={{backgroundColor: '#FFF'}}>
         <View style={applicationStyles.header}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
-            <Image style={applicationStyles.header_icon_image} source={require('./app/images/header/menu.png')} />
+            <AppIcon icon={MenuIcon} size={26} color={app_theme_colors.text} />
           </TouchableOpacity> 
           <Text style={applicationStyles.header_title}>{this.props.title}</Text>
           <View style={applicationStyles.header_empty_block}/>
@@ -5810,6 +6193,7 @@ class Header extends React.Component {
     )
   }
 }
+
 var root_app;
 const appLinking = {
   prefixes: ['read://', 'https://reedle.ru/app/', 'http://localhost:3001/app/'],
@@ -5818,6 +6202,7 @@ const appLinking = {
       home: 'home',
       show: 'books/:book_id',
       reader: 'books/:book_id/reader',
+      article: 'blog/:code',
     },
   },
 };
@@ -5850,16 +6235,26 @@ class RootApp extends React.Component {
   deepLinkFromWebLocation() {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
 
-    var match = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
-    if (!match) return null;
-    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+    var bookMatch = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
+    if (bookMatch) {
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+    }
+
+    var articleMatch = window.location.pathname.match(/^\/app\/blog\/([^/]+)\/?$/);
+    if (articleMatch) return { screen: 'article', params: { code: decodeURIComponent(articleMatch[1]) } };
+    return null;
   }
 
   deepLinkFromUrl(url) {
     if (!url) return null;
-    var match = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
-    if (!match) return null;
-    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+    var bookMatch = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
+    if (bookMatch) {
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+    }
+
+    var articleMatch = url.match(/^read:\/\/blog\/([^/?]+)/);
+    if (articleMatch) return { screen: 'article', params: { code: decodeURIComponent(articleMatch[1]) } };
+    return null;
   }
 
   openPendingDeepLink() {
@@ -5867,7 +6262,7 @@ class RootApp extends React.Component {
 
     var target = this.pendingDeepLink;
     this.pendingDeepLink = null;
-    this.navigationRef.current.navigate(target.screen, { book_id: target.bookId });
+    this.navigationRef.current.navigate(target.screen, target.params);
   }
 
   async componentDidMount() {
@@ -5881,6 +6276,14 @@ class RootApp extends React.Component {
         current_user: parsed_user,
       });
       appStore.setCurrentUser(parsed_user);
+    }
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      var oauthParams = new URLSearchParams(window.location.search);
+      if (oauthParams.get('oauth') == 'pwa') {
+        await this.loadPwaOAuthUser();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
@@ -5960,6 +6363,16 @@ class RootApp extends React.Component {
     this.setState({ current_user: response }); // обновление UI
     await new Storage().set('current_user', JSON.stringify(response));
     this.checkSubscription(); // читает current_user из appStore (синхронно)
+  }
+
+  async loadPwaOAuthUser() {
+    var response = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    if (!response || response['error'] != undefined) return;
+
+    appStore.setCurrentUser(response);
+    this.setState({ current_user: response });
+    await new Storage().set('current_user', JSON.stringify(response));
+    this.checkSubscription();
   }
 
   async initAds() {
@@ -6222,11 +6635,7 @@ class RootApp extends React.Component {
                     color: '#FFF',
                   },
                   headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => (
-                    <ImageBackground style={{ width: 30, height: 30, marginLeft: 10 }}
-                      resizeMode='cover'
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  )
+                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />
                 }
                 )}>
                   {(stack) => (
@@ -6250,6 +6659,16 @@ class RootApp extends React.Component {
                     </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
+                <Stack.Screen name="subscription" options={{ title: 'ПРО-доступ' }}>
+                  {() => (
+                    <Subscription root={this} />
+                  )}
+                </Stack.Screen>
+                <Stack.Screen name="article" options={{ title: 'Блог' }}>
+                  {(stack) => (
+                    <BlogArticle stack={stack} />
+                  )}
+                </Stack.Screen>
               </Stack.Navigator>
             </NavigationContainer>
 
@@ -6267,7 +6686,7 @@ class RootApp extends React.Component {
                   }
                 </View>
                 <View style={applicationStyles.error_request_icon}>
-                  <Image source={require('./app/images/layouts/error_close.png')} style={applicationStyles.error_request_icon_image} />
+                  <AppIcon icon={CloseIcon} size={20} color="#FFF" />
                 </View>
               </TouchableOpacity>
             }
@@ -6300,16 +6719,7 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/book-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/book.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookOpenIcon} size={18} color={color} />,
             title: 'Книги',
             headerShown: false
           })}>
@@ -6335,16 +6745,7 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/bookmark-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/bookmark.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookmarkIcon} size={18} color={color} />,
             title: 'Закладки',
           })}>
           {(tabs) => (
@@ -6358,56 +6759,29 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/dictionary-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/dictionary.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookAIcon} size={18} color={color} />,
             title: 'Словарь',
           })}>
           {(tabs) => (
             <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="subscription"
+        <Tab.Screen name="blog"
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/pro-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/pro.png')} />
-                )}
-              </React.Fragment>
-
-            ),
-            title: 'PRO-доступ',
+            tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={18} color={color} />,
+            title: 'Блог',
           })}>
-          {(tabs) => (
-            <Subscription tabs={tabs} root={this.props.root} />
+          {() => (
+            <Blog stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/profile-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/profile.png')} />
-                )}
-              </React.Fragment>
-
-            ),
-            title: 'Профиль',
+            tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
+            title: 'Аккаунт',
           })}>
           {() => (
-            <Profile root={this.props.root} />
+            <ProfileStack root={this.props.root} root_stack={this.props.stack} />
           )}
         </Tab.Screen>
       </Tab.Navigator >
@@ -6482,21 +6856,12 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
         ) : downloading ? (
           this.renderProgress(download)
         ) : haveFile ? (
-          <Image
-            style={{ height: 20, width: 20, margin: 20 }}
-            source={require('./app/images/books/arrow-button-read.png')}
-          />
+          <AppIcon icon={ChevronRightIcon} size={20} color='#000' style={{ margin: 20 }} />
         ) : !appStore.has_internet ? (
-          <Image
-            style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
-            source={require('./app/images/books/no-connect.png')}
-          />
+          <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
         ) : (
           <TouchableOpacity onPress={() => this.startDownload()}>
-            <Image
-              style={{ height: 30, width: 30, margin: 15 }}
-              source={require('./app/images/books/download.png')}
-            />
+            <AppIcon icon={ArrowDownToLineIcon} size={28} color="#000" style={{ margin: 16 }} />
           </TouchableOpacity>
         )}
       </View>
@@ -6608,10 +6973,7 @@ class Show extends React.Component {
               <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 22 }}>
                 <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginRight: 15 }}>
-                    <Image
-                      style={{ height: 20, width: 20, marginRight: 8 }}
-                      source={require('./app/images/books/book-white.png')}
-                    />
+                    <AppIcon icon={BookOpenIcon} size={20} color="#FFF" style={{ marginRight: 8 }} />
                     <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{this.props.root.state.books_percents[this.props.stack.route.params.book_id]}%</Text>
                   </View>
                 </View>
@@ -6619,16 +6981,10 @@ class Show extends React.Component {
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
                   {this.props.root.state.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
-                      <Image
-                        style={{ height: 20, width: 20, margin: 20 }}
-                        source={require('./app/images/books/arrow-button-read.png')}
-                      />
+                      <AppIcon icon={ChevronRightIcon} size={28} color='#000' style={{ margin: 16 }} />
                     </TouchableOpacity>
                   ) : (
-                    <Image
-                      style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
-                      source={require('./app/images/books/no-connect.png')}
-                    />
+                    <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
                   )}
                 </View>
 
@@ -6648,10 +7004,7 @@ class Show extends React.Component {
                       </React.Fragment>
                     ) : (
                       <View style={{ opacity: 0.3, height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
-                        <Image
-                          style={{ height: 30, width: 30, margin: 15 }}
-                          source={require('./app/images/books/download.png')}
-                        />
+                        <AppIcon icon={DownloadIcon} size={28} color={app_theme_colors.red} style={{ margin: 16 }} />
                       </View>
                     )}
                   </View>
@@ -6717,7 +7070,7 @@ const Subscription = observer(class Subscription extends React.Component {
         '/api/v1/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
       if (result) this.setState({ api_prices: result });
-    } catch (e) {}
+    } catch (e) { }
   }
 
   setActiveSubscription(active_subscription) {
@@ -6933,10 +7286,7 @@ const Subscription = observer(class Subscription extends React.Component {
                 height: 55, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1
               }}>
                 <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                  <Image
-                    style={{ height: 20, width: 20, margin: 7.5 }}
-                    source={require('./app/images/header/right-menu-close.png')}
-                  />
+                  <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
                 </TouchableOpacity>
 
               </View>
@@ -6965,118 +7315,96 @@ const Subscription = observer(class Subscription extends React.Component {
 
           <View style={{ marginLeft: pageHorizontalMargin, marginRight: pageHorizontalMargin }}>
 
-            <React.Fragment>
-              {this.props.root.state.has_subscription == true ? (
-                <React.Fragment>
-                  <View style={{ marginTop: 30, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
-                    {this.props.root.state.subscription_info.subscription_id == 4 ? (
-                      <React.Fragment>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          У вас активирован
-                        </Text>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          вечный PRO-доступ
-                        </Text>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        <Text style={{ textAlign: 'center', fontSize: 18 }}>
-                          Ваш PRO-доступ активен до:
-                        </Text>
-                        <View style={{ marginTop: 5 }}>
-                          <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: '#f05458' }}> {moment(this.props.root.state.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
-                        </View>
-                      </React.Fragment>
-                    )}
-                  </View>
-
-                  {appStore.type_payment == 'by_store' &&
+            {this.props.root.state.has_subscription == true &&
+              <React.Fragment>
+                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
+                  {this.props.root.state.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
-                      <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
-                        {this.state.load_sync_button == true ? (
-                          <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
-                        ) : (
-                          <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Синхронизировать с сайтом</Text>
-                        )}
-                      </TouchableOpacity>
-                      <Text style={{ marginTop: 10 }}>
-                        Если вы оплатили подписку через AppStore, но на сайте ваша подписка не отображается, синхронизуруйте данные.
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        У вас активирован
+                      </Text>
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        вечный PRO-доступ
                       </Text>
                     </React.Fragment>
-                  }
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  <Text style={{
-                    textAlign: 'center',
-                    fontSize: 25,
-                    fontWeight: 'bold',
-                    marginTop: 30,
-                  }}>
-                    У Вас нет активного PRO-доступа
-                  </Text>
-                </React.Fragment>
-              )}
-              <View style={{ height: 1, backgroundColor: '#ddd', marginTop: 30 }}></View>
-            </React.Fragment>
-
-
-            {this.props.root.state.has_subscription == false &&
-              <React.Fragment>
-                <View style={{ marginTop: 30, flexDirection: 'column', justifyContent: 'center' }}>
-                  {this.props.root.state.has_subscription == true ? (
-                    <Text style={{ textAlign: 'center', fontSize: 24, fontWeight: 'bold' }}>Продлить доступ</Text>
                   ) : (
-                    <Text style={{ textAlign: 'center', fontSize: 24, fontWeight: 'bold' }}>Приобрести PRO-доступ</Text>
+                    <React.Fragment>
+                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                        Ваш PRO-доступ активен до:
+                      </Text>
+                      <View style={{ marginTop: 5 }}>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: '#f05458' }}> {moment(this.props.root.state.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                      </View>
+                    </React.Fragment>
                   )}
                 </View>
 
-                <View style={{ flexDirection: 'row', marginTop: 20, marginBottom: 15 }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/no_ads.png')} />
-                    </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Выключить</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>рекламу</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/offline.png')} />
-                    </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Чтение</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без интернета</Text>
-                  </View>
+                {appStore.type_payment == 'by_store' &&
+                  <React.Fragment>
+                    <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
+                      {this.state.load_sync_button == true ? (
+                        <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
+                      ) : (
+                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Синхронизировать с сайтом</Text>
+                      )}
+                    </TouchableOpacity>
+                    <Text style={{ marginTop: 10 }}>
+                      Если вы оплатили подписку через AppStore, но на сайте ваша подписка не отображается, синхронизуруйте данные.
+                    </Text>
+                  </React.Fragment>
+                }
+              </React.Fragment>
+            }
+
+            {this.props.root.state.has_subscription == false &&
+              <React.Fragment>
+                <View style={{ marginTop: 16, flexDirection: 'column', justifyContent: 'center' }}>
+                  {this.props.root.state.has_subscription == true &&
+                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Продлить доступ</Text>
+                  }
                 </View>
 
-                <View style={{ flexDirection: 'row', marginTop: 20, marginBottom: 15 }}>
-                  <View style={{ flex: 1 }}>
+                <View>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/dictionary.png')} />
+                      <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
                     </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Словарь</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без ограничений</Text>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Выключить рекламу</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <Image style={{ width: 50, height: 50, marginBottom: 10 }} source={require('./app/images/subscrition/voiceover.png')} />
+                      <AppIcon icon={WifiIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
                     </View>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>Озвучка слов</Text>
-                    <Text style={{ textAlign: 'center', fontSize: 16 }}>без ограничений</Text>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Чтение без интернета</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                      <AppIcon icon={BookAIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                    </View>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Словарь без лимитов</Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                      <AppIcon icon={VolumeIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                    </View>
+                    <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
+                      <Text style={{ fontSize: 16, ineHeight: 32 }}>Озвучка слов без лимитов</Text>
+                    </View>
                   </View>
                 </View>
-
-                <Text style={{ marginTop: 15 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
               </React.Fragment>
             }
 
             {this.can_show_pricing() &&
               <React.Fragment>
-
-                <Text style={{ marginTop: 20, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-                  {appStore.type_payment == 'by_store' ? 'Варианты подписки:' : 'Варианты оплаты:'}
-                </Text>
-
-                <View style={{ marginTop: 15, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
+                <View style={{ marginTop: 16, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
@@ -7107,8 +7435,8 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#FF9500', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
+                        <View style={{ borderColor: '#ddd', borderWidth: 1, borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                          <Text numberOfLines={1} style={{ fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
                       </View>
@@ -7128,7 +7456,7 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#f05458', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                        <View style={{ backgroundColor: '#f05458', borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
                           <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Лучшее предложение</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
@@ -7149,9 +7477,6 @@ const Subscription = observer(class Subscription extends React.Component {
                         <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 5 }}>Единоразовый платёж</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#34C759', borderRadius: 10, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Один раз и навсегда</Text>
-                        </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
                       </View>
                     </View>
@@ -7160,11 +7485,13 @@ const Subscription = observer(class Subscription extends React.Component {
                 </View>
 
                 {this.state.active_subscription == 4 &&
-                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
+                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
                 }
                 {appStore.type_payment == 'by_yoo_kassa' && this.state.active_subscription != 4 &&
-                  <Text style={{ marginTop: 10, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
+                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
                 }
+
+                <Text style={{ marginTop: 8, color: '#888', fontSize: 13 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
 
                 <TouchableOpacity
                   onPress={() => this.state.active_subscription == 4 ? this.initForeverPayment() : this.initSubscriptionPayment()}

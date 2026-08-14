@@ -6,6 +6,7 @@ const appLinking = {
       home: 'home',
       show: 'books/:book_id',
       reader: 'books/:book_id/reader',
+      article: 'blog/:code',
     },
   },
 };
@@ -38,16 +39,26 @@ class RootApp extends React.Component {
   deepLinkFromWebLocation() {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
 
-    var match = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
-    if (!match) return null;
-    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+    var bookMatch = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
+    if (bookMatch) {
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+    }
+
+    var articleMatch = window.location.pathname.match(/^\/app\/blog\/([^/]+)\/?$/);
+    if (articleMatch) return { screen: 'article', params: { code: decodeURIComponent(articleMatch[1]) } };
+    return null;
   }
 
   deepLinkFromUrl(url) {
     if (!url) return null;
-    var match = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
-    if (!match) return null;
-    return { screen: match[2] ? 'reader' : 'show', bookId: match[1] };
+    var bookMatch = url.match(/^read:\/\/books\/(\d+)(\/reader)?/);
+    if (bookMatch) {
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+    }
+
+    var articleMatch = url.match(/^read:\/\/blog\/([^/?]+)/);
+    if (articleMatch) return { screen: 'article', params: { code: decodeURIComponent(articleMatch[1]) } };
+    return null;
   }
 
   openPendingDeepLink() {
@@ -55,7 +66,7 @@ class RootApp extends React.Component {
 
     var target = this.pendingDeepLink;
     this.pendingDeepLink = null;
-    this.navigationRef.current.navigate(target.screen, { book_id: target.bookId });
+    this.navigationRef.current.navigate(target.screen, target.params);
   }
 
   async componentDidMount() {
@@ -69,6 +80,14 @@ class RootApp extends React.Component {
         current_user: parsed_user,
       });
       appStore.setCurrentUser(parsed_user);
+    }
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      var oauthParams = new URLSearchParams(window.location.search);
+      if (oauthParams.get('oauth') == 'pwa') {
+        await this.loadPwaOAuthUser();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
@@ -148,6 +167,16 @@ class RootApp extends React.Component {
     this.setState({ current_user: response }); // обновление UI
     await new Storage().set('current_user', JSON.stringify(response));
     this.checkSubscription(); // читает current_user из appStore (синхронно)
+  }
+
+  async loadPwaOAuthUser() {
+    var response = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    if (!response || response['error'] != undefined) return;
+
+    appStore.setCurrentUser(response);
+    this.setState({ current_user: response });
+    await new Storage().set('current_user', JSON.stringify(response));
+    this.checkSubscription();
   }
 
   async initAds() {
@@ -410,11 +439,7 @@ class RootApp extends React.Component {
                     color: '#FFF',
                   },
                   headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => (
-                    <ImageBackground style={{ width: 30, height: 30, marginLeft: 10 }}
-                      resizeMode='cover'
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  )
+                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />
                 }
                 )}>
                   {(stack) => (
@@ -438,6 +463,16 @@ class RootApp extends React.Component {
                     </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
+                <Stack.Screen name="subscription" options={{ title: 'ПРО-доступ' }}>
+                  {() => (
+                    <Subscription root={this} />
+                  )}
+                </Stack.Screen>
+                <Stack.Screen name="article" options={{ title: 'Блог' }}>
+                  {(stack) => (
+                    <BlogArticle stack={stack} />
+                  )}
+                </Stack.Screen>
               </Stack.Navigator>
             </NavigationContainer>
 
@@ -455,7 +490,7 @@ class RootApp extends React.Component {
                   }
                 </View>
                 <View style={applicationStyles.error_request_icon}>
-                  <Image source={require('./app/images/layouts/error_close.png')} style={applicationStyles.error_request_icon_image} />
+                  <AppIcon icon={CloseIcon} size={20} color="#FFF" />
                 </View>
               </TouchableOpacity>
             }

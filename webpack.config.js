@@ -5,7 +5,9 @@ const TerserPlugin = require('terser-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3000';
-const webOutputPath = process.env.WEB_OUTPUT_PATH || path.resolve(__dirname, 'dist/web');
+const webOutputPath = process.env.WEB_OUTPUT_PATH
+    ? path.resolve(__dirname, process.env.WEB_OUTPUT_PATH)
+    : path.resolve(__dirname, 'dist/web');
 
 class EmitPwaAssetsPlugin {
     apply(compiler) {

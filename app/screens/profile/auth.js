@@ -153,13 +153,13 @@ class Auth extends React.Component {
   socialLink(type){
     let link;
     if(type == 'vk'){
-      link = HOST+"/oauth/vk_redirect?oauth_app=true"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/vk" : "https://reedle.ru/oauth/vk_redirect?oauth_app=true"
     }
     if(type == 'yandex'){
-      link = "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri="+HOST+"/oauth_app/yandex"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex"
     }
     if(type == 'google'){
-      link = "https://accounts.google.com/o/oauth2/auth?redirect_uri="+HOST+"/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
+      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
     }
 
     Linking.openURL(link);
@@ -172,10 +172,7 @@ class Auth extends React.Component {
           {this.props.modal == true &&
             <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
               <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                <Image
-                  style={{ height: 20, width: 20, margin: 7.5 }}
-                  source={require('./app/images/header/right-menu-close.png')}
-                />
+                <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
               </TouchableOpacity>
             </View>
           }
@@ -249,12 +246,7 @@ class Auth extends React.Component {
                       placeholder={"Пароль"}
                     />
                     <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      {this.state.securePassword == true &&
-                        <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                      }
-                      {this.state.securePassword == false &&
-                        <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                      }
+                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
                     </TouchableOpacity>
                   </View>
                 }
@@ -269,12 +261,7 @@ class Auth extends React.Component {
                       placeholder={"Пароль"}
                     />
                     <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      {this.state.securePassword == true &&
-                        <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                      }
-                      {this.state.securePassword == false &&
-                        <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                      }
+                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
                     </TouchableOpacity>
                   </View>
                 }

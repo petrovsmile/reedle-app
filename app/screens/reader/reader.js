@@ -251,6 +251,7 @@ class Reader extends React.Component {
     });
     readerStore.clearListWords();
     clearTimeout(this._scrollRestoreTimer);
+    clearTimeout(this._scrollPercentSaveTimer);
   }
 
   async openPage(first_load) {
@@ -515,13 +516,26 @@ class Reader extends React.Component {
   }
 
   onScroll(event) {
-    if (event.nativeEvent.contentSize.height < event.nativeEvent.layoutMeasurement.height) {
+    if (event.nativeEvent.contentSize.height <= event.nativeEvent.layoutMeasurement.height) {
       scroll_percent = 100;
     } else {
       scroll_percent = (event.nativeEvent.contentOffset.y / (event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height)) * 100;
+      if (scroll_percent < 0) {
+        scroll_percent = 0;
+      }
       if (scroll_percent > 100) {
         scroll_percent = 100;
       }
+    }
+
+    var percent = this.calculatePercent();
+    if (percent !== this.state.percent) {
+      this.setState({ percent: percent }, () => {
+        if (Platform.OS === 'web') {
+          clearTimeout(this._scrollPercentSaveTimer);
+          this._scrollPercentSaveTimer = setTimeout(() => this.setPercent(), 250);
+        }
+      });
     }
   }
   onScrollEndDrag(event) {
@@ -530,14 +544,7 @@ class Reader extends React.Component {
   }
 
   async setPercent() {
-    var percent = parseInt(((parseFloat(this.state.page - 1) / parseFloat(this.state.pages)) * 100));
-
-    percent = percent + ((100 / this.state.pages) * (scroll_percent / 100));
-    percent = parseInt(percent.toFixed(0));
-
-    if (percent > 98) {
-      percent = 100
-    }
+    var percent = this.calculatePercent();
 
     await new Storage().set('percent_' + this.props.stack.route.params.book_id, percent.toString());
 
@@ -551,6 +558,19 @@ class Reader extends React.Component {
     this.setState({
       percent: percent,
     });
+  }
+
+  calculatePercent() {
+    var pages = parseFloat(this.state.pages);
+    if (!pages || pages < 1) {
+      return 0;
+    }
+
+    var percent = ((parseFloat(this.state.page - 1) / pages) * 100) +
+      ((100 / pages) * (scroll_percent / 100));
+    percent = parseInt(percent.toFixed(0));
+
+    return percent > 98 ? 100 : percent;
   }
 
 
@@ -848,14 +868,7 @@ class Reader extends React.Component {
         {(this.state.paragraphs == false) ? (
           <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-              {this.state.textColorTheme == '#ffffff' &&
-                <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                  source={require('./app/images/header/arrow-left-white.png')} />
-              }
-              {this.state.textColorTheme == '#000000' &&
-                <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                  source={require('./app/images/header/arrow-left.png')} />
-              }
+              <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
             </TouchableOpacity>
 
             <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
@@ -903,7 +916,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -936,7 +949,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('home', { screen: 'subscription' })}
+              openSubscription={() => this.props.stack.navigation.navigate('subscription')}
             />
 
             <View style={readerScreenStyles.layout}>
@@ -946,14 +959,7 @@ class Reader extends React.Component {
                 borderColor: this.state.secondColorTheme,
               }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                  {this.state.textColorTheme == '#ffffff' &&
-                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                      source={require('./app/images/header/arrow-left-white.png')} />
-                  }
-                  {this.state.textColorTheme == '#000000' &&
-                    <Image style={{ width: 30, height: 30, marginTop: 5, marginLeft: 10 }}
-                      source={require('./app/images/header/arrow-left.png')} />
-                  }
+                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
                 </TouchableOpacity>
 
                 {this.state.pages == 1 ? (
@@ -980,20 +986,7 @@ class Reader extends React.Component {
 
                 <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
                   <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                      <Circle
-                        cx="12" cy="12" r="3"
-                        stroke={this.state.textColorTheme || '#000000'}
-                        strokeWidth={1.4}
-                      />
-                      <Path
-                        stroke={this.state.textColorTheme || '#000000'}
-                        strokeWidth={1.4}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
-                      />
-                    </Svg>
+                    <AppIcon icon={SettingsIcon} size={26} color={this.state.textColorTheme || '#000000'} />
                   </View>
                 </TouchableWithoutFeedback>
 
@@ -1048,28 +1041,11 @@ class Reader extends React.Component {
 
                 {this.state.page > 1 &&
                   <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={readerScreenStyles.navArrow}
-                        source={require('./app/images/header/arrow-left-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={readerScreenStyles.navArrow}
-                        source={require('./app/images/header/arrow-left.png')} />
-                    }
+                    <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == 1 &&
-                  <React.Fragment>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-left-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-left.png')} />
-                    }
-
-                  </React.Fragment>
+                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
                 }
 
 
@@ -1079,28 +1055,11 @@ class Reader extends React.Component {
 
                 {this.state.page < this.state.pages &&
                   <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30 }}
-                        source={require('./app/images/header/arrow-right-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30 }}
-                        source={require('./app/images/header/arrow-right.png')} />
-                    }
+                    <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == this.state.pages &&
-                  <React.Fragment>
-                    {this.state.textColorTheme == '#ffffff' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-right-white.png')} />
-                    }
-                    {this.state.textColorTheme == '#000000' &&
-                      <Image style={{ width: 30, height: 30, opacity: 0.3, margin: 10 }}
-                        source={require('./app/images/header/arrow-right.png')} />
-                    }
-
-                  </React.Fragment>
+                  <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
                 }
 
               </View>

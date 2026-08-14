@@ -54,7 +54,7 @@ var readerScreenStyles = StyleSheet.create({
   },
   bookmarkImage: {
     height: 20,
-    width: 15,
+    width: 20,
     marginTop: 5,
   },
   sentencesContainer: {

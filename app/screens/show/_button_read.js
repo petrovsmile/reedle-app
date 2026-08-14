@@ -65,21 +65,12 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
         ) : downloading ? (
           this.renderProgress(download)
         ) : haveFile ? (
-          <Image
-            style={{ height: 20, width: 20, margin: 20 }}
-            source={require('./app/images/books/arrow-button-read.png')}
-          />
+          <AppIcon icon={ChevronRightIcon} size={20} color='#000' style={{ margin: 20 }} />
         ) : !appStore.has_internet ? (
-          <Image
-            style={{ height: 30, width: 30, margin: 15, opacity: 0.5 }}
-            source={require('./app/images/books/no-connect.png')}
-          />
+          <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
         ) : (
           <TouchableOpacity onPress={() => this.startDownload()}>
-            <Image
-              style={{ height: 30, width: 30, margin: 15 }}
-              source={require('./app/images/books/download.png')}
-            />
+            <AppIcon icon={ArrowDownToLineIcon} size={28} color="#000" style={{ margin: 16 }} />
           </TouchableOpacity>
         )}
       </View>

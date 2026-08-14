@@ -51,8 +51,7 @@ const homeStyles = StyleSheet.create({
     marginTop: 10
   },
   search_image: {
-    width: 40,
-    height: 40
+    margin: 8
   },
   search_input: { 
     flex: 1,

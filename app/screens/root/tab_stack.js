@@ -19,16 +19,7 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/book-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/book.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookOpenIcon} size={18} color={color} />,
             title: 'Книги',
             headerShown: false
           })}>
@@ -54,16 +45,7 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/bookmark-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/bookmark.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookmarkIcon} size={18} color={color} />,
             title: 'Закладки',
           })}>
           {(tabs) => (
@@ -77,56 +59,29 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/dictionary-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/dictionary.png')} />
-                )}
-              </React.Fragment>
-
-            ),
+            tabBarIcon: ({ color }) => <AppIcon icon={BookAIcon} size={18} color={color} />,
             title: 'Словарь',
           })}>
           {(tabs) => (
             <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
-        <Tab.Screen name="subscription"
+        <Tab.Screen name="blog"
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/pro-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/pro.png')} />
-                )}
-              </React.Fragment>
-
-            ),
-            title: 'PRO-доступ',
+            tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={18} color={color} />,
+            title: 'Блог',
           })}>
-          {(tabs) => (
-            <Subscription tabs={tabs} root={this.props.root} />
+          {() => (
+            <Blog stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
           options={() => ({
-            tabBarIcon: ({ focused, color }) => (
-              <React.Fragment>
-                {focused ? (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/profile-active.png')} />
-                ) : (
-                  <Image style={{ width: 18, height: 18 }} source={require('./app/images/layouts/menu/profile.png')} />
-                )}
-              </React.Fragment>
-
-            ),
-            title: 'Профиль',
+            tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
+            title: 'Аккаунт',
           })}>
           {() => (
-            <Profile root={this.props.root} />
+            <ProfileStack root={this.props.root} root_stack={this.props.stack} />
           )}
         </Tab.Screen>
       </Tab.Navigator >

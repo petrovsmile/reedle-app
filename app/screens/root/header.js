@@ -4,7 +4,7 @@ class Header extends React.Component {
       <SafeAreaView style={{backgroundColor: '#FFF'}}>
         <View style={applicationStyles.header}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
-            <Image style={applicationStyles.header_icon_image} source={require('./app/images/header/menu.png')} />
+            <AppIcon icon={MenuIcon} size={26} color={app_theme_colors.text} />
           </TouchableOpacity> 
           <Text style={applicationStyles.header_title}>{this.props.title}</Text>
           <View style={applicationStyles.header_empty_block}/>

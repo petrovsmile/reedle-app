@@ -204,17 +204,12 @@ const Paragraph = observer(class Paragraph extends React.Component {
         <View style={readerScreenStyles.paragraphRow}>
           <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={readerScreenStyles.bookmarkButton}>
             <Text style={[readerScreenStyles.bookmarkNumber, { color: readerStore.secondColorTheme }, (readerStore.bookmark == this.props.data['name']) && readerScreenStyles.bookmarkNumberActive]}>{this.props.data['name']}</Text>
-            {readerStore.bookmark == this.props.data['name'] ? (
-              <Image
-                style={readerScreenStyles.bookmarkImage}
-                source={require('./app/images/reader/bookmark-active.png')}
-              />
-            ) : (
-              <Image
-                style={readerScreenStyles.bookmarkImage}
-                source={require('./app/images/reader/bookmark.png')}
-              />
-            )}
+            <AppIcon
+              icon={BookmarkIcon}
+              size={20}
+              color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
+              style={readerScreenStyles.bookmarkImage}
+            />
 
           </TouchableOpacity>
           <View style={[readerScreenStyles.sentencesContainer, { justifyContent: readerStore.textAlign }]}>
@@ -223,23 +218,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
               <React.Fragment key={index}>
                 {FEATURE_SENTENCE_TRANSLATE && (appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Animated.Image
-                      style={[
-                        { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size },
-                        this.isSpeaking(index) && {
-                          tintColor: '#f05458',
-                          transform: [{ scale: this.scaleAnim }]
-                        }
-                      ]}
-                      source={require('./app/images/reader/voiceover.png')}
-                    />
+                    <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
+                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
+                    </Animated.View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={() => Alert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Image
-                      style={{ width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }}
-                      source={require('./app/images/reader/voiceover-limited.png')}
-                    />
+                    <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
                 ))}
                 {sentence['b'].map((block, index) => {
@@ -268,10 +253,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
                 {this.props.data['sentences'].length > 1 &&
                   <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
-                    <Image
-                      style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
-                      source={require('./app/images/reader/sentence-translate.png')}
-                    />
+                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
                   </TouchableWithoutFeedback>
                 }
 
@@ -280,10 +262,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
 
             <TouchableWithoutFeedback onPress={() => this.translateText(this.state.paragraph_translate)}>
-              <Image
-                style={[readerScreenStyles.translateIcon, { width: readerStore.translate_icon_size, height: readerStore.translate_icon_size }]}
-                source={require('./app/images/reader/paragraph-translate.png')}
-              />
+              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
             </TouchableWithoutFeedback>
 
 

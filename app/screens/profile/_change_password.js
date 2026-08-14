@@ -74,12 +74,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                {this.state.securePassword == true &&
-                  <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                }
-                {this.state.securePassword == false &&
-                  <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                }
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
               </TouchableOpacity>
             </View>
 
@@ -92,12 +87,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                {this.state.securePassword == true &&
-                  <Image source={require('./app/images/profile/auth/password_hide.png')} style={profileStyles.password_hide_image} />
-                }
-                {this.state.securePassword == false &&
-                  <Image source={require('./app/images/profile/auth/password_show.png')} style={profileStyles.password_hide_image} />
-                }
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
               </TouchableOpacity>
             </View>
 

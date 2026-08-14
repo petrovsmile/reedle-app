@@ -61,18 +61,12 @@ class ReaderSettings extends React.Component {
                   <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
                     {this.props.fontSize <= 14 &&
                       <View style={{ flex: 1, opacity: 0.3 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeLess.png')}
-                        />
+                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15  }} />
                       </View>
                     }
                     {this.props.fontSize > 14 &&
                       <TouchableOpacity onPress={() => this.props.changeFontSize('less')} style={{ flex: 1 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeLess.png')}
-                        />
+                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </TouchableOpacity>
                     }
                   </View>
@@ -82,45 +76,27 @@ class ReaderSettings extends React.Component {
                   <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
                     {this.props.fontSize >= 24 &&
                       <View style={{ flex: 1, opacity: 0.3 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeMore.png')}
-                        />
+                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </View>
                     }
                     {this.props.fontSize < 24 &&
                       <TouchableOpacity onPress={() => this.props.changeFontSize('more')} style={{ flex: 1 }}>
-                        <Image
-                          style={{ width: 70, height: 50 }}
-                          source={require('./app/images/reader/fontSizeMore.png')}
-                        />
+                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                       </TouchableOpacity>
                     }
                   </View>
                   <TouchableOpacity onPress={() => this.props.textAlignChange()}>
                     {this.props.textAlign == 'flex-start' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/left.png')}
-                      />
+                      <AppIcon icon={AlignLeftIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'flex-end' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/right.png')}
-                      />
+                      <AppIcon icon={AlignRightIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'center' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/center.png')}
-                      />
+                      <AppIcon icon={AlignCenterIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                     {this.props.textAlign == 'space-evenly' &&
-                      <Image
-                        style={{ width: 70, height: 50 }}
-                        source={require('./app/images/reader/align/justify.png')}
-                      />
+                      <AppIcon icon={AlignJustifyIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
                     }
                   </TouchableOpacity>
                 </View>
@@ -128,44 +104,29 @@ class ReaderSettings extends React.Component {
                 <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: '#ddd', borderBottomWidth: 1, paddingTop: 15, paddingBottom: 15 }}>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#ffffff', '#000000', '#dddddd')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#ffffff' }}>
                     {this.props.backgroundColorTheme == '#ffffff' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#eeeeee', '#000000', '#cccccc')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#eeeeee' }}>
                     {this.props.backgroundColorTheme == '#eeeeee' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#f8f4e9', '#000000', '#d4c8a0')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#f6f0e3' }}>
                     {this.props.backgroundColorTheme == '#f8f4e9' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_black.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#292c2c', '#ffffff', '#5a5d5d')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#292c2c', borderRadius: 20, backgroundColor: '#000000' }}>
                     {this.props.backgroundColorTheme == '#292c2c' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_white.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.props.changeColorTheme('#000000', '#ffffff', '#444')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#000000', borderRadius: 20, backgroundColor: '#000000' }}>
                     {this.props.backgroundColorTheme == '#000000' &&
-                      <Image
-                        style={{ width: 13, height: 13, marginTop: 8, marginLeft: 7 }}
-                        source={require('./app/images/reader/check_white.png')}
-                      />
+                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
                     }
                   </TouchableOpacity>
                 </View>
