@@ -150,17 +150,9 @@ class Auth extends React.Component {
     }
   }
 
-  socialLink(type){
-    let link;
-    if(type == 'vk'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/vk" : "https://reedle.ru/oauth/vk_redirect?oauth_app=true"
-    }
-    if(type == 'yandex'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex"
-    }
-    if(type == 'google'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
-    }
+  socialLink(type) {
+    let platform = Platform.OS === 'web' ? "web" : "app"
+    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
 
     Linking.openURL(link);
   }
@@ -300,13 +292,13 @@ class Auth extends React.Component {
                   Войти через соц. сети
                 </Text>
                 <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={()=>this.socialLink('vk')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('vk')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/vk.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }}  onPress={()=>this.socialLink('yandex')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('yandex')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/ya.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }}  onPress={()=>this.socialLink('google')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('google')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/google.png')} />
                   </TouchableOpacity>
                 </View>

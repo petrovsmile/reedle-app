@@ -98,19 +98,10 @@ class ProfileDetails extends React.Component {
   }
 
   socialLink(type) {
-    var link;
+    let platform = Platform.OS === 'web' ? "web" : "app"
+    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
 
-    if (type == 'vk') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/vk' : 'https://reedle.ru/oauth/vk_redirect?oauth_app=true';
-    }
-    if (type == 'yandex') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/yandex' : 'https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex';
-    }
-    if (type == 'google') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/google' : 'https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email';
-    }
-
-    if (link) Linking.openURL(link);
+    Linking.openURL(link);
   }
 
   async disconnectSocial(type) {

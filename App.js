@@ -236,7 +236,7 @@ const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
 //const HOST="https://stage.reedle.ru"
-const HOST = Platform.OS === 'web' ? '' : "http://localhost:3000";
+const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
@@ -3432,13 +3432,13 @@ class Auth extends React.Component {
   socialLink(type){
     let link;
     if(type == 'vk'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/vk" : "https://reedle.ru/oauth/vk_redirect?oauth_app=true"
+      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/vk" : HOST+"/oauth/vk_redirect?oauth_app=true"
     }
     if(type == 'yandex'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex"
+      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri="+HOST+"/oauth_app/yandex"
     }
     if(type == 'google'){
-      link = Platform.OS === 'web' ? "https://reedle.ru/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
+      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri="+HOST+"/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
     }
 
     Linking.openURL(link);
@@ -3704,13 +3704,13 @@ class ProfileDetails extends React.Component {
     var link;
 
     if (type == 'vk') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/vk' : 'https://reedle.ru/oauth/vk_redirect?oauth_app=true';
+      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/vk' : HOST + '/oauth/vk_redirect?oauth_app=true';
     }
     if (type == 'yandex') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/yandex' : 'https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=https://reedle.ru/oauth_app/yandex';
+      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/yandex' : 'https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=' + HOST + '/oauth_app/yandex';
     }
     if (type == 'google') {
-      link = Platform.OS === 'web' ? 'https://reedle.ru/oauth_pwa/google' : 'https://accounts.google.com/o/oauth2/auth?redirect_uri=https://reedle.ru/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email';
+      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/google' : 'https://accounts.google.com/o/oauth2/auth?redirect_uri=' + HOST + '/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email';
     }
 
     if (link) Linking.openURL(link);
