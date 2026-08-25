@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
@@ -32,6 +33,14 @@ class EmitPwaAssetsPlugin {
                         compilation.emitAsset(
                             outputPath,
                             new RawSource(compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath)))
+                        );
+                    });
+
+                    const fontsDirectory = path.resolve(__dirname, 'public/fonts');
+                    fs.readdirSync(fontsDirectory).forEach((fileName) => {
+                        compilation.emitAsset(
+                            `fonts/${fileName}`,
+                            new RawSource(compiler.inputFileSystem.readFileSync(path.join(fontsDirectory, fileName)))
                         );
                     });
                 }

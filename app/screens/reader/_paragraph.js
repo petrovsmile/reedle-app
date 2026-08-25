@@ -223,7 +223,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     </Animated.View>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => Alert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
                 ))}
@@ -252,18 +252,28 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 )}
 
                 {this.props.data['sentences'].length > 1 &&
-                  <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
-                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
-                  </TouchableWithoutFeedback>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => this.translateText(sentence['tr'])}
+                    style={readerScreenStyles.translateButton}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' />
+                  </TouchableOpacity>
                 }
 
               </React.Fragment>
             )}
 
 
-            <TouchableWithoutFeedback onPress={() => this.translateText(this.state.paragraph_translate)}>
-              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
-            </TouchableWithoutFeedback>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => this.translateText(this.state.paragraph_translate)}
+              style={readerScreenStyles.translateButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' />
+            </TouchableOpacity>
 
 
           </View>

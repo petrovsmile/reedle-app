@@ -169,10 +169,15 @@ class SyncManager {
       if (item.deleted_at) {
         await new Storage().remove(storageKey);
       } else {
+        var localWordValue = await new Storage().get(storageKey);
+        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
         await new Storage().set(storageKey, JSON.stringify({
           original: item.original,
           transcription: item.transcription,
           translate: item.translate,
+          studied: localWord.studied === true,
+          learning_shows: Number(localWord.learning_shows || 0),
+          study_prompted: localWord.study_prompted === true,
           created_at: item.created_at,
           version: item.version,
           updated_at: item.updated_at,

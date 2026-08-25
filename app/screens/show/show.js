@@ -42,7 +42,7 @@ class Show extends React.Component {
             have_file: have_file == 'true'
           });
           this.props.stack.navigation.setOptions({
-            title: book.name_en,
+            ...(Platform.OS === 'web' ? { headerTitle: '' } : { title: book.name_en }),
             headerStyle: {
               backgroundColor: book.color,
               borderColor: 'transparent',

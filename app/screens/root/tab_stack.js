@@ -67,12 +67,17 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="blog"
+          listeners={{
+            tabPress: () => {
+              if (this.blogRef) this.blogRef.loadArticles(1);
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={18} color={color} />,
             title: 'Блог',
           })}>
           {() => (
-            <Blog stack={this.props.stack} />
+            <Blog ref={(ref) => this.blogRef = ref} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"

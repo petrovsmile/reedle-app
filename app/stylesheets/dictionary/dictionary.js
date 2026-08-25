@@ -15,6 +15,24 @@ const dictionaryStyles = StyleSheet.create({
     borderRadius: 4,
     height: 24
   },
+  studiedButton: {
+    borderWidth: 1,
+    borderColor: '#75b641',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8
+  },
+  studiedButtonActive: {
+    backgroundColor: '#75b641'
+  },
+  studiedButtonText: {
+    color: '#57922c',
+    fontSize: 12
+  },
+  studiedButtonTextActive: {
+    color: '#FFF'
+  },
   learningStartButton: {
     height: 44,
     borderRadius: 8,

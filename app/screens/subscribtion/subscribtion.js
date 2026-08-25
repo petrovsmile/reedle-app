@@ -74,9 +74,9 @@ const Subscription = observer(class Subscription extends React.Component {
       } else {
         console.warn('IAP error:', error);
         if (error.message && error.message.startsWith('Product not found')) {
-          Alert.alert('Недоступно', 'Продукт временно недоступен в App Store. Попробуйте позже.');
+          AppAlert.alert('Недоступно', 'Продукт временно недоступен в App Store. Попробуйте позже.');
         } else {
-          Alert.alert('Ошибка покупки', error.message || 'Неизвестная ошибка. Попробуйте ещё раз.');
+          AppAlert.alert('Ошибка покупки', error.message || 'Неизвестная ошибка. Попробуйте ещё раз.');
         }
       }
     } finally {
@@ -133,7 +133,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
     const { subscription_info } = this.props.root.state;
     if (!subscription_info || !subscription_info.subscription_id) {
-      Alert.alert('Нет данных подписки для синхронизации');
+      AppAlert.alert('Нет данных подписки для синхронизации');
       return;
     }
 
@@ -147,12 +147,12 @@ const Subscription = observer(class Subscription extends React.Component {
       );
 
       if (result) {
-        Alert.alert('Данные синхронизированы');
+        AppAlert.alert('Данные синхронизированы');
       } else {
-        Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+        AppAlert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
       }
     } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+      AppAlert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
     } finally {
       this.setState({ load_sync_button: false });
     }

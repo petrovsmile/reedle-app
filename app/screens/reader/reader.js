@@ -259,7 +259,7 @@ class Reader extends React.Component {
 
     if (this.have_file == false && this.props.root.state.has_internet == false) {
       open_page = false;
-      Alert.alert('Отсутствует подключение к интернету');
+      AppAlert.alert('Отсутствует подключение к интернету');
     }
 
     if (open_page == true) {

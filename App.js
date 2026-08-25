@@ -24,7 +24,6 @@ import {
   Switch,
   Vibration,
   Linking,
-  Alert,
   Animated
 } from 'react-native';
 
@@ -120,6 +119,85 @@ import {
 const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
   <Icon strokeWidth={strokeWidth} {...props} />
 );
+
+const AppAlert = {
+  handler: null,
+
+  alert(title, message, buttons) {
+    if (this.handler) {
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: buttons && buttons.length ? buttons : [{ text: 'Понятно' }]
+      });
+    }
+  }
+};
+
+class AppAlertModal extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false, title: '', message: '', buttons: [] };
+  }
+
+  componentDidMount() {
+    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options));
+  }
+
+  componentWillUnmount() {
+    AppAlert.handler = null;
+  }
+
+  close(button) {
+    this.setState({ visible: false }, () => {
+      if (button && button.onPress) button.onPress();
+    });
+  }
+
+  render() {
+    return (
+      <Modal
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        transparent={true}
+        visible={this.state.visible}
+        onRequestClose={() => this.close()}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: '#FFF' }}>
+            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>{this.state.title}</Text> : null}
+            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: '#555' }}>{this.state.message}</Text> : null}
+            <View style={{ flexDirection: 'row', marginTop: 20 }}>
+              {this.state.buttons.map((button, index) => {
+                var isCancel = button.style == 'cancel';
+                var isDestructive = button.style == 'destructive';
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => this.close(button)}
+                    style={{
+                      flex: 1,
+                      minHeight: 44,
+                      marginLeft: index == 0 ? 0 : 8,
+                      borderWidth: isCancel ? 1 : 0,
+                      borderColor: '#ddd',
+                      borderRadius: 8,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: isCancel ? '#FFF' : (isDestructive ? '#d9363e' : '#f05458')
+                    }}
+                  >
+                    <Text style={{ color: isCancel ? '#555' : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+}
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 
@@ -235,8 +313,8 @@ const CURRENT_ANDROID_VERSION = '1.4.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
-//const HOST="https://stage.reedle.ru"
-const HOST="http://localhost:3000"
+const HOST="https://stage.reedle.ru"
+//const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
@@ -527,7 +605,7 @@ const blogStyles = StyleSheet.create({
   cardTitle: { marginTop: 9, color: '#111', fontSize: 15, fontWeight: 'bold', lineHeight: 20 },
   loader: { padding: 24 },
   empty: { padding: 30, textAlign: 'center', color: '#777' },
-  articleContent: { padding: 15, paddingBottom: 40 },
+  articleContent: { padding: 15, paddingBottom: 100 },
   articleTitle: { fontSize: 30, lineHeight: 38, fontWeight: 'bold', marginBottom: 10 },
   articleInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   articleInfoText: { color: '#aaa', fontSize: 14 },
@@ -559,6 +637,24 @@ const dictionaryStyles = StyleSheet.create({
     paddingRight: 8, 
     borderRadius: 4,
     height: 24
+  },
+  studiedButton: {
+    borderWidth: 1,
+    borderColor: '#75b641',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8
+  },
+  studiedButtonActive: {
+    backgroundColor: '#75b641'
+  },
+  studiedButtonText: {
+    color: '#57922c',
+    fontSize: 12
+  },
+  studiedButtonTextActive: {
+    color: '#FFF'
   },
   learningStartButton: {
     height: 44,
@@ -1015,9 +1111,12 @@ var readerScreenStyles = StyleSheet.create({
     marginLeft: 3,
     marginTop: 5,
   },
-  translateIcon: {
+  translateButton: {
     marginTop: 5,
     marginLeft: 5,
+    ...(Platform.OS === 'web' ? {
+      outlineStyle: 'none',
+    } : {}),
   },
   adContainer: {
     flex: 1,
@@ -1567,10 +1666,15 @@ class SyncManager {
       if (item.deleted_at) {
         await new Storage().remove(storageKey);
       } else {
+        var localWordValue = await new Storage().get(storageKey);
+        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
         await new Storage().set(storageKey, JSON.stringify({
           original: item.original,
           transcription: item.transcription,
           translate: item.translate,
+          studied: localWord.studied === true,
+          learning_shows: Number(localWord.learning_shows || 0),
+          study_prompted: localWord.study_prompted === true,
           created_at: item.created_at,
           version: item.version,
           updated_at: item.updated_at,
@@ -2170,19 +2274,83 @@ class Dictionary extends React.Component {
     return result;
   }
 
+  firstTranslation(translate) {
+    return String(translate || '').split(/[,;]/)[0].trim();
+  }
+
+  async updateWordLearningState(word, changes) {
+    var storageKey = 'word_' + word.original;
+    var storedValue = await new Storage().get(storageKey, '{}');
+    var storedWord = Object.assign({}, JSON.parse(storedValue), changes);
+    await new Storage().set(storageKey, JSON.stringify(storedWord));
+
+    this.setState({
+      words: this.state.words.map(item => item.original == word.original ? Object.assign({}, item, changes) : item),
+      learning_questions: this.state.learning_questions.map(question => (
+        question.word.original == word.original
+          ? Object.assign({}, question, { word: Object.assign({}, question.word, changes) })
+          : question
+      )),
+      learning_mistakes: this.state.learning_mistakes.map(item => (
+        item.original == word.original ? Object.assign({}, item, changes) : item
+      ))
+    });
+
+    return storedWord;
+  }
+
+  async toggleWordStudied(word) {
+    await this.updateWordLearningState(word, { studied: word.studied !== true });
+  }
+
+  async recordLearningShow(word) {
+    if (!word || word.studied === true) return;
+
+    var learningShows = Number(word.learning_shows || 0) + 1;
+    var shouldPrompt = learningShows >= 10 && word.study_prompted !== true;
+    var changes = { learning_shows: learningShows };
+    if (shouldPrompt) changes.study_prompted = true;
+    var updatedWord = await this.updateWordLearningState(word, changes);
+
+    if (shouldPrompt) {
+      AppAlert.alert(
+        'Слово показано 10 раз',
+        'Пометить «' + word.original + '» как изученное?',
+        [
+          { text: 'Пока нет', style: 'cancel' },
+          { text: 'Изучено', onPress: () => this.updateWordLearningState(updatedWord, { studied: true }) }
+        ]
+      );
+    }
+  }
+
   startLearning(words) {
-    var source = (words || this.state.words).filter(word => word.original && word.translate);
+    var source = (words || this.state.words).filter(word => word.original && word.translate && word.studied !== true);
+    if (words == undefined && source.length < 10) {
+      AppAlert.alert(
+        'Недостаточно слов',
+        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+      );
+      return;
+    }
+    if (source.length == 0) {
+      AppAlert.alert('Нет слов для повторения', 'Все слова отмечены как изученные.');
+      return;
+    }
     var selectedWords = this.shuffle(source).slice(0, 10);
     var questions = selectedWords.map(word => {
+      var correctAnswer = this.firstTranslation(word.translate);
       var wrongAnswers = this.shuffle(source
-        .filter(otherWord => otherWord.original != word.original && otherWord.translate != word.translate)
-        .map(otherWord => otherWord.translate)
+        .filter(otherWord => otherWord.original != word.original)
+        .map(otherWord => this.firstTranslation(otherWord.translate))
+        .filter(translate => translate && translate != correctAnswer)
         .filter((translate, index, translations) => translations.indexOf(translate) == index))
         .slice(0, 3);
 
       return {
         word: word,
-        answers: this.shuffle([word.translate].concat(wrongAnswers))
+        correctAnswer: correctAnswer,
+        answers: this.shuffle([correctAnswer].concat(wrongAnswers))
       };
     });
 
@@ -2194,14 +2362,14 @@ class Dictionary extends React.Component {
       learning_correct: 0,
       learning_mistakes: [],
       learning_complete: false
-    });
+    }, () => this.recordLearningShow(questions[0].word));
   }
 
   selectLearningAnswer(answer) {
     if (this.state.learning_answer != null) return;
 
     var question = this.state.learning_questions[this.state.learning_index];
-    var isCorrect = answer == question.word.translate;
+    var isCorrect = answer == question.correctAnswer;
     this.setState({
       learning_answer: answer,
       learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
@@ -2215,10 +2383,11 @@ class Dictionary extends React.Component {
     if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
       this.setState({ learning_complete: true });
     } else {
+      var nextQuestion = this.state.learning_questions[this.state.learning_index + 1];
       this.setState({
         learning_index: this.state.learning_index + 1,
         learning_answer: null
-      });
+      }, () => this.recordLearningShow(nextQuestion.word));
     }
   }
 
@@ -2268,7 +2437,7 @@ class Dictionary extends React.Component {
         {question.answers.map(answer => {
           var answerStyle = null;
           if (this.state.learning_answer != null) {
-            if (answer == question.word.translate) {
+            if (answer == question.correctAnswer) {
               answerStyle = dictionaryStyles.learningAnswerCorrect;
             } else if (answer == this.state.learning_answer) {
               answerStyle = dictionaryStyles.learningAnswerWrong;
@@ -2390,9 +2559,19 @@ class Dictionary extends React.Component {
                   renderItem={(word) => {
                     return (
                       <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: '#FFF', borderColor: '#eee', borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
-                        <View style={{ height: 4, backgroundColor: '#eee' }}></View>
+                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : '#eee' }}></View>
                         <View style={{ padding: 8 }}>
-                          <Text style={{ fontWeight: 'bold' }}>{word.item.original}</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontWeight: 'bold', flex: 1 }}>{word.item.original}</Text>
+                            <TouchableOpacity
+                              onPress={() => this.toggleWordStudied(word.item)}
+                              style={[dictionaryStyles.studiedButton, word.item.studied === true && dictionaryStyles.studiedButtonActive]}
+                            >
+                              <Text style={[dictionaryStyles.studiedButtonText, word.item.studied === true && dictionaryStyles.studiedButtonTextActive]}>
+                                {word.item.studied === true ? 'Вернуть в тест' : 'Изучено'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                           {word.item.transcription != null &&
                             <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
                           }
@@ -2600,7 +2779,7 @@ class Home extends React.Component {
 
   async componentDidMount() {
     var not_show_read = await new Storage().get('not_show_read', 'false')
-    var sort_new_book = await new Storage().get('sort_new_book', 'false');
+    var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
     this.setState({
       not_show_read: not_show_read === 'true',
@@ -3429,17 +3608,9 @@ class Auth extends React.Component {
     }
   }
 
-  socialLink(type){
-    let link;
-    if(type == 'vk'){
-      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/vk" : HOST+"/oauth/vk_redirect?oauth_app=true"
-    }
-    if(type == 'yandex'){
-      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/yandex" : "https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri="+HOST+"/oauth_app/yandex"
-    }
-    if(type == 'google'){
-      link = Platform.OS === 'web' ? HOST+"/oauth_pwa/google" : "https://accounts.google.com/o/oauth2/auth?redirect_uri="+HOST+"/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email"
-    }
+  socialLink(type) {
+    let platform = Platform.OS === 'web' ? "web" : "app"
+    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
 
     Linking.openURL(link);
   }
@@ -3579,13 +3750,13 @@ class Auth extends React.Component {
                   Войти через соц. сети
                 </Text>
                 <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={()=>this.socialLink('vk')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('vk')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/vk.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }}  onPress={()=>this.socialLink('yandex')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('yandex')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/ya.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }}  onPress={()=>this.socialLink('google')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('google')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/google.png')} />
                   </TouchableOpacity>
                 </View>
@@ -3701,19 +3872,10 @@ class ProfileDetails extends React.Component {
   }
 
   socialLink(type) {
-    var link;
+    let platform = Platform.OS === 'web' ? "web" : "app"
+    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
 
-    if (type == 'vk') {
-      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/vk' : HOST + '/oauth/vk_redirect?oauth_app=true';
-    }
-    if (type == 'yandex') {
-      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/yandex' : 'https://oauth.yandex.ru/authorize?response_type=code&client_id=1af05aae68ba486aa812aef9740bd74b&redirect_uri=' + HOST + '/oauth_app/yandex';
-    }
-    if (type == 'google') {
-      link = Platform.OS === 'web' ? HOST + '/oauth_pwa/google' : 'https://accounts.google.com/o/oauth2/auth?redirect_uri=' + HOST + '/oauth_app/google&response_type=code&client_id=379352911930-2neobku7ji043lh0s22ifegfgunascon.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/userinfo.email';
-    }
-
-    if (link) Linking.openURL(link);
+    Linking.openURL(link);
   }
 
   async disconnectSocial(type) {
@@ -3820,20 +3982,33 @@ class ProfilePassword extends React.Component {
 class ProfileStack extends React.Component {
   render() {
     const RootStack = createStackNavigator();
-    const childScreenOptions = {
+    const childScreenOptions = (navigation) => ({
       headerBackTitle: 'Аккаунт',
+      headerBackTitleVisible: Platform.OS === 'ios',
       headerTintColor: app_theme_colors.red,
-    };
+      ...(Platform.OS === 'web' ? {
+        headerTitle: '',
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
+          >
+            <AppIcon icon={ChevronLeftIcon} size={24} color={app_theme_colors.red} />
+            <Text style={{ marginLeft: 8, color: app_theme_colors.red, fontSize: 17 }}>Аккаунт</Text>
+          </TouchableOpacity>
+        ),
+      } : {}),
+    });
 
     return (
       <RootStack.Navigator initialRouteName="profile_home">
         <RootStack.Screen name="profile_home" options={{ headerShown: false }}>
           {(stack) => <Profile root={this.props.root} root_stack={this.props.root_stack} stack={stack} />}
         </RootStack.Screen>
-        <RootStack.Screen name="profile_details" options={{ ...childScreenOptions, title: 'Аккаунт' }}>
+        <RootStack.Screen name="profile_details" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Аккаунт' })}>
           {() => <ProfileDetails root={this.props.root} />}
         </RootStack.Screen>
-        <RootStack.Screen name="profile_password" options={{ ...childScreenOptions, title: 'Изменить пароль' }}>
+        <RootStack.Screen name="profile_password" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Изменить пароль' })}>
           {() => <ProfilePassword root={this.props.root} />}
         </RootStack.Screen>
       </RootStack.Navigator>
@@ -3945,17 +4120,21 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
-            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{ width: '90%', maxWidth: 700 }}
+            >
               <View style={{
                 backgroundColor: readerStore.backgroundColorTheme,
                 borderRadius: 10,
                 alignItems: "center",
-                width: "90%",
+                width: "100%",
                 shadowRadius: 4,
                 overflow: 'hidden',
                 elevation: 5
               }}>
-                <ScrollView style={{ maxHeight: Dimensions.get('window').height - 300 }}>
+                <ScrollView style={{ width: '100%', maxHeight: Dimensions.get('window').height - 300 }}>
 
                   <TouchableOpacity activeOpacity={1}>
                     {this.props.translate.constructor === Array &&
@@ -3965,7 +4144,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
                             <View style={{ width: 20 }}>
                               <Text style={{ fontSize: 18, fontFamily: 'Times', color: '#bbb' }}>{(index + 1)}</Text>
                             </View>
-                            <View style={{ width: Dimensions.get('window').width * 0.9 - 40 }}>
+                            <View style={{ flex: 1 }}>
                               <Text style={{ color: readerStore.textColorTheme }}>{sentence}</Text>
                             </View>
                           </View>
@@ -3982,7 +4161,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
 
                 </ScrollView>
                 <TouchableWithoutFeedback onPress={() => this.props.close()}>
-                  <View style={{ margin: 10, marginTop: 15, height: 40, backgroundColor: '#f05458', width: Dimensions.get('window').width * 0.9 - 20, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                  <View style={{ margin: 10, marginTop: 15, height: 40, backgroundColor: '#f05458', alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
                     <Text style={{ color: '#FFF', lineHeight: 40, textAlign: 'center' }}>Понятно</Text>
                   </View>
                 </TouchableWithoutFeedback>
@@ -4007,6 +4186,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
     )
   }
 });
+
 const ModalTranslateWord = observer(class ModalTranslateWord extends React.Component {
   constructor(props) {
     super(props);
@@ -4123,7 +4303,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
     if (!pesponse || !pesponse.url) {
-      Alert.alert('Озвучка не найдена');
+      AppAlert.alert('Озвучка не найдена');
       this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
       this.voiceover_playing_lock = false;
@@ -4337,7 +4517,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                           </View>
                         </TouchableWithoutFeedback>
                       ) : (
-                        <TouchableWithoutFeedback onPress={() => Alert.alert('Лимит на сегодня закончился.\nОплатите подписку, чтобы пользоваться озвучкой без ограничений\nБесплатно доступно 15 слов в день.')}>
+                        <TouchableWithoutFeedback onPress={() => AppAlert.alert('Лимит на сегодня закончился', 'Оплатите подписку, чтобы пользоваться озвучкой без ограничений.\nБесплатно доступно 15 слов в день.')}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                             <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                           </View>
@@ -4346,7 +4526,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     </React.Fragment>
                   </React.Fragment>
                 ) : (
-                  <TouchableWithoutFeedback onPress={() => Alert.alert('Нет подключения к интернету!')}>
+                  <TouchableWithoutFeedback onPress={() => AppAlert.alert('Нет подключения к интернету!')}>
                     <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                       <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>
@@ -4401,7 +4581,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       {this.props.has_subscription == false &&
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
                           <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
-                            <AppIcon icon={this.state.show_limits_information ? CloseIcon : BookAIcon} size={20} color="#777" style={{ margin: 1 }} />
+                            {this.state.show_limits_information ? (
+                              <AppIcon icon={CloseIcon} size={20} color="#777" style={{ margin: 1 }} />
+                            ) : (
+                              <Text style={{ color: '#777', fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
+                            )}
                           </View>
                         </TouchableOpacity>
                       }
@@ -4669,7 +4853,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     </Animated.View>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => Alert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
                 ))}
@@ -4698,18 +4882,28 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 )}
 
                 {this.props.data['sentences'].length > 1 &&
-                  <TouchableWithoutFeedback onPress={() => this.translateText(sentence['tr'])}>
-                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
-                  </TouchableWithoutFeedback>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => this.translateText(sentence['tr'])}
+                    style={readerScreenStyles.translateButton}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' />
+                  </TouchableOpacity>
                 }
 
               </React.Fragment>
             )}
 
 
-            <TouchableWithoutFeedback onPress={() => this.translateText(this.state.paragraph_translate)}>
-              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' style={readerScreenStyles.translateIcon} />
-            </TouchableWithoutFeedback>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => this.translateText(this.state.paragraph_translate)}
+              style={readerScreenStyles.translateButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' />
+            </TouchableOpacity>
 
 
           </View>
@@ -5175,7 +5369,7 @@ class Reader extends React.Component {
 
     if (this.have_file == false && this.props.root.state.has_internet == false) {
       open_page = false;
-      Alert.alert('Отсутствует подключение к интернету');
+      AppAlert.alert('Отсутствует подключение к интернету');
     }
 
     if (open_page == true) {
@@ -6554,7 +6748,7 @@ class RootApp extends React.Component {
   checkInternet() {
     NetInfo.fetch().then(state => {
       if (state.isConnected == false) {
-        Alert.alert(false, 'Интернета по-прежнему нет(');
+        AppAlert.alert('', 'Интернета по-прежнему нет(');
       }
       this.setState({
         has_internet: state.isConnected,
@@ -6635,7 +6829,19 @@ class RootApp extends React.Component {
                     color: '#FFF',
                   },
                   headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />
+                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />,
+                  ...(Platform.OS === 'web' ? {
+                    headerTitle: '',
+                    headerLeft: () => (
+                      <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
+                      >
+                        <AppIcon icon={ChevronLeftIcon} size={24} color="#FFF" />
+                        <Text style={{ marginLeft: 8, color: '#FFF', fontSize: 17 }}>Список книг</Text>
+                      </TouchableOpacity>
+                    ),
+                  } : {}),
                 }
                 )}>
                   {(stack) => (
@@ -6693,6 +6899,7 @@ class RootApp extends React.Component {
           </View>
         )}
         <PwaInstallBanner />
+        <AppAlertModal />
       </View>
     );
   }
@@ -6767,12 +6974,17 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="blog"
+          listeners={{
+            tabPress: () => {
+              if (this.blogRef) this.blogRef.loadArticles(1);
+            }
+          }}
           options={() => ({
             tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={18} color={color} />,
             title: 'Блог',
           })}>
           {() => (
-            <Blog stack={this.props.stack} />
+            <Blog ref={(ref) => this.blogRef = ref} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
@@ -6913,7 +7125,7 @@ class Show extends React.Component {
             have_file: have_file == 'true'
           });
           this.props.stack.navigation.setOptions({
-            title: book.name_en,
+            ...(Platform.OS === 'web' ? { headerTitle: '' } : { title: book.name_en }),
             headerStyle: {
               backgroundColor: book.color,
               borderColor: 'transparent',
@@ -7118,9 +7330,9 @@ const Subscription = observer(class Subscription extends React.Component {
       } else {
         console.warn('IAP error:', error);
         if (error.message && error.message.startsWith('Product not found')) {
-          Alert.alert('Недоступно', 'Продукт временно недоступен в App Store. Попробуйте позже.');
+          AppAlert.alert('Недоступно', 'Продукт временно недоступен в App Store. Попробуйте позже.');
         } else {
-          Alert.alert('Ошибка покупки', error.message || 'Неизвестная ошибка. Попробуйте ещё раз.');
+          AppAlert.alert('Ошибка покупки', error.message || 'Неизвестная ошибка. Попробуйте ещё раз.');
         }
       }
     } finally {
@@ -7177,7 +7389,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
     const { subscription_info } = this.props.root.state;
     if (!subscription_info || !subscription_info.subscription_id) {
-      Alert.alert('Нет данных подписки для синхронизации');
+      AppAlert.alert('Нет данных подписки для синхронизации');
       return;
     }
 
@@ -7191,12 +7403,12 @@ const Subscription = observer(class Subscription extends React.Component {
       );
 
       if (result) {
-        Alert.alert('Данные синхронизированы');
+        AppAlert.alert('Данные синхронизированы');
       } else {
-        Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+        AppAlert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
       }
     } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
+      AppAlert.alert('Ошибка', 'Не удалось синхронизировать. Попробуйте позже.');
     } finally {
       this.setState({ load_sync_button: false });
     }

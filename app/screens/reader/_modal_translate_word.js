@@ -114,7 +114,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
     if (!pesponse || !pesponse.url) {
-      Alert.alert('Озвучка не найдена');
+      AppAlert.alert('Озвучка не найдена');
       this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
       this.voiceover_playing_lock = false;
@@ -328,7 +328,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                           </View>
                         </TouchableWithoutFeedback>
                       ) : (
-                        <TouchableWithoutFeedback onPress={() => Alert.alert('Лимит на сегодня закончился.\nОплатите подписку, чтобы пользоваться озвучкой без ограничений\nБесплатно доступно 15 слов в день.')}>
+                        <TouchableWithoutFeedback onPress={() => AppAlert.alert('Лимит на сегодня закончился', 'Оплатите подписку, чтобы пользоваться озвучкой без ограничений.\nБесплатно доступно 15 слов в день.')}>
                           <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                             <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                           </View>
@@ -337,7 +337,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     </React.Fragment>
                   </React.Fragment>
                 ) : (
-                  <TouchableWithoutFeedback onPress={() => Alert.alert('Нет подключения к интернету!')}>
+                  <TouchableWithoutFeedback onPress={() => AppAlert.alert('Нет подключения к интернету!')}>
                     <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                       <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>
@@ -392,7 +392,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       {this.props.has_subscription == false &&
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
                           <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
-                            <AppIcon icon={this.state.show_limits_information ? CloseIcon : BookAIcon} size={20} color="#777" style={{ margin: 1 }} />
+                            {this.state.show_limits_information ? (
+                              <AppIcon icon={CloseIcon} size={20} color="#777" style={{ margin: 1 }} />
+                            ) : (
+                              <Text style={{ color: '#777', fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
+                            )}
                           </View>
                         </TouchableOpacity>
                       }

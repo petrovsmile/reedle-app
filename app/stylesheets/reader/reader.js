@@ -83,9 +83,12 @@ var readerScreenStyles = StyleSheet.create({
     marginLeft: 3,
     marginTop: 5,
   },
-  translateIcon: {
+  translateButton: {
     marginTop: 5,
     marginLeft: 5,
+    ...(Platform.OS === 'web' ? {
+      outlineStyle: 'none',
+    } : {}),
   },
   adContainer: {
     flex: 1,

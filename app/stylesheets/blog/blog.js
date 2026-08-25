@@ -17,7 +17,7 @@ const blogStyles = StyleSheet.create({
   cardTitle: { marginTop: 9, color: '#111', fontSize: 15, fontWeight: 'bold', lineHeight: 20 },
   loader: { padding: 24 },
   empty: { padding: 30, textAlign: 'center', color: '#777' },
-  articleContent: { padding: 15, paddingBottom: 40 },
+  articleContent: { padding: 15, paddingBottom: 100 },
   articleTitle: { fontSize: 30, lineHeight: 38, fontWeight: 'bold', marginBottom: 10 },
   articleInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   articleInfoText: { color: '#aaa', fontSize: 14 },

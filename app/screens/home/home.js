@@ -58,7 +58,7 @@ class Home extends React.Component {
 
   async componentDidMount() {
     var not_show_read = await new Storage().get('not_show_read', 'false')
-    var sort_new_book = await new Storage().get('sort_new_book', 'false');
+    var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
     this.setState({
       not_show_read: not_show_read === 'true',

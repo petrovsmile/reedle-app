@@ -116,19 +116,83 @@ class Dictionary extends React.Component {
     return result;
   }
 
+  firstTranslation(translate) {
+    return String(translate || '').split(/[,;]/)[0].trim();
+  }
+
+  async updateWordLearningState(word, changes) {
+    var storageKey = 'word_' + word.original;
+    var storedValue = await new Storage().get(storageKey, '{}');
+    var storedWord = Object.assign({}, JSON.parse(storedValue), changes);
+    await new Storage().set(storageKey, JSON.stringify(storedWord));
+
+    this.setState({
+      words: this.state.words.map(item => item.original == word.original ? Object.assign({}, item, changes) : item),
+      learning_questions: this.state.learning_questions.map(question => (
+        question.word.original == word.original
+          ? Object.assign({}, question, { word: Object.assign({}, question.word, changes) })
+          : question
+      )),
+      learning_mistakes: this.state.learning_mistakes.map(item => (
+        item.original == word.original ? Object.assign({}, item, changes) : item
+      ))
+    });
+
+    return storedWord;
+  }
+
+  async toggleWordStudied(word) {
+    await this.updateWordLearningState(word, { studied: word.studied !== true });
+  }
+
+  async recordLearningShow(word) {
+    if (!word || word.studied === true) return;
+
+    var learningShows = Number(word.learning_shows || 0) + 1;
+    var shouldPrompt = learningShows >= 10 && word.study_prompted !== true;
+    var changes = { learning_shows: learningShows };
+    if (shouldPrompt) changes.study_prompted = true;
+    var updatedWord = await this.updateWordLearningState(word, changes);
+
+    if (shouldPrompt) {
+      AppAlert.alert(
+        'Слово показано 10 раз',
+        'Пометить «' + word.original + '» как изученное?',
+        [
+          { text: 'Пока нет', style: 'cancel' },
+          { text: 'Изучено', onPress: () => this.updateWordLearningState(updatedWord, { studied: true }) }
+        ]
+      );
+    }
+  }
+
   startLearning(words) {
-    var source = (words || this.state.words).filter(word => word.original && word.translate);
+    var source = (words || this.state.words).filter(word => word.original && word.translate && word.studied !== true);
+    if (words == undefined && source.length < 10) {
+      AppAlert.alert(
+        'Недостаточно слов',
+        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+      );
+      return;
+    }
+    if (source.length == 0) {
+      AppAlert.alert('Нет слов для повторения', 'Все слова отмечены как изученные.');
+      return;
+    }
     var selectedWords = this.shuffle(source).slice(0, 10);
     var questions = selectedWords.map(word => {
+      var correctAnswer = this.firstTranslation(word.translate);
       var wrongAnswers = this.shuffle(source
-        .filter(otherWord => otherWord.original != word.original && otherWord.translate != word.translate)
-        .map(otherWord => otherWord.translate)
+        .filter(otherWord => otherWord.original != word.original)
+        .map(otherWord => this.firstTranslation(otherWord.translate))
+        .filter(translate => translate && translate != correctAnswer)
         .filter((translate, index, translations) => translations.indexOf(translate) == index))
         .slice(0, 3);
 
       return {
         word: word,
-        answers: this.shuffle([word.translate].concat(wrongAnswers))
+        correctAnswer: correctAnswer,
+        answers: this.shuffle([correctAnswer].concat(wrongAnswers))
       };
     });
 
@@ -140,14 +204,14 @@ class Dictionary extends React.Component {
       learning_correct: 0,
       learning_mistakes: [],
       learning_complete: false
-    });
+    }, () => this.recordLearningShow(questions[0].word));
   }
 
   selectLearningAnswer(answer) {
     if (this.state.learning_answer != null) return;
 
     var question = this.state.learning_questions[this.state.learning_index];
-    var isCorrect = answer == question.word.translate;
+    var isCorrect = answer == question.correctAnswer;
     this.setState({
       learning_answer: answer,
       learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
@@ -161,10 +225,11 @@ class Dictionary extends React.Component {
     if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
       this.setState({ learning_complete: true });
     } else {
+      var nextQuestion = this.state.learning_questions[this.state.learning_index + 1];
       this.setState({
         learning_index: this.state.learning_index + 1,
         learning_answer: null
-      });
+      }, () => this.recordLearningShow(nextQuestion.word));
     }
   }
 
@@ -214,7 +279,7 @@ class Dictionary extends React.Component {
         {question.answers.map(answer => {
           var answerStyle = null;
           if (this.state.learning_answer != null) {
-            if (answer == question.word.translate) {
+            if (answer == question.correctAnswer) {
               answerStyle = dictionaryStyles.learningAnswerCorrect;
             } else if (answer == this.state.learning_answer) {
               answerStyle = dictionaryStyles.learningAnswerWrong;
@@ -336,9 +401,19 @@ class Dictionary extends React.Component {
                   renderItem={(word) => {
                     return (
                       <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: '#FFF', borderColor: '#eee', borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
-                        <View style={{ height: 4, backgroundColor: '#eee' }}></View>
+                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : '#eee' }}></View>
                         <View style={{ padding: 8 }}>
-                          <Text style={{ fontWeight: 'bold' }}>{word.item.original}</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontWeight: 'bold', flex: 1 }}>{word.item.original}</Text>
+                            <TouchableOpacity
+                              onPress={() => this.toggleWordStudied(word.item)}
+                              style={[dictionaryStyles.studiedButton, word.item.studied === true && dictionaryStyles.studiedButtonActive]}
+                            >
+                              <Text style={[dictionaryStyles.studiedButtonText, word.item.studied === true && dictionaryStyles.studiedButtonTextActive]}>
+                                {word.item.studied === true ? 'Вернуть в тест' : 'Изучено'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                           {word.item.transcription != null &&
                             <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
                           }

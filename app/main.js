@@ -24,7 +24,6 @@ import {
   Switch,
   Vibration,
   Linking,
-  Alert,
   Animated
 } from 'react-native';
 
@@ -120,6 +119,85 @@ import {
 const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
   <Icon strokeWidth={strokeWidth} {...props} />
 );
+
+const AppAlert = {
+  handler: null,
+
+  alert(title, message, buttons) {
+    if (this.handler) {
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: buttons && buttons.length ? buttons : [{ text: 'Понятно' }]
+      });
+    }
+  }
+};
+
+class AppAlertModal extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false, title: '', message: '', buttons: [] };
+  }
+
+  componentDidMount() {
+    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options));
+  }
+
+  componentWillUnmount() {
+    AppAlert.handler = null;
+  }
+
+  close(button) {
+    this.setState({ visible: false }, () => {
+      if (button && button.onPress) button.onPress();
+    });
+  }
+
+  render() {
+    return (
+      <Modal
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        transparent={true}
+        visible={this.state.visible}
+        onRequestClose={() => this.close()}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: '#FFF' }}>
+            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>{this.state.title}</Text> : null}
+            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: '#555' }}>{this.state.message}</Text> : null}
+            <View style={{ flexDirection: 'row', marginTop: 20 }}>
+              {this.state.buttons.map((button, index) => {
+                var isCancel = button.style == 'cancel';
+                var isDestructive = button.style == 'destructive';
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => this.close(button)}
+                    style={{
+                      flex: 1,
+                      minHeight: 44,
+                      marginLeft: index == 0 ? 0 : 8,
+                      borderWidth: isCancel ? 1 : 0,
+                      borderColor: '#ddd',
+                      borderRadius: 8,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: isCancel ? '#FFF' : (isDestructive ? '#d9363e' : '#f05458')
+                    }}
+                  >
+                    <Text style={{ color: isCancel ? '#555' : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+}
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 

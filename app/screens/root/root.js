@@ -358,7 +358,7 @@ class RootApp extends React.Component {
   checkInternet() {
     NetInfo.fetch().then(state => {
       if (state.isConnected == false) {
-        Alert.alert(false, 'Интернета по-прежнему нет(');
+        AppAlert.alert('', 'Интернета по-прежнему нет(');
       }
       this.setState({
         has_internet: state.isConnected,
@@ -439,7 +439,19 @@ class RootApp extends React.Component {
                     color: '#FFF',
                   },
                   headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />
+                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />,
+                  ...(Platform.OS === 'web' ? {
+                    headerTitle: '',
+                    headerLeft: () => (
+                      <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
+                      >
+                        <AppIcon icon={ChevronLeftIcon} size={24} color="#FFF" />
+                        <Text style={{ marginLeft: 8, color: '#FFF', fontSize: 17 }}>Список книг</Text>
+                      </TouchableOpacity>
+                    ),
+                  } : {}),
                 }
                 )}>
                   {(stack) => (
@@ -497,6 +509,7 @@ class RootApp extends React.Component {
           </View>
         )}
         <PwaInstallBanner />
+        <AppAlertModal />
       </View>
     );
   }
