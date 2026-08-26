@@ -73,7 +73,7 @@ class Bookmarks extends React.Component {
     return bookmarks.filter(bookmark => bookmark != null);
   }
 
-  async deleteBookmark(rowMap, data) {
+  async deleteBookmark(data) {
     var bookmarks_keys = await new Storage().get('bookmarks_keys');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
@@ -87,6 +87,15 @@ class Bookmarks extends React.Component {
     await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
     await SyncManager.flush(this.props.root.state.current_user.id);
     await this.getBookmarks();
+  }
+
+  confirmDeleteBookmark(data) {
+    AppAlert.confirm(
+      'Вы уверены?',
+      'Закладка будет удалена.',
+      () => this.deleteBookmark(data),
+      'Удалить'
+    );
   }
 
   openBook(book_id, bookmark) {
@@ -137,7 +146,7 @@ class Bookmarks extends React.Component {
               </View>
             }
             {this.state.do_not_find == false &&
-              <SwipeListView
+              <FlatList
                 style={{ flex: 1, zIndex: 0, paddingTop: 10 }}
                 refreshControl={
                   <RefreshControl refreshing={false} onRefresh={() => this.getBookmarks()} />
@@ -147,22 +156,15 @@ class Bookmarks extends React.Component {
                 removeClippedSubviews={true}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 data={this.state.bookmarks}
-                renderItem={(bookmark) => <Bookmark openBook={(book_id, bookmark) => this.openBook(book_id, bookmark)} bookmark={bookmark} />}
-                keyExtractor={(bookmark) => bookmark.book_id}
+                renderItem={(bookmark) => (
+                  <Bookmark
+                    openBook={(book_id, bookmarkData) => this.openBook(book_id, bookmarkData)}
+                    deleteBookmark={() => this.confirmDeleteBookmark(bookmark.item)}
+                    bookmark={bookmark}
+                  />
+                )}
+                keyExtractor={(bookmark) => String(bookmark.book_id)}
                 ListEmptyComponent={() => <PreviewBookmarks />}
-                rightOpenValue={-40}
-                disableRightSwipe={true}
-                renderHiddenItem={(data, rowMap) => {
-
-                  return (
-                    <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 10, }}>
-                      <TouchableOpacity onPress={() => this.deleteBookmark(rowMap, data.item)}>
-                        <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
-                      </TouchableOpacity>
-                    </View>
-                  )
-                }}
-
               />
             }
           </React.Fragment>

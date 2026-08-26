@@ -166,20 +166,4 @@ const homeStyles = StyleSheet.create({
     lineHeight: 26,
     color: '#999',
   },
-  swipeMenuButton: {
-    width: 65,
-    height: 130,
-    marginTop: 5,
-    marginLeft: -10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
-  },
-  swipeMenuButtonText: {
-    width: 130,
-    color: '#FFF',
-    textAlign: 'center',
-    transform: [{ rotate: '-90deg' }],
-  },
 });

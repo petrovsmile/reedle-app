@@ -32,7 +32,7 @@ import { WebView } from 'react-native-webview';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import moment from 'moment';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -95,7 +95,6 @@ import {
   Menu as MenuIcon,
   Minus as MinusIcon,
   Newspaper as NewspaperIcon,
-  Pilcrow as ParagraphIcon,
   Play as PlayIcon,
   Plus as PlusIcon,
   RectangleHorizontal as AdvertisementIcon,
@@ -131,6 +130,13 @@ const AppAlert = {
         buttons: buttons && buttons.length ? buttons : [{ text: 'Понятно' }]
       });
     }
+  },
+
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm }
+    ]);
   }
 };
 
@@ -313,8 +319,8 @@ const CURRENT_ANDROID_VERSION = '1.4.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
-const HOST="https://stage.reedle.ru"
-//const HOST="http://localhost:3000"
+//const HOST="https://stage.reedle.ru"
+const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
@@ -558,22 +564,6 @@ const homeStyles = StyleSheet.create({
     lineHeight: 26,
     color: '#999',
   },
-  swipeMenuButton: {
-    width: 65,
-    height: 130,
-    marginTop: 5,
-    marginLeft: -10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
-  },
-  swipeMenuButtonText: {
-    width: 130,
-    color: '#FFF',
-    textAlign: 'center',
-    transform: [{ rotate: '-90deg' }],
-  },
 });
 
 const bookmarksStyles = StyleSheet.create({
@@ -584,8 +574,31 @@ const bookmarksStyles = StyleSheet.create({
   auth_into: {
     textAlign: 'center',
     fontSize: 18 
+  },
+  bookmarkRow: {
+    marginLeft: 10,
+    marginRight: 10,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  bookmarkCard: {
+    flex: 1,
+    height: 40,
+    paddingLeft: 10,
+    paddingRight: 10,
+    borderRadius: 5,
+    backgroundColor: app_theme_colors.backgroundLight,
+    flexDirection: 'row'
+  },
+  deleteButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center'
   }
 });
+
 const blogStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 10, paddingBottom: 24 },
@@ -655,6 +668,41 @@ const dictionaryStyles = StyleSheet.create({
   },
   studiedButtonTextActive: {
     color: '#FFF'
+  },
+  deleteWordButton: {
+    width: 24,
+    height: 24,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  wordLearningProgress: {
+    alignSelf: 'stretch',
+    marginTop: 12
+  },
+  wordLearningProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6
+  },
+  wordLearningProgressText: {
+    color: '#777',
+    fontSize: 12
+  },
+  wordLearningProgressCount: {
+    color: '#aaa',
+    fontSize: 12
+  },
+  wordLearningProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: '#eee'
+  },
+  wordLearningProgressValue: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#75b641'
   },
   learningStartButton: {
     height: 44,
@@ -1760,33 +1808,35 @@ function BlogEye({ color }) {
 class Blog extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { articles: [], page: 1, nextPage: null, loading: true, loadingMore: false };
+    this.state = { articles: [], page: 1, nextPage: null, loading: true, loadingMore: false, refreshing: false };
   }
 
   componentDidMount() {
     this.loadArticles(1);
   }
 
-  async loadArticles(page) {
+  async loadArticles(page, refreshing) {
     if (page > 1 && this.state.loadingMore) return;
-    this.setState(page > 1 ? { loadingMore: true } : { loading: true });
+    this.setState(page > 1 ? { loadingMore: true } : (refreshing ? { refreshing: true } : { loading: true }));
 
     var result = await new Request('/api/v1/articles', { page: page }, { do_not_show_error: true }).get();
+    console.log(result)
     if (result != false) {
       this.setState({
         articles: page == 1 ? result.items : this.state.articles.concat(result.items),
         page: page,
         nextPage: result.pagination.next_page,
         loading: false,
-        loadingMore: false
+        loadingMore: false,
+        refreshing: false
       });
     } else {
-      this.setState({ loading: false, loadingMore: false });
+      this.setState({ loading: false, loadingMore: false, refreshing: false });
     }
   }
 
   openArticle(article) {
-    this.props.stack.navigation.navigate('article', { code: article.code, title: article.title });
+    this.props.stack.navigation.navigate('article', { code: article.code });
   }
 
   renderArticle({ item }) {
@@ -1813,11 +1863,14 @@ class Blog extends React.Component {
   render() {
     return (
       <SafeAreaView style={blogStyles.screen}>
-        <FlatList
+        <SwipeListView
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           contentContainerStyle={blogStyles.content}
+          refreshControl={
+            <RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.loadArticles(1, true)} />
+          }
           ListEmptyComponent={!this.state.loading ? <Text style={blogStyles.empty}>Статей пока нет</Text> : null}
           ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color="#aaa" /> : null}
           renderItem={(item) => this.renderArticle(item)}
@@ -1838,7 +1891,6 @@ class BlogArticle extends React.Component {
   async componentDidMount() {
     var article = await new Request('/api/v1/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
     this.setState({ article: article || null, loading: false });
-    if (article) this.props.stack.navigation.setOptions({ title: article.title });
   }
 
   renderBlock(block, index) {
@@ -1890,6 +1942,7 @@ class BlogArticle extends React.Component {
             </View>
             <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
           </View>
+          <Text style={blogStyles.articleTitle}>{article.title}</Text>
           {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={blogStyles.articleImage} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>
@@ -1917,15 +1970,24 @@ class Bookmark extends React.Component {
 
   render() {
     return (
-      <View style={{ marginLeft: 10, marginRight: 10, marginBottom: 10, backgroundColor: app_theme_colors.backgroundLight, paddingLeft: 10, paddingRight: 10, borderRadius: 5 }}>
-        <TouchableOpacity onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })} style={{ flexDirection: 'row' }}>
+      <View style={bookmarksStyles.bookmarkRow}>
+        <TouchableOpacity
+          onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })}
+          style={bookmarksStyles.bookmarkCard}>
           <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40 }}>{this.bookmark.book_name}</Text>
           <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold' }}>Стр. {this.bookmark.page}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => this.props.deleteBookmark()}
+          style={bookmarksStyles.deleteButton}
+          accessibilityLabel="Удалить закладку">
+          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>
       </View>
     )
   }
 }
+
 class BookmarkStack extends React.Component {
   constructor(props) {
     super(props);
@@ -2025,7 +2087,7 @@ class Bookmarks extends React.Component {
     return bookmarks.filter(bookmark => bookmark != null);
   }
 
-  async deleteBookmark(rowMap, data) {
+  async deleteBookmark(data) {
     var bookmarks_keys = await new Storage().get('bookmarks_keys');
     bookmarks_keys = JSON.parse(bookmarks_keys);
 
@@ -2039,6 +2101,15 @@ class Bookmarks extends React.Component {
     await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
     await SyncManager.flush(this.props.root.state.current_user.id);
     await this.getBookmarks();
+  }
+
+  confirmDeleteBookmark(data) {
+    AppAlert.confirm(
+      'Вы уверены?',
+      'Закладка будет удалена.',
+      () => this.deleteBookmark(data),
+      'Удалить'
+    );
   }
 
   openBook(book_id, bookmark) {
@@ -2089,7 +2160,7 @@ class Bookmarks extends React.Component {
               </View>
             }
             {this.state.do_not_find == false &&
-              <SwipeListView
+              <FlatList
                 style={{ flex: 1, zIndex: 0, paddingTop: 10 }}
                 refreshControl={
                   <RefreshControl refreshing={false} onRefresh={() => this.getBookmarks()} />
@@ -2099,22 +2170,15 @@ class Bookmarks extends React.Component {
                 removeClippedSubviews={true}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 data={this.state.bookmarks}
-                renderItem={(bookmark) => <Bookmark openBook={(book_id, bookmark) => this.openBook(book_id, bookmark)} bookmark={bookmark} />}
-                keyExtractor={(bookmark) => bookmark.book_id}
+                renderItem={(bookmark) => (
+                  <Bookmark
+                    openBook={(book_id, bookmarkData) => this.openBook(book_id, bookmarkData)}
+                    deleteBookmark={() => this.confirmDeleteBookmark(bookmark.item)}
+                    bookmark={bookmark}
+                  />
+                )}
+                keyExtractor={(bookmark) => String(bookmark.book_id)}
                 ListEmptyComponent={() => <PreviewBookmarks />}
-                rightOpenValue={-40}
-                disableRightSwipe={true}
-                renderHiddenItem={(data, rowMap) => {
-
-                  return (
-                    <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 10, }}>
-                      <TouchableOpacity onPress={() => this.deleteBookmark(rowMap, data.item)}>
-                        <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
-                      </TouchableOpacity>
-                    </View>
-                  )
-                }}
-
               />
             }
           </React.Fragment>
@@ -2239,7 +2303,7 @@ class Dictionary extends React.Component {
     await SyncManager.syncWords(this.props.root.state.current_user.id);
   }
 
-  async deleteWord(rowMap, data) {
+  async deleteWord(data) {
     var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
@@ -2253,6 +2317,15 @@ class Dictionary extends React.Component {
     await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
     await SyncManager.flush(this.props.root.state.current_user.id);
     await this.getWords();
+  }
+
+  confirmDeleteWord(data) {
+    AppAlert.confirm(
+      'Вы уверены?',
+      'Слово «' + data.original + '» будет удалено из словаря.',
+      () => this.deleteWord(data),
+      'Удалить'
+    );
   }
 
   set_sorting_by(sorting_by) {
@@ -2309,19 +2382,42 @@ class Dictionary extends React.Component {
     var learningShows = Number(word.learning_shows || 0) + 1;
     var shouldPrompt = learningShows >= 10 && word.study_prompted !== true;
     var changes = { learning_shows: learningShows };
-    if (shouldPrompt) changes.study_prompted = true;
-    var updatedWord = await this.updateWordLearningState(word, changes);
+    if (shouldPrompt) {
+      changes.study_prompted = true;
+      changes.studied = true;
+    }
+    await this.updateWordLearningState(word, changes);
 
     if (shouldPrompt) {
       AppAlert.alert(
-        'Слово показано 10 раз',
-        'Пометить «' + word.original + '» как изученное?',
-        [
-          { text: 'Пока нет', style: 'cancel' },
-          { text: 'Изучено', onPress: () => this.updateWordLearningState(updatedWord, { studied: true }) }
-        ]
+        'Слово изучено',
+        'Вы правильно повторили «' + word.original + '» 10 раз.'
       );
     }
+  }
+
+  renderWordLearningProgress(word) {
+    var repetitions = Math.min(Number(word.learning_shows || 0), 10);
+    var remaining = Math.max(10 - repetitions, 0);
+    var completed = word.studied === true;
+    if (completed) return null;
+
+    return (
+      <View style={dictionaryStyles.wordLearningProgress}>
+        <View style={dictionaryStyles.wordLearningProgressHeader}>
+          <Text style={dictionaryStyles.wordLearningProgressText}>
+            {'Осталось повторить: ' + remaining}
+          </Text>
+          <Text style={dictionaryStyles.wordLearningProgressCount}>{repetitions} из 10</Text>
+        </View>
+        <View style={dictionaryStyles.wordLearningProgressTrack}>
+          <View style={[
+            dictionaryStyles.wordLearningProgressValue,
+            { width: (repetitions * 10) + '%' }
+          ]} />
+        </View>
+      </View>
+    );
   }
 
   startLearning(words) {
@@ -2362,32 +2458,35 @@ class Dictionary extends React.Component {
       learning_correct: 0,
       learning_mistakes: [],
       learning_complete: false
-    }, () => this.recordLearningShow(questions[0].word));
+    });
   }
 
-  selectLearningAnswer(answer) {
+  async selectLearningAnswer(answer) {
     if (this.state.learning_answer != null) return;
 
     var question = this.state.learning_questions[this.state.learning_index];
     var isCorrect = answer == question.correctAnswer;
-    this.setState({
-      learning_answer: answer,
-      learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
-      learning_mistakes: isCorrect
-        ? this.state.learning_mistakes
-        : this.state.learning_mistakes.concat([question.word])
-    });
+    await new Promise(resolve => this.setState({
+        learning_answer: answer,
+        learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
+        learning_mistakes: isCorrect
+          ? this.state.learning_mistakes
+          : this.state.learning_mistakes.concat([question.word])
+      }, resolve));
+
+    if (isCorrect) {
+      await this.recordLearningShow(question.word);
+    }
   }
 
   nextLearningQuestion() {
     if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
       this.setState({ learning_complete: true });
     } else {
-      var nextQuestion = this.state.learning_questions[this.state.learning_index + 1];
       this.setState({
         learning_index: this.state.learning_index + 1,
         learning_answer: null
-      }, () => this.recordLearningShow(nextQuestion.word));
+      });
     }
   }
 
@@ -2432,6 +2531,7 @@ class Dictionary extends React.Component {
           {question.word.transcription != null &&
             <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
           }
+          {this.renderWordLearningProgress(question.word)}
         </View>
         <Text style={dictionaryStyles.learningPrompt}>Выберите перевод</Text>
         {question.answers.map(answer => {
@@ -2546,7 +2646,7 @@ class Dictionary extends React.Component {
                 </View>
 
 
-                <SwipeListView
+                <FlatList
                   style={{ flex: 1, zIndex: 0, paddingTop: 8 }}
                   refreshControl={
                     <RefreshControl refreshing={false} onRefresh={() => this.getWords()} />
@@ -2571,28 +2671,24 @@ class Dictionary extends React.Component {
                                 {word.item.studied === true ? 'Вернуть в тест' : 'Изучено'}
                               </Text>
                             </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => this.confirmDeleteWord(word.item)}
+                              style={dictionaryStyles.deleteWordButton}
+                              accessibilityLabel="Удалить слово">
+                              <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
+                            </TouchableOpacity>
                           </View>
                           {word.item.transcription != null &&
                             <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
                           }
                           <Text style={{ marginTop: 4 }}>{word.item.translate}</Text>
+                          {this.renderWordLearningProgress(word.item)}
                         </View>
                       </View>
                     )
                   }}
                   keyExtractor={(word) => word.original}
                   ListEmptyComponent={() => <PreviewWords />}
-                  rightOpenValue={-40}
-                  disableRightSwipe={true}
-                  renderHiddenItem={(data, rowMap) => {
-                    return (
-                      <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 8 }}>
-                        <TouchableOpacity onPress={() => this.deleteWord(rowMap, data.item)}>
-                          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
-                        </TouchableOpacity>
-                      </View>
-                    )
-                  }}
                 />
               </View>
             )}
@@ -2778,6 +2874,12 @@ class Home extends React.Component {
   }
 
   async componentDidMount() {
+    var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
+    if (sort_new_book_default_migrated != 'true') {
+      await new Storage().set('sort_new_book', 'true');
+      await new Storage().set('sort_new_book_default_enabled_v1', 'true');
+    }
+
     var not_show_read = await new Storage().get('not_show_read', 'false')
     var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
@@ -3019,26 +3121,6 @@ class Home extends React.Component {
     var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
     var safeAreaTop = safeAreaInsets.top || 0;
 
-    const readBook = (rowMap, rowKey) => {
-      if (rowMap[rowKey.id]) {
-        rowMap[rowKey.id].closeRow();
-      }
-      AsyncStorage.setItem('percent_' + rowKey.id, '100').then(() => {
-        this.filter_books();
-      });
-    };
-
-    const deleteBook = (rowMap, rowKey) => {
-      if (rowMap[rowKey.id]) {
-        rowMap[rowKey.id].closeRow();
-      }
-      AsyncStorage.setItem('have_file_' + rowKey.id, '').then(() => {
-        RNFS.unlink(file_root + '/books/' + rowKey.id + '/').then(() => {
-          this.filter_books();
-        });
-      });
-    };
-
     return (
       <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop }]}>
         <View style={homeStyles.header}>
@@ -3146,7 +3228,7 @@ class Home extends React.Component {
             </View>
           }
           {this.state.do_not_find == false &&
-            <SwipeListView
+            <FlatList
               style={{ flex: 1, marginTop: -10, zIndex: 0, paddingTop: 10 }}
               refreshControl={
                 <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
@@ -3164,33 +3246,8 @@ class Home extends React.Component {
                   color: color,
                 })}
               />}
-              keyExtractor={(book) => book.id}
+              keyExtractor={(book) => String(book.id)}
               ListEmptyComponent={() => <PreviewBooks />}
-              rightOpenValue={-130}
-              disableRightSwipe={true}
-
-              renderHiddenItem={(data, rowMap) => {
-
-                return (
-                  <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#ddd', marginLeft: 15, marginRight: 15, }}>
-                    <View style={{ zIndex: 2, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#FFF' }}>
-                    </View>
-                    <TouchableWithoutFeedback onPress={() => readBook(rowMap, data.item)} >
-                      <View style={[homeStyles.swipeMenuButton, { zIndex: 1, backgroundColor: '#75b641' }]}>
-                        <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 14 }]}>Прочитана</Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                    {data.item.have_file == true &&
-                      <TouchableWithoutFeedback onPress={() => deleteBook(rowMap, data.item)}>
-                        <View style={[homeStyles.swipeMenuButton, { zIndex: 0, backgroundColor: '#f05458' }]}>
-                          <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 10 }]}>Удалить из памяти</Text>
-                        </View>
-                      </TouchableWithoutFeedback>
-                    }
-                  </View>
-                )
-              }}
-
             />
           }
         </React.Fragment>
@@ -4026,8 +4083,17 @@ class ModalFastLearning extends React.Component {
         visible={this.props.visible}>
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {}}
+            style={[
+              { flexDirection: 'row', justifyContent: 'center' },
+              Platform.OS === 'web' ? { width: '100%', paddingHorizontal: 30 } : null
+            ]}>
+            <View style={[
+              { borderRadius: 15, backgroundColor: '#FFF', padding: 15 },
+              Platform.OS === 'web' ? { width: '100%', maxWidth: 500 } : { margin: 30 }
+            ]}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Быстрое обучение</Text>
 
@@ -4039,14 +4105,14 @@ class ModalFastLearning extends React.Component {
 
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
 
-                <AppIcon icon={BookAIcon} size={20} color={app_theme_colors.red} />
+                <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод предложения.
                 </Text>
               </View>
 
               <View style={{ flexDirection: 'row', marginTop: 15 }}>
-                <AppIcon icon={ParagraphIcon} size={20} color={app_theme_colors.red} />
+                <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод абзаца.
                 </Text>
@@ -5389,7 +5455,7 @@ class Reader extends React.Component {
         var pagination = await new Request('/books/' + this.props.stack.route.params.book_id + '/result/pagination.json', {}, {}).get();
       }
 
-      this.goBookUp(this.props.stack.route.params.book_id);
+      await this.goBookUp(this.props.stack.route.params.book_id);
 
       var pageItems = pagination[this.state.page];
       var bookId = this.props.stack.route.params.book_id;
@@ -5892,7 +5958,7 @@ class Reader extends React.Component {
         }
       });
 
-      RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
+      await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
     }
   }
 
@@ -6817,7 +6883,7 @@ class RootApp extends React.Component {
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="show" options={({ navigation, route }) => ({
-                  title: 'Книга',
+                  headerTitle: '',
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
@@ -6870,7 +6936,7 @@ class RootApp extends React.Component {
                     <Subscription root={this} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="article" options={{ title: 'Блог' }}>
+                <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
                   )}
@@ -6988,9 +7054,10 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
-          options={() => ({
+          options={({ route }) => ({
             tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
             title: 'Аккаунт',
+            headerShown: (getFocusedRouteNameFromRoute(route) || 'profile_home') == 'profile_home',
           })}>
           {() => (
             <ProfileStack root={this.props.root} root_stack={this.props.stack} />
@@ -7088,7 +7155,8 @@ class Show extends React.Component {
     this.state = {
       percent: 0,
       book: false,
-      have_file: false
+      have_file: false,
+      context_menu_visible: false
     };
   }
 
@@ -7096,6 +7164,17 @@ class Show extends React.Component {
     homeStore.setOpenProperty(false);
 
     var initialColor = this.props.stack.route.params.color || '#f05458';
+
+    this.props.stack.navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => this.setState({ context_menu_visible: !this.state.context_menu_visible })}
+          style={{ width: 48, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
+          accessibilityLabel="Действия с книгой">
+          <AppIcon icon={EllipsisIcon} size={26} color="#FFF" />
+        </TouchableOpacity>
+      )
+    });
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -7125,7 +7204,7 @@ class Show extends React.Component {
             have_file: have_file == 'true'
           });
           this.props.stack.navigation.setOptions({
-            ...(Platform.OS === 'web' ? { headerTitle: '' } : { title: book.name_en }),
+            headerTitle: '',
             headerStyle: {
               backgroundColor: book.color,
               borderColor: 'transparent',
@@ -7160,12 +7239,59 @@ class Show extends React.Component {
     });
   }
 
+  async markAsRead() {
+    var bookId = this.props.stack.route.params.book_id;
+    await new Storage().set('percent_' + bookId, '100');
+    var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
+    this.props.root.setState({ books_percents: percents });
+    this.setState({ percent: 100, context_menu_visible: false });
+  }
+
+  confirmDeleteFromMemory() {
+    this.setState({ context_menu_visible: false }, () => {
+      AppAlert.confirm(
+        'Вы уверены?',
+        'Скачанная книга будет удалена с устройства.',
+        () => this.deleteFromMemory(),
+        'Удалить'
+      );
+    });
+  }
+
+  async deleteFromMemory() {
+    var bookId = this.props.stack.route.params.book_id;
+    await new Storage().set('have_file_' + bookId, '');
+    var bookDirectory = file_root + '/books/' + bookId + '/';
+    if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+    this.setState({ have_file: false });
+  }
+
   render() {
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
+
+        {this.state.context_menu_visible &&
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => this.setState({ context_menu_visible: false })}
+            style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 16, color: '#222' }}>Отметить прочитанной</Text>
+                </TouchableOpacity>
+                {this.state.have_file &&
+                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
+                    <Text style={{ fontSize: 16, color: app_theme_colors.red }}>Удалить из памяти</Text>
+                  </TouchableOpacity>
+                }
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        }
 
         {this.state.book == false &&
           <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />

@@ -17,10 +17,18 @@ class Bookmark extends React.Component {
 
   render() {
     return (
-      <View style={{ marginLeft: 10, marginRight: 10, marginBottom: 10, backgroundColor: app_theme_colors.backgroundLight, paddingLeft: 10, paddingRight: 10, borderRadius: 5 }}>
-        <TouchableOpacity onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })} style={{ flexDirection: 'row' }}>
+      <View style={bookmarksStyles.bookmarkRow}>
+        <TouchableOpacity
+          onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })}
+          style={bookmarksStyles.bookmarkCard}>
           <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40 }}>{this.bookmark.book_name}</Text>
           <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold' }}>Стр. {this.bookmark.page}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => this.props.deleteBookmark()}
+          style={bookmarksStyles.deleteButton}
+          accessibilityLabel="Удалить закладку">
+          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>
       </View>
     )

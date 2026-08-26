@@ -279,7 +279,7 @@ class Reader extends React.Component {
         var pagination = await new Request('/books/' + this.props.stack.route.params.book_id + '/result/pagination.json', {}, {}).get();
       }
 
-      this.goBookUp(this.props.stack.route.params.book_id);
+      await this.goBookUp(this.props.stack.route.params.book_id);
 
       var pageItems = pagination[this.state.page];
       var bookId = this.props.stack.route.params.book_id;
@@ -782,7 +782,7 @@ class Reader extends React.Component {
         }
       });
 
-      RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
+      await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
     }
   }
 

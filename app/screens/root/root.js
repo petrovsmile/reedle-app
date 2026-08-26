@@ -427,7 +427,7 @@ class RootApp extends React.Component {
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="show" options={({ navigation, route }) => ({
-                  title: 'Книга',
+                  headerTitle: '',
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
@@ -480,7 +480,7 @@ class RootApp extends React.Component {
                     <Subscription root={this} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="article" options={{ title: 'Блог' }}>
+                <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
                   )}

@@ -65,6 +65,13 @@ module.exports = {
     module: {
         rules: [
             {
+                // Native keeps HOST from app/configs.js. For web, requests must stay
+                // relative so webpack-dev-server can forward them through its proxy.
+                test: /App\.js$/,
+                enforce: 'pre',
+                use: path.resolve(__dirname, 'scripts/web-host-loader.js'),
+            },
+            {
                 test: /\.(js|jsx|mjs|ts|tsx)$/,
                 exclude: /node_modules\/(?!(react-native-.*|@react-navigation|react-navigation|react-native-swipe-list-view|react-native-gesture-handler|react-native-reanimated|react-native-safe-area-context|react-native-circular-progress|react-native-svg)\/).*/,
                 use: {
@@ -125,7 +132,7 @@ module.exports = {
             'react-native-purchases': path.resolve(__dirname, 'web-stubs/react-native-purchases.js'),
             'react-native-restart': path.resolve(__dirname, 'web-stubs/react-native-restart.js'),
             'react-native-webview': path.resolve(__dirname, 'web-stubs/react-native-webview.js'),
-            'react-native-worklets': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
+            'react-native-worklets$': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
             '@mhpdev/react-native-speech': path.resolve(__dirname, 'web-stubs/react-native-speech.js'),
             '@appmetrica/react-native-analytics': path.resolve(__dirname, 'web-stubs/appmetrica.js'),
             '@react-native-async-storage/async-storage': path.resolve(__dirname, 'web-stubs/async-storage.js'),
@@ -221,6 +228,11 @@ module.exports = {
                 },
             }),
         ],
+    },
+
+    performance: {
+        maxAssetSize: 2 * 1024 * 1024,
+        maxEntrypointSize: 2 * 1024 * 1024,
     },
 
     target: 'web',

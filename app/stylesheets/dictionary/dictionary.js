@@ -33,6 +33,41 @@ const dictionaryStyles = StyleSheet.create({
   studiedButtonTextActive: {
     color: '#FFF'
   },
+  deleteWordButton: {
+    width: 24,
+    height: 24,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  wordLearningProgress: {
+    alignSelf: 'stretch',
+    marginTop: 12
+  },
+  wordLearningProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6
+  },
+  wordLearningProgressText: {
+    color: '#777',
+    fontSize: 12
+  },
+  wordLearningProgressCount: {
+    color: '#aaa',
+    fontSize: 12
+  },
+  wordLearningProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: '#eee'
+  },
+  wordLearningProgressValue: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#75b641'
+  },
   learningStartButton: {
     height: 44,
     borderRadius: 8,

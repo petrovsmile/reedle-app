@@ -81,7 +81,7 @@ class Dictionary extends React.Component {
     await SyncManager.syncWords(this.props.root.state.current_user.id);
   }
 
-  async deleteWord(rowMap, data) {
+  async deleteWord(data) {
     var words_keys = await new Storage().get('words_keys');
     words_keys = JSON.parse(words_keys);
 
@@ -95,6 +95,15 @@ class Dictionary extends React.Component {
     await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
     await SyncManager.flush(this.props.root.state.current_user.id);
     await this.getWords();
+  }
+
+  confirmDeleteWord(data) {
+    AppAlert.confirm(
+      'Вы уверены?',
+      'Слово «' + data.original + '» будет удалено из словаря.',
+      () => this.deleteWord(data),
+      'Удалить'
+    );
   }
 
   set_sorting_by(sorting_by) {
@@ -151,19 +160,42 @@ class Dictionary extends React.Component {
     var learningShows = Number(word.learning_shows || 0) + 1;
     var shouldPrompt = learningShows >= 10 && word.study_prompted !== true;
     var changes = { learning_shows: learningShows };
-    if (shouldPrompt) changes.study_prompted = true;
-    var updatedWord = await this.updateWordLearningState(word, changes);
+    if (shouldPrompt) {
+      changes.study_prompted = true;
+      changes.studied = true;
+    }
+    await this.updateWordLearningState(word, changes);
 
     if (shouldPrompt) {
       AppAlert.alert(
-        'Слово показано 10 раз',
-        'Пометить «' + word.original + '» как изученное?',
-        [
-          { text: 'Пока нет', style: 'cancel' },
-          { text: 'Изучено', onPress: () => this.updateWordLearningState(updatedWord, { studied: true }) }
-        ]
+        'Слово изучено',
+        'Вы правильно повторили «' + word.original + '» 10 раз.'
       );
     }
+  }
+
+  renderWordLearningProgress(word) {
+    var repetitions = Math.min(Number(word.learning_shows || 0), 10);
+    var remaining = Math.max(10 - repetitions, 0);
+    var completed = word.studied === true;
+    if (completed) return null;
+
+    return (
+      <View style={dictionaryStyles.wordLearningProgress}>
+        <View style={dictionaryStyles.wordLearningProgressHeader}>
+          <Text style={dictionaryStyles.wordLearningProgressText}>
+            {'Осталось повторить: ' + remaining}
+          </Text>
+          <Text style={dictionaryStyles.wordLearningProgressCount}>{repetitions} из 10</Text>
+        </View>
+        <View style={dictionaryStyles.wordLearningProgressTrack}>
+          <View style={[
+            dictionaryStyles.wordLearningProgressValue,
+            { width: (repetitions * 10) + '%' }
+          ]} />
+        </View>
+      </View>
+    );
   }
 
   startLearning(words) {
@@ -204,32 +236,35 @@ class Dictionary extends React.Component {
       learning_correct: 0,
       learning_mistakes: [],
       learning_complete: false
-    }, () => this.recordLearningShow(questions[0].word));
+    });
   }
 
-  selectLearningAnswer(answer) {
+  async selectLearningAnswer(answer) {
     if (this.state.learning_answer != null) return;
 
     var question = this.state.learning_questions[this.state.learning_index];
     var isCorrect = answer == question.correctAnswer;
-    this.setState({
-      learning_answer: answer,
-      learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
-      learning_mistakes: isCorrect
-        ? this.state.learning_mistakes
-        : this.state.learning_mistakes.concat([question.word])
-    });
+    await new Promise(resolve => this.setState({
+        learning_answer: answer,
+        learning_correct: this.state.learning_correct + (isCorrect ? 1 : 0),
+        learning_mistakes: isCorrect
+          ? this.state.learning_mistakes
+          : this.state.learning_mistakes.concat([question.word])
+      }, resolve));
+
+    if (isCorrect) {
+      await this.recordLearningShow(question.word);
+    }
   }
 
   nextLearningQuestion() {
     if (this.state.learning_index + 1 >= this.state.learning_questions.length) {
       this.setState({ learning_complete: true });
     } else {
-      var nextQuestion = this.state.learning_questions[this.state.learning_index + 1];
       this.setState({
         learning_index: this.state.learning_index + 1,
         learning_answer: null
-      }, () => this.recordLearningShow(nextQuestion.word));
+      });
     }
   }
 
@@ -274,6 +309,7 @@ class Dictionary extends React.Component {
           {question.word.transcription != null &&
             <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
           }
+          {this.renderWordLearningProgress(question.word)}
         </View>
         <Text style={dictionaryStyles.learningPrompt}>Выберите перевод</Text>
         {question.answers.map(answer => {
@@ -388,7 +424,7 @@ class Dictionary extends React.Component {
                 </View>
 
 
-                <SwipeListView
+                <FlatList
                   style={{ flex: 1, zIndex: 0, paddingTop: 8 }}
                   refreshControl={
                     <RefreshControl refreshing={false} onRefresh={() => this.getWords()} />
@@ -413,28 +449,24 @@ class Dictionary extends React.Component {
                                 {word.item.studied === true ? 'Вернуть в тест' : 'Изучено'}
                               </Text>
                             </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => this.confirmDeleteWord(word.item)}
+                              style={dictionaryStyles.deleteWordButton}
+                              accessibilityLabel="Удалить слово">
+                              <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
+                            </TouchableOpacity>
                           </View>
                           {word.item.transcription != null &&
                             <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
                           }
                           <Text style={{ marginTop: 4 }}>{word.item.translate}</Text>
+                          {this.renderWordLearningProgress(word.item)}
                         </View>
                       </View>
                     )
                   }}
                   keyExtractor={(word) => word.original}
                   ListEmptyComponent={() => <PreviewWords />}
-                  rightOpenValue={-40}
-                  disableRightSwipe={true}
-                  renderHiddenItem={(data, rowMap) => {
-                    return (
-                      <View style={{ flex: 1, flexDirection: 'row', heihgt: 40, justifyContent: 'flex-end', marginRight: 8 }}>
-                        <TouchableOpacity onPress={() => this.deleteWord(rowMap, data.item)}>
-                          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} style={{ margin: 10 }} />
-                        </TouchableOpacity>
-                      </View>
-                    )
-                  }}
                 />
               </View>
             )}

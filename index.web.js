@@ -1,6 +1,8 @@
 import { AppRegistry } from 'react-native';
 import App from './App'; // ← путь к вашему компоненту в папке app
-import { name as appName } from './app.json';
+import appConfig from './app.json';
+
+const { name: appName } = appConfig;
 
 AppRegistry.registerComponent(appName, () => App);
 

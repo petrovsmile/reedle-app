@@ -5,7 +5,8 @@ class Show extends React.Component {
     this.state = {
       percent: 0,
       book: false,
-      have_file: false
+      have_file: false,
+      context_menu_visible: false
     };
   }
 
@@ -13,6 +14,17 @@ class Show extends React.Component {
     homeStore.setOpenProperty(false);
 
     var initialColor = this.props.stack.route.params.color || '#f05458';
+
+    this.props.stack.navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => this.setState({ context_menu_visible: !this.state.context_menu_visible })}
+          style={{ width: 48, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 4 }}
+          accessibilityLabel="Действия с книгой">
+          <AppIcon icon={EllipsisIcon} size={26} color="#FFF" />
+        </TouchableOpacity>
+      )
+    });
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -42,7 +54,7 @@ class Show extends React.Component {
             have_file: have_file == 'true'
           });
           this.props.stack.navigation.setOptions({
-            ...(Platform.OS === 'web' ? { headerTitle: '' } : { title: book.name_en }),
+            headerTitle: '',
             headerStyle: {
               backgroundColor: book.color,
               borderColor: 'transparent',
@@ -77,12 +89,59 @@ class Show extends React.Component {
     });
   }
 
+  async markAsRead() {
+    var bookId = this.props.stack.route.params.book_id;
+    await new Storage().set('percent_' + bookId, '100');
+    var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
+    this.props.root.setState({ books_percents: percents });
+    this.setState({ percent: 100, context_menu_visible: false });
+  }
+
+  confirmDeleteFromMemory() {
+    this.setState({ context_menu_visible: false }, () => {
+      AppAlert.confirm(
+        'Вы уверены?',
+        'Скачанная книга будет удалена с устройства.',
+        () => this.deleteFromMemory(),
+        'Удалить'
+      );
+    });
+  }
+
+  async deleteFromMemory() {
+    var bookId = this.props.stack.route.params.book_id;
+    await new Storage().set('have_file_' + bookId, '');
+    var bookDirectory = file_root + '/books/' + bookId + '/';
+    if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+    this.setState({ have_file: false });
+  }
+
   render() {
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
+
+        {this.state.context_menu_visible &&
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => this.setState({ context_menu_visible: false })}
+            style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 16, color: '#222' }}>Отметить прочитанной</Text>
+                </TouchableOpacity>
+                {this.state.have_file &&
+                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
+                    <Text style={{ fontSize: 16, color: app_theme_colors.red }}>Удалить из памяти</Text>
+                  </TouchableOpacity>
+                }
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        }
 
         {this.state.book == false &&
           <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />

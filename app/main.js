@@ -32,7 +32,7 @@ import { WebView } from 'react-native-webview';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import moment from 'moment';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -95,7 +95,6 @@ import {
   Menu as MenuIcon,
   Minus as MinusIcon,
   Newspaper as NewspaperIcon,
-  Pilcrow as ParagraphIcon,
   Play as PlayIcon,
   Plus as PlusIcon,
   RectangleHorizontal as AdvertisementIcon,
@@ -131,6 +130,13 @@ const AppAlert = {
         buttons: buttons && buttons.length ? buttons : [{ text: 'Понятно' }]
       });
     }
+  },
+
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm }
+    ]);
   }
 };
 

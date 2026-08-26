@@ -23,33 +23,35 @@ function BlogEye({ color }) {
 class Blog extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { articles: [], page: 1, nextPage: null, loading: true, loadingMore: false };
+    this.state = { articles: [], page: 1, nextPage: null, loading: true, loadingMore: false, refreshing: false };
   }
 
   componentDidMount() {
     this.loadArticles(1);
   }
 
-  async loadArticles(page) {
+  async loadArticles(page, refreshing) {
     if (page > 1 && this.state.loadingMore) return;
-    this.setState(page > 1 ? { loadingMore: true } : { loading: true });
+    this.setState(page > 1 ? { loadingMore: true } : (refreshing ? { refreshing: true } : { loading: true }));
 
     var result = await new Request('/api/v1/articles', { page: page }, { do_not_show_error: true }).get();
+    console.log(result)
     if (result != false) {
       this.setState({
         articles: page == 1 ? result.items : this.state.articles.concat(result.items),
         page: page,
         nextPage: result.pagination.next_page,
         loading: false,
-        loadingMore: false
+        loadingMore: false,
+        refreshing: false
       });
     } else {
-      this.setState({ loading: false, loadingMore: false });
+      this.setState({ loading: false, loadingMore: false, refreshing: false });
     }
   }
 
   openArticle(article) {
-    this.props.stack.navigation.navigate('article', { code: article.code, title: article.title });
+    this.props.stack.navigation.navigate('article', { code: article.code });
   }
 
   renderArticle({ item }) {
@@ -76,11 +78,14 @@ class Blog extends React.Component {
   render() {
     return (
       <SafeAreaView style={blogStyles.screen}>
-        <FlatList
+        <SwipeListView
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           contentContainerStyle={blogStyles.content}
+          refreshControl={
+            <RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.loadArticles(1, true)} />
+          }
           ListEmptyComponent={!this.state.loading ? <Text style={blogStyles.empty}>Статей пока нет</Text> : null}
           ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color="#aaa" /> : null}
           renderItem={(item) => this.renderArticle(item)}
@@ -101,7 +106,6 @@ class BlogArticle extends React.Component {
   async componentDidMount() {
     var article = await new Request('/api/v1/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
     this.setState({ article: article || null, loading: false });
-    if (article) this.props.stack.navigation.setOptions({ title: article.title });
   }
 
   renderBlock(block, index) {
@@ -153,6 +157,7 @@ class BlogArticle extends React.Component {
             </View>
             <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
           </View>
+          <Text style={blogStyles.articleTitle}>{article.title}</Text>
           {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={blogStyles.articleImage} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>

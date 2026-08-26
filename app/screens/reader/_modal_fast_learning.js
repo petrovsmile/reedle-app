@@ -8,8 +8,17 @@ class ModalFastLearning extends React.Component {
         visible={this.props.visible}>
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {}}
+            style={[
+              { flexDirection: 'row', justifyContent: 'center' },
+              Platform.OS === 'web' ? { width: '100%', paddingHorizontal: 30 } : null
+            ]}>
+            <View style={[
+              { borderRadius: 15, backgroundColor: '#FFF', padding: 15 },
+              Platform.OS === 'web' ? { width: '100%', maxWidth: 500 } : { margin: 30 }
+            ]}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Быстрое обучение</Text>
 
@@ -21,14 +30,14 @@ class ModalFastLearning extends React.Component {
 
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
 
-                <AppIcon icon={BookAIcon} size={20} color={app_theme_colors.red} />
+                <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод предложения.
                 </Text>
               </View>
 
               <View style={{ flexDirection: 'row', marginTop: 15 }}>
-                <AppIcon icon={ParagraphIcon} size={20} color={app_theme_colors.red} />
+                <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
                 <Text style={{ lineHeight: 20, marginLeft: 10 }}>
                   - перевод абзаца.
                 </Text>

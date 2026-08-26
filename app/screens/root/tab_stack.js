@@ -81,9 +81,10 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
-          options={() => ({
+          options={({ route }) => ({
             tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
             title: 'Аккаунт',
+            headerShown: (getFocusedRouteNameFromRoute(route) || 'profile_home') == 'profile_home',
           })}>
           {() => (
             <ProfileStack root={this.props.root} root_stack={this.props.stack} />

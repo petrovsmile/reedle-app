@@ -57,6 +57,12 @@ class Home extends React.Component {
   }
 
   async componentDidMount() {
+    var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
+    if (sort_new_book_default_migrated != 'true') {
+      await new Storage().set('sort_new_book', 'true');
+      await new Storage().set('sort_new_book_default_enabled_v1', 'true');
+    }
+
     var not_show_read = await new Storage().get('not_show_read', 'false')
     var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
@@ -298,26 +304,6 @@ class Home extends React.Component {
     var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
     var safeAreaTop = safeAreaInsets.top || 0;
 
-    const readBook = (rowMap, rowKey) => {
-      if (rowMap[rowKey.id]) {
-        rowMap[rowKey.id].closeRow();
-      }
-      AsyncStorage.setItem('percent_' + rowKey.id, '100').then(() => {
-        this.filter_books();
-      });
-    };
-
-    const deleteBook = (rowMap, rowKey) => {
-      if (rowMap[rowKey.id]) {
-        rowMap[rowKey.id].closeRow();
-      }
-      AsyncStorage.setItem('have_file_' + rowKey.id, '').then(() => {
-        RNFS.unlink(file_root + '/books/' + rowKey.id + '/').then(() => {
-          this.filter_books();
-        });
-      });
-    };
-
     return (
       <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop }]}>
         <View style={homeStyles.header}>
@@ -425,7 +411,7 @@ class Home extends React.Component {
             </View>
           }
           {this.state.do_not_find == false &&
-            <SwipeListView
+            <FlatList
               style={{ flex: 1, marginTop: -10, zIndex: 0, paddingTop: 10 }}
               refreshControl={
                 <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
@@ -443,33 +429,8 @@ class Home extends React.Component {
                   color: color,
                 })}
               />}
-              keyExtractor={(book) => book.id}
+              keyExtractor={(book) => String(book.id)}
               ListEmptyComponent={() => <PreviewBooks />}
-              rightOpenValue={-130}
-              disableRightSwipe={true}
-
-              renderHiddenItem={(data, rowMap) => {
-
-                return (
-                  <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#ddd', marginLeft: 15, marginRight: 15, }}>
-                    <View style={{ zIndex: 2, marginTop: 5, borderTopRightRadius: 10, borderBottomRightRadius: 10, height: 130, width: 65, backgroundColor: '#FFF' }}>
-                    </View>
-                    <TouchableWithoutFeedback onPress={() => readBook(rowMap, data.item)} >
-                      <View style={[homeStyles.swipeMenuButton, { zIndex: 1, backgroundColor: '#75b641' }]}>
-                        <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 14 }]}>Прочитана</Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                    {data.item.have_file == true &&
-                      <TouchableWithoutFeedback onPress={() => deleteBook(rowMap, data.item)}>
-                        <View style={[homeStyles.swipeMenuButton, { zIndex: 0, backgroundColor: '#f05458' }]}>
-                          <Text numberOfLines={1} style={[homeStyles.swipeMenuButtonText, { fontSize: 10 }]}>Удалить из памяти</Text>
-                        </View>
-                      </TouchableWithoutFeedback>
-                    }
-                  </View>
-                )
-              }}
-
             />
           }
         </React.Fragment>
