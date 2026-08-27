@@ -159,12 +159,12 @@ class Auth extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view} >
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
         <ScrollView>
           {this.props.modal == true &&
             <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
+              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
+                <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
               </TouchableOpacity>
             </View>
           }
@@ -196,13 +196,13 @@ class Auth extends React.Component {
               <View style={{ flex: 1, flexDirection: 'row' }}>
                 <TouchableOpacity onPress={() => this.changeMethod('login')} style={[
                   profileStyles.authorization_form_tab,
-                  this.state.method == 'login' ? { backgroundColor: app_theme_colors.backgroundDarkLight } : null
+                  { backgroundColor: appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[
                   profileStyles.authorization_form_tab,
-                  this.state.method == 'reg' ? { backgroundColor: app_theme_colors.backgroundDarkLight } : null
+                  { backgroundColor: appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
                 </TouchableOpacity>

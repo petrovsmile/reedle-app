@@ -1,4 +1,4 @@
-class Show extends React.Component {
+const Show = observer(class Show extends React.Component {
   constructor(props) {
     super(props);
 
@@ -28,12 +28,15 @@ class Show extends React.Component {
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.dataset.reedleBackgroundOwner = 'book';
       document.body.style.backgroundColor = initialColor;
       this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.dataset.reedleBackgroundOwner = 'book';
         document.body.style.backgroundColor = this.state.book.color || initialColor;
       });
       this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
-        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+        delete document.body.dataset.reedleBackgroundOwner;
+        document.body.style.backgroundColor = appThemeStore.colors.background;
       });
     }
 
@@ -44,6 +47,7 @@ class Show extends React.Component {
       books.map(async (book) => {
         if (book.id == this.props.stack.route.params.book_id) {
           var have_file = await new Storage().get('have_file_' + book.id, 'false');
+          downloadStore.setCompleted(book.id, have_file == 'true');
 
           AppMetrica.reportEvent('openDetail', {
             book_name: book.name
@@ -73,7 +77,8 @@ class Show extends React.Component {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
       if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
-      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      delete document.body.dataset.reedleBackgroundOwner;
+      document.body.style.backgroundColor = appThemeStore.colors.background;
     }
   }
 
@@ -94,6 +99,7 @@ class Show extends React.Component {
     await new Storage().set('percent_' + bookId, '100');
     var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
     this.props.root.setState({ books_percents: percents });
+    appStore.setBooksPercents(Object.assign({}, appStore.books_percents, { [bookId]: 100 }));
     this.setState({ percent: 100, context_menu_visible: false });
   }
 
@@ -113,6 +119,7 @@ class Show extends React.Component {
     await new Storage().set('have_file_' + bookId, '');
     var bookDirectory = file_root + '/books/' + bookId + '/';
     if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+    downloadStore.setCompleted(bookId, false);
     this.setState({ have_file: false });
   }
 
@@ -129,9 +136,9 @@ class Show extends React.Component {
             onPress={() => this.setState({ context_menu_visible: false })}
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
                 <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 16, color: '#222' }}>Отметить прочитанной</Text>
+                  <Text style={{ fontSize: 16, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
                 </TouchableOpacity>
                 {this.state.have_file &&
                   <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
@@ -144,7 +151,7 @@ class Show extends React.Component {
         }
 
         {this.state.book == false &&
-          <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
+          <ActivityIndicator style={{ flex: 1 }} size="large" color="#FFF" />
         }
 
         {this.state.book != false &&
@@ -169,7 +176,7 @@ class Show extends React.Component {
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
                   {this.props.root.state.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
-                      <AppIcon icon={ChevronRightIcon} size={28} color='#000' style={{ margin: 16 }} />
+                      <AppIcon icon={ChevronRightIcon} size={28} color="#000" style={{ margin: 16 }} />
                     </TouchableOpacity>
                   ) : (
                     <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
@@ -228,4 +235,4 @@ class Show extends React.Component {
     );
 
   }
-};
+});

@@ -109,7 +109,7 @@ class Bookmarks extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -139,8 +139,8 @@ class Bookmarks extends React.Component {
                 </Text>
                 <Text style={{ marginTop: 50, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили закладку, но она не отображается, обновите раздел</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15 }}>
-                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: '#ddd', borderRadius: 10 }} onPress={() => this.getBookmarks()}>
-                    <Text style={{ lineHeight: 40, textAlign: 'center' }}>Обновить</Text>
+                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 10 }} onPress={() => this.getBookmarks()}>
+                    <Text style={{ lineHeight: 40, textAlign: 'center', color: appThemeStore.colors.text }}>Обновить</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -198,8 +198,8 @@ function PreviewBookmark() {
   return (
     <React.Fragment>
       <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 50, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: '#eee' }}>
-          <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+        <View style={{ height: 50, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
         </View>
       </View>
     </React.Fragment>

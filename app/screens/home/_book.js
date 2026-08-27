@@ -1,4 +1,4 @@
-class Book extends React.Component {
+const Book = observer(class Book extends React.Component {
   constructor(props) {
     super(props);
   }
@@ -8,7 +8,7 @@ class Book extends React.Component {
     var percent = this.props.books_percents[book.id];
  
     return (
-      <View style={{ flex: 1, backgroundColor: '#FFF', borderRadius: 10, margin: 5 }}>
+      <View style={{ flex: 1, borderRadius: 10, margin: 5 }}>
         <TouchableOpacity onPress={() => this.props.onPress(book.id, book.color)}
           style={{ marginLeft: 10, marginRight: 10, paddingBottom: 15, paddingTop: 15, flexDirection: 'row' }}>
 
@@ -20,8 +20,8 @@ class Book extends React.Component {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: '#666', }}>{book.author}</Text>
-            <Text style={{ fontSize: 14, marginTop: 5, }}>{book.name}</Text>
+            <Text style={{ fontSize: 12, color: appThemeStore.colors.mutedText }}>{book.author}</Text>
+            <Text style={{ fontSize: 14, marginTop: 5, color: appThemeStore.colors.text }}>{book.name}</Text>
             <View style={{ flexDirection: 'row', marginTop: 10 }}>
               <View style={{ height: 15, width: 5, borderRadius: 5, marginRight: 5, overflow: 'hidden' }}>
                 {(book.level > 0) ? (
@@ -58,22 +58,22 @@ class Book extends React.Component {
                   <View style={{ backgroundColor: '#ddd', flex: 1 }}></View>
                 )}
               </View>
-              <Text style={{ marginLeft: 5 }}>
-                <Text style={{ fontSize: 14, lineHeight: 15 }}>{book.complexity_text}</Text>
+              <Text style={{ marginLeft: 5, color: appThemeStore.colors.text }}>
+                <Text style={{ fontSize: 14, lineHeight: 15, color: appThemeStore.colors.text }}>{book.complexity_text}</Text>
               </Text>
             </View>
             <View style={{ marginTop: 10, flexDirection: 'row' }}>
               <AppIcon icon={BookOpenIcon} size={20} color={percent == 100 ? '#0fa90f' : '#777'} style={{ marginRight: 8 }} />
-              <Text style={{ lineHeight: 20, fontSize: 12 }}>
+              <Text style={{ lineHeight: 20, fontSize: 12, color: appThemeStore.colors.text }}>
                 <Text style={percent == 100 && { color: '#0fa90f' }}>
                   {percent}%
                 </Text>
               </Text>
 
-              <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: "#444" }}>{book.pages} стр.</Text>
+              <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: appThemeStore.colors.text }}>{book.pages} стр.</Text>
 
 
-              {book.have_file == true && <AppIcon icon={GlobeCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
+              {downloadStore.isCompleted(book.id) && <AppIcon icon={FileCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
             </View>
           </View>
 
@@ -81,4 +81,4 @@ class Book extends React.Component {
       </View>
     )
   }
-}
+});

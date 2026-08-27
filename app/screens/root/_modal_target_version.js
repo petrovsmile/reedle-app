@@ -62,7 +62,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
+            <View style={{ margin: 30, borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Обновите приложение</Text>
 
@@ -99,8 +99,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
                 </React.Fragment>
               }
 
-              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 15, backgroundColor: '#ddd', height: 40, borderRadius: 10 }}>
-                <Text style={{ color: '#444', textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Обновить позже</Text>
+              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 15, backgroundColor: appThemeStore.colors.backgroundLight, height: 40, borderRadius: 10 }}>
+                <Text style={{ color: appThemeStore.colors.text, textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Обновить позже</Text>
               </TouchableOpacity>
 
             </View>

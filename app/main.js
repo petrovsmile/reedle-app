@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { Node } from 'react';
 import {
   SafeAreaView,
-  Text,
+  Text as NativeText,
   View,
   TouchableOpacity,
   Platform,
@@ -15,7 +15,7 @@ import {
   Image,
   ActivityIndicator,
   TouchableWithoutFeedback,
-  TextInput,
+  TextInput as NativeTextInput,
   StyleSheet,
   Modal,
   Button,
@@ -24,7 +24,8 @@ import {
   Switch,
   Vibration,
   Linking,
-  Animated
+  Animated,
+  Appearance
 } from 'react-native';
 
 import { WebView } from 'react-native-webview';
@@ -32,7 +33,7 @@ import { WebView } from 'react-native-webview';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import moment from 'moment';
 
-import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -92,6 +93,7 @@ import {
   Download as DownloadIcon,
   Eye as EyeIcon,
   EyeOff as EyeOffIcon,
+  FileCheck as FileCheckIcon,
   Menu as MenuIcon,
   Minus as MinusIcon,
   Newspaper as NewspaperIcon,
@@ -108,7 +110,6 @@ import {
   WifiOff as WifiOffIcon,
   X as CloseIcon,
   ArrowDownToLine as ArrowDownToLineIcon,
-  GlobeCheck as GlobeCheckIcon,
   BookA as BookAIcon,
   Ellipsis as EllipsisIcon,
   EllipsisVertical as EllipsisVerticalIcon,
@@ -118,6 +119,114 @@ import {
 const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
   <Icon strokeWidth={strokeWidth} {...props} />
 );
+
+const APP_COLOR_THEMES = {
+  light: { background: '#ffffff', surface: '#ffffff', backgroundLight: '#eeeeee', border: '#dddddd', text: '#000000', mutedText: '#777777', second: '#bbbbbb' },
+  gray: { background: '#eeeeee', surface: '#f7f7f7', backgroundLight: '#dddddd', border: '#cccccc', text: '#000000', mutedText: '#666666', second: '#cccccc' },
+  sepia: { background: '#f8f4e9', surface: '#fffaf0', backgroundLight: '#eee6d2', border: '#d4c8a0', text: '#000000', mutedText: '#756d5b', second: '#d4c8a0' },
+  dark: { background: '#292c2c', surface: '#353838', backgroundLight: '#444848', border: '#5a5d5d', text: '#ffffff', mutedText: '#bbbbbb', second: '#5a5d5d' },
+  black: { background: '#000000', surface: '#161616', backgroundLight: '#242424', border: '#444444', text: '#ffffff', mutedText: '#bbbbbb', second: '#444444' }
+};
+
+class AppThemeStore {
+  mode = 'system';
+  customTheme = 'light';
+  systemScheme = Appearance.getColorScheme() || 'light';
+  initialized = false;
+
+  constructor() {
+    makeAutoObservable(this);
+    this.appearanceSubscription = Appearance.addChangeListener(({ colorScheme }) => {
+      runInAction(() => { this.systemScheme = colorScheme || 'light'; });
+    });
+  }
+
+  get themeName() {
+    if (this.mode == 'custom') return this.customTheme;
+    return this.systemScheme == 'dark' ? 'dark' : 'light';
+  }
+
+  get colors() { return APP_COLOR_THEMES[this.themeName]; }
+
+  get navigationTheme() {
+    var colors = this.colors;
+    var baseTheme = colors.text == '#ffffff' ? DarkTheme : DefaultTheme;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: colors.text,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: '#f05458'
+      }
+    };
+  }
+
+  async initialize() {
+    var mode = await AsyncStorage.getItem('app_color_theme_mode');
+    var customTheme = await AsyncStorage.getItem('app_color_theme');
+    if (!mode) {
+      var readerSettingsValue = await AsyncStorage.getItem('themeReaderSettings');
+      if (readerSettingsValue) {
+        try {
+          var readerSettings = JSON.parse(readerSettingsValue);
+          var legacyTheme = appThemeNameByBackground(readerSettings.backgroundColorTheme);
+          if (legacyTheme != 'light') {
+            mode = 'custom';
+            customTheme = legacyTheme;
+            await AsyncStorage.setItem('app_color_theme_mode', 'custom');
+            await AsyncStorage.setItem('app_color_theme', legacyTheme);
+          }
+        } catch (e) { }
+      }
+    }
+    runInAction(() => {
+      this.mode = mode == 'custom' ? 'custom' : 'system';
+      this.customTheme = APP_COLOR_THEMES[customTheme] ? customTheme : 'light';
+      this.initialized = true;
+    });
+  }
+
+  async setCustomTheme(themeName) {
+    if (!APP_COLOR_THEMES[themeName]) return;
+    await AsyncStorage.setItem('app_color_theme_mode', 'custom');
+    await AsyncStorage.setItem('app_color_theme', themeName);
+    runInAction(() => {
+      this.mode = 'custom';
+      this.customTheme = themeName;
+    });
+  }
+}
+
+const appThemeStore = new AppThemeStore();
+
+function appThemeNameByBackground(backgroundColor) {
+  return ({
+    '#ffffff': 'light',
+    '#eeeeee': 'gray',
+    '#f8f4e9': 'sepia',
+    '#292c2c': 'dark',
+    '#000000': 'black'
+  })[String(backgroundColor || '').toLowerCase()] || 'light';
+}
+
+const Text = observer(React.forwardRef(function ThemedText(props, ref) {
+  return <NativeText {...props} ref={ref} style={[{ color: appThemeStore.colors.text }, props.style]} />;
+}));
+
+const TextInput = observer(React.forwardRef(function ThemedTextInput(props, ref) {
+  return (
+    <NativeTextInput
+      {...props}
+      ref={ref}
+      placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
+      style={[{ color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface }, props.style]}
+    />
+  );
+}));
 
 const AppAlert = {
   handler: null,
@@ -161,18 +270,21 @@ class AppAlertModal extends React.Component {
   }
 
   render() {
+    if (!this.state.visible) return null;
+
     return (
       <Modal
         animationType="fade"
         presentationStyle="overFullScreen"
         transparent={true}
-        visible={this.state.visible}
+        visible={true}
+        statusBarTranslucent={true}
         onRequestClose={() => this.close()}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: '#FFF' }}>
-            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>{this.state.title}</Text> : null}
-            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: '#555' }}>{this.state.message}</Text> : null}
+        <View style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
+            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
+            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: appThemeStore.colors.mutedText }}>{this.state.message}</Text> : null}
             <View style={{ flexDirection: 'row', marginTop: 20 }}>
               {this.state.buttons.map((button, index) => {
                 var isCancel = button.style == 'cancel';
@@ -186,14 +298,14 @@ class AppAlertModal extends React.Component {
                       minHeight: 44,
                       marginLeft: index == 0 ? 0 : 8,
                       borderWidth: isCancel ? 1 : 0,
-                      borderColor: '#ddd',
+                      borderColor: appThemeStore.colors.border,
                       borderRadius: 8,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isCancel ? '#FFF' : (isDestructive ? '#d9363e' : '#f05458')
+                      backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : (isDestructive ? '#d9363e' : '#f05458')
                     }}
                   >
-                    <Text style={{ color: isCancel ? '#555' : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                    <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
                   </TouchableOpacity>
                 );
               })}

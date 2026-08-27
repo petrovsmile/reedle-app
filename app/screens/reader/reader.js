@@ -153,6 +153,12 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
+    if (appThemeStore.mode == 'system') {
+      settings['backgroundColorTheme'] = appThemeStore.colors.background;
+      settings['textColorTheme'] = appThemeStore.colors.text;
+      settings['secondColorTheme'] = appThemeStore.colors.second;
+    }
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
       document.body.style.backgroundColor = settings['backgroundColorTheme'];
@@ -194,6 +200,23 @@ class Reader extends React.Component {
     });
 
     readerStore.setThemeSettings(settings);
+    this._appearanceThemeSubscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (appThemeStore.mode != 'system') return;
+      var colors = APP_COLOR_THEMES[colorScheme == 'dark' ? 'dark' : 'light'];
+      this.setState({
+        backgroundColorTheme: colors.background,
+        textColorTheme: colors.text,
+        secondColorTheme: colors.second
+      });
+      readerStore.setThemeSettings({
+        backgroundColorTheme: colors.background,
+        textColorTheme: colors.text,
+        secondColorTheme: colors.second
+      });
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.body.style.backgroundColor = colors.background;
+      }
+    });
     readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
     if (ttsVoice) {
@@ -241,6 +264,7 @@ class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    if (this._appearanceThemeSubscription) this._appearanceThemeSubscription.remove();
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
       if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
@@ -639,6 +663,7 @@ class Reader extends React.Component {
   }
 
   changeColorTheme(backgroundColor, textColor, secondColor) {
+    appThemeStore.setCustomTheme(appThemeNameByBackground(backgroundColor));
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.style.backgroundColor = backgroundColor;
     }
@@ -871,7 +896,7 @@ class Reader extends React.Component {
               <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
             </TouchableOpacity>
 
-            <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
+            <ActivityIndicator style={{ flex: 1 }} size="large" color={this.state.secondColorTheme || appThemeStore.colors.mutedText} />
           </View>
         ) : (
 
@@ -891,7 +916,7 @@ class Reader extends React.Component {
 
             {this.state.showAdOpacity == true &&
               <View style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10 }}>
-                <ActivityIndicator style={{ flex: 1 }} size="large" color="#999" />
+                <ActivityIndicator style={{ flex: 1 }} size="large" color={this.state.secondColorTheme || appThemeStore.colors.mutedText} />
               </View>
             }
 
@@ -1001,6 +1026,8 @@ class Reader extends React.Component {
                   textAlignChange={() => this.textAlignChange()}
 
                   backgroundColorTheme={this.state.backgroundColorTheme}
+                  textColorTheme={this.state.textColorTheme}
+                  secondColorTheme={this.state.secondColorTheme}
                   changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
 
                   fontFamily={this.state.fontFamily}

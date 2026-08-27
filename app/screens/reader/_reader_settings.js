@@ -1,194 +1,95 @@
+class ReaderSettingsPanel extends React.Component {
+  renderColorButton(backgroundColor, textColor, secondColor) {
+    var selected = this.props.backgroundColorTheme == backgroundColor;
+    return (
+      <TouchableOpacity
+        onPress={() => this.props.changeColorTheme(backgroundColor, textColor, secondColor)}
+        style={{ width: 30, height: 30, marginHorizontal: 5, borderWidth: 1, borderColor: secondColor, borderRadius: 20, backgroundColor: backgroundColor, alignItems: 'center', justifyContent: 'center' }}>
+        {selected && <AppIcon icon={CheckIcon} size={14} color={textColor} />}
+      </TouchableOpacity>
+    );
+  }
+
+  renderFontButton(title, fontFamily) {
+    var selected = this.props.fontFamily == fontFamily;
+    return (
+      <TouchableOpacity
+        onPress={() => this.props.chanageFontFamily(fontFamily)}
+        style={{ paddingVertical: 8, paddingHorizontal: 10, marginBottom: 4, borderRadius: 6, borderWidth: selected ? 1 : 0, borderColor: this.props.secondColorTheme, backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <Text style={{ fontSize: 16, fontFamily: fontFamily, color: appThemeStore.colors.text }}>{title}</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  render() {
+    var iconColor = this.props.textColorTheme;
+    var borderColor = this.props.secondColorTheme;
+    return (
+      <View style={{ width: '100%', maxWidth: this.props.maxWidth || 212, alignSelf: 'center', borderRadius: 10, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
+          <TouchableOpacity
+            disabled={this.props.fontSize <= 14}
+            onPress={() => this.props.changeFontSize('less')}
+            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
+          </TouchableOpacity>
+          <View style={{ minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor }}>
+            <Text style={{ fontSize: 14, color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+          </View>
+          <TouchableOpacity
+            disabled={this.props.fontSize >= 24}
+            onPress={() => this.props.changeFontSize('more')}
+            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => this.props.textAlignChange()} style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
+            {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'center' && <AppIcon icon={AlignCenterIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'space-evenly' && <AppIcon icon={AlignJustifyIcon} size={20} color={appThemeStore.colors.text} />}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: borderColor, borderBottomWidth: 1, paddingVertical: 14 }}>
+          {this.renderColorButton('#ffffff', '#000000', '#dddddd')}
+          {this.renderColorButton('#eeeeee', '#000000', '#cccccc')}
+          {this.renderColorButton('#f8f4e9', '#000000', '#d4c8a0')}
+          {this.renderColorButton('#292c2c', '#ffffff', '#5a5d5d')}
+          {this.renderColorButton('#000000', '#ffffff', '#444444')}
+        </View>
+
+        <View style={{ padding: 10 }}>
+          <Text style={{ fontSize: 16, marginBottom: 8, color: this.props.textColorTheme }}>Шрифт текста:</Text>
+          {this.renderFontButton('Libre Baskerville', 'LibreBaskerville-Regular')}
+          {this.renderFontButton('Times', 'Times')}
+          {this.renderFontButton('Arial', 'Arial')}
+          {this.renderFontButton('Verdana', 'Verdana')}
+        </View>
+      </View>
+    );
+  }
+}
+
 class ReaderSettings extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      voices: [],
-    };
-  }
-
-  componentDidMount() {
-    Speech.getAvailableVoices().then((voices) => {
-      var allEnglish = voices.filter(v =>
-        v.language && v.language.toLowerCase().startsWith('en')
-      );
-      var premium = allEnglish.filter(v =>
-        v.quality === 'Enhanced' || (v.identifier && v.identifier.toLowerCase().includes('-network'))
-      );
-      var englishVoices = premium.length > 0 ? premium : allEnglish;
-      var self = this;
-      englishVoices.sort(function (a, b) {
-        return self.getVoiceLabel(a).localeCompare(self.getVoiceLabel(b), 'ru');
-      });
-      this.setState({ voices: englishVoices });
-    }).catch(() => {});
-  }
-
-  getVoiceLabel(voice, index) {
-    var male = isMaleVoice(voice);
-    var count = this.state.voices.slice(0, index).filter(v => isMaleVoice(v) === male).length + 1;
-    return male ? `Мужской ${count}` : `Женский ${count}`;
-  }
-
-  render(){
-    return(
+  render() {
+    return (
       <Modal
         visible={this.props.visible == true}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => (this.props.closeSettings && this.props.closeSettings())}
-        statusBarTranslucent={true}
-      >
+        onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
+        statusBarTranslucent={true}>
         <TouchableOpacity
           activeOpacity={1}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}
-          onPress={() => (this.props.closeSettings && this.props.closeSettings())}
-        >
+          onPress={() => this.props.closeSettings && this.props.closeSettings()}>
           <TouchableWithoutFeedback onPress={() => {}}>
-            <View
-              style={{
-                width: 212,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: '#ddd',
-                position: 'absolute',
-                right: 10,
-                top: 45,
-                backgroundColor: '#fff',
-                overflow: 'hidden',
-              }}
-            >
-                <View style={{ flexDirection: 'row', borderBottomColor: '#ddd', borderBottomWidth: 1 }}>
-                  <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
-                    {this.props.fontSize <= 14 &&
-                      <View style={{ flex: 1, opacity: 0.3 }}>
-                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15  }} />
-                      </View>
-                    }
-                    {this.props.fontSize > 14 &&
-                      <TouchableOpacity onPress={() => this.props.changeFontSize('less')} style={{ flex: 1 }}>
-                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </TouchableOpacity>
-                    }
-                  </View>
-                  <View pointerEvents="none" style={{ position: 'absolute', height: 25, width: 30, left: 55, top: 12.5, borderRadius: 5, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#FFF' }}>
-                    <Text style={{ fontSize: 13, color: '#aaa', lineHeight: 24, textAlign: 'center' }}>{this.props.fontSize}</Text>
-                  </View>
-                  <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
-                    {this.props.fontSize >= 24 &&
-                      <View style={{ flex: 1, opacity: 0.3 }}>
-                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </View>
-                    }
-                    {this.props.fontSize < 24 &&
-                      <TouchableOpacity onPress={() => this.props.changeFontSize('more')} style={{ flex: 1 }}>
-                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </TouchableOpacity>
-                    }
-                  </View>
-                  <TouchableOpacity onPress={() => this.props.textAlignChange()}>
-                    {this.props.textAlign == 'flex-start' &&
-                      <AppIcon icon={AlignLeftIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'flex-end' &&
-                      <AppIcon icon={AlignRightIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'center' &&
-                      <AppIcon icon={AlignCenterIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'space-evenly' &&
-                      <AppIcon icon={AlignJustifyIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: '#ddd', borderBottomWidth: 1, paddingTop: 15, paddingBottom: 15 }}>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#ffffff', '#000000', '#dddddd')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#ffffff' }}>
-                    {this.props.backgroundColorTheme == '#ffffff' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#eeeeee', '#000000', '#cccccc')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#eeeeee' }}>
-                    {this.props.backgroundColorTheme == '#eeeeee' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#f8f4e9', '#000000', '#d4c8a0')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#f6f0e3' }}>
-                    {this.props.backgroundColorTheme == '#f8f4e9' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#292c2c', '#ffffff', '#5a5d5d')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#292c2c', borderRadius: 20, backgroundColor: '#000000' }}>
-                    {this.props.backgroundColorTheme == '#292c2c' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#000000', '#ffffff', '#444')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#000000', borderRadius: 20, backgroundColor: '#000000' }}>
-                    {this.props.backgroundColorTheme == '#000000' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ padding: 10 }}>
-                  <Text style={{ fontSize: 16, marginBottom: 10 }}>
-                    Шрифт текста:
-                  </Text>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('LibreBaskerville-Regular')}
-                    style={[(this.props.fontFamily == "LibreBaskerville-Regular") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'LibreBaskerville-Regular' }}>
-                      Libre Baskerville
-                    </Text>
-
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Times')}
-                    style={[(this.props.fontFamily == "Times") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Times' }}>
-                      Times
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Arial')}
-                    style={[(this.props.fontFamily == "Arial") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Arial' }}>
-                      Arial
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Verdana')}
-                    style={[(this.props.fontFamily == "Verdana") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Verdana' }}>
-                      Verdana
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {FEATURE_SENTENCE_TRANSLATE && this.state.voices.length > 0 &&
-                  <View style={{ borderTopColor: '#ddd', borderTopWidth: 1 }}>
-                    <Text style={{ fontSize: 16, marginTop: 10, marginBottom: 6, marginLeft: 10, marginRight: 10 }}>
-                      Голос озвучки предложений:
-                    </Text>
-                    <ScrollView
-                      style={{ height: 200 }}
-                      nestedScrollEnabled={true}
-                      showsVerticalScrollIndicator={true}
-                      keyboardShouldPersistTaps="handled"
-                      contentContainerStyle={{ paddingLeft: 10, paddingRight: 10, paddingBottom: 10 }}
-                    >
-                      {this.state.voices.map((voice, index) =>
-                        <TouchableOpacity key={index} onPress={() => this.props.changeVoice(voice)}
-                          style={[(this.props.ttsVoice == voice.identifier) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                          <Text style={{ fontSize: 14 }}>
-                            {this.getVoiceLabel(voice, index)}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </ScrollView>
-                  </View>
-                }
+            <View style={{ position: 'absolute', right: 10, top: 45, width: 212 }}>
+              <ReaderSettingsPanel {...this.props} />
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
       </Modal>
-    )
+    );
   }
 }

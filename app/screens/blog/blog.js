@@ -59,7 +59,7 @@ class Blog extends React.Component {
     return (
       <View style={blogStyles.row}>
         <TouchableOpacity style={blogStyles.card} onPress={() => this.openArticle(item)}>
-          <View style={blogStyles.cardImageWrap}>
+          <View style={[blogStyles.cardImageWrap, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
             {uri && <Image source={{ uri: uri }} style={blogStyles.cardImage} resizeMode="cover" />}
             <View style={blogStyles.infoOverlay}>
               <View style={blogStyles.look}>
@@ -69,7 +69,7 @@ class Blog extends React.Component {
               <Text style={blogStyles.infoOverlayText}>{item.created_at}</Text>
             </View>
           </View>
-          <Text style={blogStyles.cardTitle}>{item.title}</Text>
+          <Text style={[blogStyles.cardTitle, { color: appThemeStore.colors.text }]}>{item.title}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -77,7 +77,7 @@ class Blog extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={blogStyles.screen}>
+      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
@@ -87,7 +87,7 @@ class Blog extends React.Component {
             <RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.loadArticles(1, true)} />
           }
           ListEmptyComponent={!this.state.loading ? <Text style={blogStyles.empty}>Статей пока нет</Text> : null}
-          ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color="#aaa" /> : null}
+          ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color={appThemeStore.colors.mutedText} /> : null}
           renderItem={(item) => this.renderArticle(item)}
           onEndReached={() => this.state.nextPage && this.loadArticles(this.state.nextPage)}
           onEndReachedThreshold={0.4}
@@ -111,21 +111,21 @@ class BlogArticle extends React.Component {
   renderBlock(block, index) {
     var data = block.data || {};
     if (block.type == 'paragraph') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.paragraph]}>{plainArticleText(data.text)}</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.paragraph, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
     }
     if (block.type == 'header') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.header]}>{plainArticleText(data.text)}</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.header, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
     }
     if (block.type == 'delimiter') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.delimiter]}>* * *</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.delimiter, { color: appThemeStore.colors.text }]}>* * *</Text>;
     }
     if (block.type == 'list') {
       return (
         <View key={index} style={blogStyles.block}>
           {(data.items || []).map((item, itemIndex) => (
             <View key={itemIndex} style={blogStyles.listRow}>
-              <Text style={blogStyles.listMarker}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
-              <Text style={blogStyles.listText}>{plainArticleText(item)}</Text>
+              <Text style={[blogStyles.listMarker, { color: appThemeStore.colors.text }]}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
+              <Text style={[blogStyles.listText, { color: appThemeStore.colors.text }]}>{plainArticleText(item)}</Text>
             </View>
           ))}
         </View>
@@ -134,7 +134,7 @@ class BlogArticle extends React.Component {
     if (block.type == 'image' && data.file && data.file.url) {
       return (
         <View key={index} style={blogStyles.block}>
-          <Image source={{ uri: articleImageUrl(data.file.url) }} style={blogStyles.contentImage} resizeMode="cover" />
+          <Image source={{ uri: articleImageUrl(data.file.url) }} style={[blogStyles.contentImage, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />
           {data.caption ? <Text style={blogStyles.caption}>{plainArticleText(data.caption)}</Text> : null}
         </View>
       );
@@ -143,12 +143,12 @@ class BlogArticle extends React.Component {
   }
 
   render() {
-    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />;
+    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />;
     if (!this.state.article) return <Text style={blogStyles.empty}>Статья не найдена</Text>;
 
     var article = this.state.article;
     return (
-      <SafeAreaView style={blogStyles.screen}>
+      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={blogStyles.articleContent}>
           <View style={blogStyles.articleInfo}>
             <View style={blogStyles.look}>
@@ -157,8 +157,8 @@ class BlogArticle extends React.Component {
             </View>
             <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
           </View>
-          <Text style={blogStyles.articleTitle}>{article.title}</Text>
-          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={blogStyles.articleImage} resizeMode="cover" />}
+          <Text style={[blogStyles.articleTitle, { color: appThemeStore.colors.text }]}>{article.title}</Text>
+          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={[blogStyles.articleImage, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>
       </SafeAreaView>

@@ -16,7 +16,7 @@ class ModalFastLearning extends React.Component {
               Platform.OS === 'web' ? { width: '100%', paddingHorizontal: 30 } : null
             ]}>
             <View style={[
-              { borderRadius: 15, backgroundColor: '#FFF', padding: 15 },
+              { borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 },
               Platform.OS === 'web' ? { width: '100%', maxWidth: 500 } : { margin: 30 }
             ]}>
 

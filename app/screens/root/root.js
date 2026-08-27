@@ -11,6 +11,27 @@ const appLinking = {
   },
 };
 
+const ThemeTestSwitcher = observer(() => {
+  if (Platform.OS !== 'web') return null;
+
+  return (
+    <View style={{ position: 'fixed', top: 10, right: 10, zIndex: 100000, flexDirection: 'row', padding: 5, borderRadius: 18, backgroundColor: appThemeStore.colors.surface, borderWidth: 1, borderColor: appThemeStore.colors.border }}>
+      {Object.keys(APP_COLOR_THEMES).map((themeName) => {
+        var colors = APP_COLOR_THEMES[themeName];
+        var selected = appThemeStore.themeName == themeName;
+        return (
+          <TouchableOpacity
+            key={themeName}
+            onPress={() => appThemeStore.setCustomTheme(themeName)}
+            accessibilityLabel={'Тема ' + themeName}
+            style={{ width: 24, height: 24, marginHorizontal: 3, borderRadius: 12, backgroundColor: colors.background, borderWidth: selected ? 3 : 1, borderColor: selected ? appThemeStore.colors.text : colors.border }}
+          />
+        );
+      })}
+    </View>
+  );
+});
+
 class RootApp extends React.Component {
   constructor(props) {
     super(props);
@@ -148,6 +169,15 @@ class RootApp extends React.Component {
       this._linkSub.remove();
     }
     clearTimeout(this.notification_timer);
+    this._subscriptionActivationCancelled = true;
+    if (this._subscriptionActivationTimer) {
+      clearTimeout(this._subscriptionActivationTimer);
+      this._subscriptionActivationTimer = null;
+    }
+    if (this._subscriptionActivationTimerResolve) {
+      this._subscriptionActivationTimerResolve();
+      this._subscriptionActivationTimerResolve = null;
+    }
   }
 
   async handleOAuthURL(url) {
@@ -216,13 +246,47 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
-    if (this._checkingSubscription) return;
-    this._checkingSubscription = true;
+    if (this._checkingSubscriptionPromise) return this._checkingSubscriptionPromise;
+
+    this._checkingSubscriptionPromise = this._doCheckSubscription();
     try {
-      return await this._doCheckSubscription();
+      return await this._checkingSubscriptionPromise;
     } finally {
-      this._checkingSubscription = false;
+      this._checkingSubscriptionPromise = null;
     }
+  }
+
+  waitForSubscriptionActivation() {
+    if (this._subscriptionActivationPromise) return this._subscriptionActivationPromise;
+
+    this._subscriptionActivationCancelled = false;
+
+    this._subscriptionActivationPromise = (async () => {
+      for (var elapsed = 5000; elapsed <= 300000; elapsed += 5000) {
+        await new Promise((resolve) => {
+          this._subscriptionActivationTimerResolve = resolve;
+          this._subscriptionActivationTimer = setTimeout(() => {
+            this._subscriptionActivationTimer = null;
+            this._subscriptionActivationTimerResolve = null;
+            resolve();
+          }, 5000);
+        });
+
+        if (this._subscriptionActivationCancelled) return false;
+        if (await this.checkSubscription()) {
+          AppAlert.alert('Поздравляем! PRO-доступ активирован');
+          return true;
+        }
+      }
+
+      return false;
+    })().finally(() => {
+      this._subscriptionActivationTimer = null;
+      this._subscriptionActivationTimerResolve = null;
+      this._subscriptionActivationPromise = null;
+    });
+
+    return this._subscriptionActivationPromise;
   }
 
   async _doCheckSubscription() {
@@ -380,14 +444,19 @@ class RootApp extends React.Component {
 
 
     const Stack = createStackNavigator();
+    var themeColors = appThemeStore.colors;
 
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: themeColors.background }}>
+        <StatusBar
+          barStyle={themeColors.text == '#ffffff' ? 'light-content' : 'dark-content'}
+          backgroundColor={themeColors.surface}
+        />
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
-          <View style={{ flex: 1, backgroundColor: '#fff' }} />
+          <View style={{ flex: 1, backgroundColor: themeColors.background }} />
         ) : this.state.confirm_conditions == false ? (
-          <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15 }}>
+          <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15, backgroundColor: themeColors.background }}>
             <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
               <Image
                 style={{ height: 200, width: 200, }}
@@ -417,6 +486,7 @@ class RootApp extends React.Component {
         ) : (
           <View style={{ flex: 1 }}>
             <NavigationContainer
+              theme={appThemeStore.navigationTheme}
               ref={this.navigationRef}
               linking={Platform.OS === 'web' ? undefined : appLinking}
               onReady={() => this.openPendingDeepLink()}>
@@ -510,6 +580,7 @@ class RootApp extends React.Component {
         )}
         <PwaInstallBanner />
         <AppAlertModal />
+        <ThemeTestSwitcher />
       </View>
     );
   }

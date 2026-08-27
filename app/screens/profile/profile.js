@@ -57,7 +57,7 @@ class Profile extends React.Component {
       <TouchableOpacity
         style={[profileStyles.menu_item, last && profileStyles.menu_item_last]}
         onPress={onPress}>
-        <Text style={profileStyles.menu_item_text}>{title}</Text>
+        <Text style={[profileStyles.menu_item_text, { color: appThemeStore.colors.text }]}>{title}</Text>
         <Text style={profileStyles.menu_item_arrow}>›</Text>
       </TouchableOpacity>
     );
@@ -67,7 +67,7 @@ class Profile extends React.Component {
     var current_user = this.props.root.state.current_user;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         {current_user == false ? (
           <Auth />
         ) : (
@@ -75,12 +75,13 @@ class Profile extends React.Component {
             <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
               <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
             </View>
-            <Text style={profileStyles.email}>{current_user.email}</Text>
+            <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
 
             <View style={profileStyles.menu}>
+              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'), true)}
+              {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
             </View>
           </ScrollView>
         )}
@@ -135,9 +136,9 @@ class ProfileDetails extends React.Component {
         <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
           <Image style={profileStyles.social_icon_image} source={image} />
         </View>
-        <Text style={profileStyles.social_name}>{title}</Text>
+        <Text style={[profileStyles.social_name, { color: appThemeStore.colors.text }]}>{title}</Text>
         {this.state.social_loader == type ? (
-          <ActivityIndicator size="small" color={app_theme_colors.red} />
+          <ActivityIndicator size="small" color={appThemeStore.colors.mutedText} />
         ) : (
           <Text style={profileStyles.social_action}>{connected ? 'Отключить' : 'Подключить'}</Text>
         )}
@@ -165,11 +166,11 @@ class ProfileDetails extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <UpdateProfile current_user={current_user} />
 
-          <Text style={profileStyles.social_title}>Привязать соц. сети</Text>
+          <Text style={[profileStyles.social_title, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
           <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
           <View style={profileStyles.social_list}>
             {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
@@ -196,7 +197,7 @@ class ProfilePassword extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <ChangePassword current_user={current_user} />
         </ScrollView>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { Node } from 'react';
 import {
   SafeAreaView,
-  Text,
+  Text as NativeText,
   View,
   TouchableOpacity,
   Platform,
@@ -15,7 +15,7 @@ import {
   Image,
   ActivityIndicator,
   TouchableWithoutFeedback,
-  TextInput,
+  TextInput as NativeTextInput,
   StyleSheet,
   Modal,
   Button,
@@ -24,7 +24,8 @@ import {
   Switch,
   Vibration,
   Linking,
-  Animated
+  Animated,
+  Appearance
 } from 'react-native';
 
 import { WebView } from 'react-native-webview';
@@ -32,7 +33,7 @@ import { WebView } from 'react-native-webview';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import moment from 'moment';
 
-import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -92,6 +93,7 @@ import {
   Download as DownloadIcon,
   Eye as EyeIcon,
   EyeOff as EyeOffIcon,
+  FileCheck as FileCheckIcon,
   Menu as MenuIcon,
   Minus as MinusIcon,
   Newspaper as NewspaperIcon,
@@ -108,7 +110,6 @@ import {
   WifiOff as WifiOffIcon,
   X as CloseIcon,
   ArrowDownToLine as ArrowDownToLineIcon,
-  GlobeCheck as GlobeCheckIcon,
   BookA as BookAIcon,
   Ellipsis as EllipsisIcon,
   EllipsisVertical as EllipsisVerticalIcon,
@@ -118,6 +119,114 @@ import {
 const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
   <Icon strokeWidth={strokeWidth} {...props} />
 );
+
+const APP_COLOR_THEMES = {
+  light: { background: '#ffffff', surface: '#ffffff', backgroundLight: '#eeeeee', border: '#dddddd', text: '#000000', mutedText: '#777777', second: '#bbbbbb' },
+  gray: { background: '#eeeeee', surface: '#f7f7f7', backgroundLight: '#dddddd', border: '#cccccc', text: '#000000', mutedText: '#666666', second: '#cccccc' },
+  sepia: { background: '#f8f4e9', surface: '#fffaf0', backgroundLight: '#eee6d2', border: '#d4c8a0', text: '#000000', mutedText: '#756d5b', second: '#d4c8a0' },
+  dark: { background: '#292c2c', surface: '#353838', backgroundLight: '#444848', border: '#5a5d5d', text: '#ffffff', mutedText: '#bbbbbb', second: '#5a5d5d' },
+  black: { background: '#000000', surface: '#161616', backgroundLight: '#242424', border: '#444444', text: '#ffffff', mutedText: '#bbbbbb', second: '#444444' }
+};
+
+class AppThemeStore {
+  mode = 'system';
+  customTheme = 'light';
+  systemScheme = Appearance.getColorScheme() || 'light';
+  initialized = false;
+
+  constructor() {
+    makeAutoObservable(this);
+    this.appearanceSubscription = Appearance.addChangeListener(({ colorScheme }) => {
+      runInAction(() => { this.systemScheme = colorScheme || 'light'; });
+    });
+  }
+
+  get themeName() {
+    if (this.mode == 'custom') return this.customTheme;
+    return this.systemScheme == 'dark' ? 'dark' : 'light';
+  }
+
+  get colors() { return APP_COLOR_THEMES[this.themeName]; }
+
+  get navigationTheme() {
+    var colors = this.colors;
+    var baseTheme = colors.text == '#ffffff' ? DarkTheme : DefaultTheme;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: colors.text,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: '#f05458'
+      }
+    };
+  }
+
+  async initialize() {
+    var mode = await AsyncStorage.getItem('app_color_theme_mode');
+    var customTheme = await AsyncStorage.getItem('app_color_theme');
+    if (!mode) {
+      var readerSettingsValue = await AsyncStorage.getItem('themeReaderSettings');
+      if (readerSettingsValue) {
+        try {
+          var readerSettings = JSON.parse(readerSettingsValue);
+          var legacyTheme = appThemeNameByBackground(readerSettings.backgroundColorTheme);
+          if (legacyTheme != 'light') {
+            mode = 'custom';
+            customTheme = legacyTheme;
+            await AsyncStorage.setItem('app_color_theme_mode', 'custom');
+            await AsyncStorage.setItem('app_color_theme', legacyTheme);
+          }
+        } catch (e) { }
+      }
+    }
+    runInAction(() => {
+      this.mode = mode == 'custom' ? 'custom' : 'system';
+      this.customTheme = APP_COLOR_THEMES[customTheme] ? customTheme : 'light';
+      this.initialized = true;
+    });
+  }
+
+  async setCustomTheme(themeName) {
+    if (!APP_COLOR_THEMES[themeName]) return;
+    await AsyncStorage.setItem('app_color_theme_mode', 'custom');
+    await AsyncStorage.setItem('app_color_theme', themeName);
+    runInAction(() => {
+      this.mode = 'custom';
+      this.customTheme = themeName;
+    });
+  }
+}
+
+const appThemeStore = new AppThemeStore();
+
+function appThemeNameByBackground(backgroundColor) {
+  return ({
+    '#ffffff': 'light',
+    '#eeeeee': 'gray',
+    '#f8f4e9': 'sepia',
+    '#292c2c': 'dark',
+    '#000000': 'black'
+  })[String(backgroundColor || '').toLowerCase()] || 'light';
+}
+
+const Text = observer(React.forwardRef(function ThemedText(props, ref) {
+  return <NativeText {...props} ref={ref} style={[{ color: appThemeStore.colors.text }, props.style]} />;
+}));
+
+const TextInput = observer(React.forwardRef(function ThemedTextInput(props, ref) {
+  return (
+    <NativeTextInput
+      {...props}
+      ref={ref}
+      placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
+      style={[{ color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface }, props.style]}
+    />
+  );
+}));
 
 const AppAlert = {
   handler: null,
@@ -161,18 +270,21 @@ class AppAlertModal extends React.Component {
   }
 
   render() {
+    if (!this.state.visible) return null;
+
     return (
       <Modal
         animationType="fade"
         presentationStyle="overFullScreen"
         transparent={true}
-        visible={this.state.visible}
+        visible={true}
+        statusBarTranslucent={true}
         onRequestClose={() => this.close()}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: '#FFF' }}>
-            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>{this.state.title}</Text> : null}
-            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: '#555' }}>{this.state.message}</Text> : null}
+        <View style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
+            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
+            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: appThemeStore.colors.mutedText }}>{this.state.message}</Text> : null}
             <View style={{ flexDirection: 'row', marginTop: 20 }}>
               {this.state.buttons.map((button, index) => {
                 var isCancel = button.style == 'cancel';
@@ -186,14 +298,14 @@ class AppAlertModal extends React.Component {
                       minHeight: 44,
                       marginLeft: index == 0 ? 0 : 8,
                       borderWidth: isCancel ? 1 : 0,
-                      borderColor: '#ddd',
+                      borderColor: appThemeStore.colors.border,
                       borderRadius: 8,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isCancel ? '#FFF' : (isDestructive ? '#d9363e' : '#f05458')
+                      backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : (isDestructive ? '#d9363e' : '#f05458')
                     }}
                   >
-                    <Text style={{ color: isCancel ? '#555' : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                    <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -319,8 +431,8 @@ const CURRENT_ANDROID_VERSION = '1.4.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
-//const HOST="https://stage.reedle.ru"
-const HOST="http://localhost:3000"
+const HOST="https://stage.reedle.ru"
+//const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 // Feature flags
@@ -455,7 +567,8 @@ const homeStyles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
-    color: app_theme_colors.text
+    color: app_theme_colors.text,
+    backgroundColor: 'transparent'
   },
   level_selector: { 
     backgroundColor: '#eee',
@@ -1340,6 +1453,10 @@ class DownloadStore {
     return this.completed[bookId] === true;
   }
 
+  setCompleted(bookId, completed) {
+    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
+  }
+
   setDownload(bookId, changes) {
     this.downloads = Object.assign({}, this.downloads, {
       [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
@@ -1382,7 +1499,7 @@ class DownloadStore {
       }
 
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
-      this.completed = Object.assign({}, this.completed, { [book.id]: true });
+      this.setCompleted(book.id, true);
       this.dismiss(book.id);
       AppMetrica.reportEvent('loader', { status: 'finish' });
       AppMetrica.reportEvent('loader', { progress: 100 });
@@ -1775,13 +1892,22 @@ class SyncManager {
   }
 }
 
-export default function App() {
+const App = observer(function App() {
+  useEffect(() => { appThemeStore.initialize(); }, []);
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body.dataset.reedleBackgroundOwner !== 'book') {
+      document.body.style.backgroundColor = appThemeStore.colors.background;
+    }
+  }, [appThemeStore.themeName]);
+
   return (
     <SafeAreaProvider>
-      <RootApp />
+      <RootApp themeName={appThemeStore.themeName} />
     </SafeAreaProvider>
   );
-}
+});
+
+export default App;
 
 function articleImageUrl(path) {
   if (!path) return null;
@@ -1844,7 +1970,7 @@ class Blog extends React.Component {
     return (
       <View style={blogStyles.row}>
         <TouchableOpacity style={blogStyles.card} onPress={() => this.openArticle(item)}>
-          <View style={blogStyles.cardImageWrap}>
+          <View style={[blogStyles.cardImageWrap, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
             {uri && <Image source={{ uri: uri }} style={blogStyles.cardImage} resizeMode="cover" />}
             <View style={blogStyles.infoOverlay}>
               <View style={blogStyles.look}>
@@ -1854,7 +1980,7 @@ class Blog extends React.Component {
               <Text style={blogStyles.infoOverlayText}>{item.created_at}</Text>
             </View>
           </View>
-          <Text style={blogStyles.cardTitle}>{item.title}</Text>
+          <Text style={[blogStyles.cardTitle, { color: appThemeStore.colors.text }]}>{item.title}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -1862,7 +1988,7 @@ class Blog extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={blogStyles.screen}>
+      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
@@ -1872,7 +1998,7 @@ class Blog extends React.Component {
             <RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.loadArticles(1, true)} />
           }
           ListEmptyComponent={!this.state.loading ? <Text style={blogStyles.empty}>Статей пока нет</Text> : null}
-          ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color="#aaa" /> : null}
+          ListFooterComponent={(this.state.loading || this.state.loadingMore) ? <ActivityIndicator style={blogStyles.loader} color={appThemeStore.colors.mutedText} /> : null}
           renderItem={(item) => this.renderArticle(item)}
           onEndReached={() => this.state.nextPage && this.loadArticles(this.state.nextPage)}
           onEndReachedThreshold={0.4}
@@ -1896,21 +2022,21 @@ class BlogArticle extends React.Component {
   renderBlock(block, index) {
     var data = block.data || {};
     if (block.type == 'paragraph') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.paragraph]}>{plainArticleText(data.text)}</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.paragraph, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
     }
     if (block.type == 'header') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.header]}>{plainArticleText(data.text)}</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.header, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
     }
     if (block.type == 'delimiter') {
-      return <Text key={index} style={[blogStyles.block, blogStyles.delimiter]}>* * *</Text>;
+      return <Text key={index} style={[blogStyles.block, blogStyles.delimiter, { color: appThemeStore.colors.text }]}>* * *</Text>;
     }
     if (block.type == 'list') {
       return (
         <View key={index} style={blogStyles.block}>
           {(data.items || []).map((item, itemIndex) => (
             <View key={itemIndex} style={blogStyles.listRow}>
-              <Text style={blogStyles.listMarker}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
-              <Text style={blogStyles.listText}>{plainArticleText(item)}</Text>
+              <Text style={[blogStyles.listMarker, { color: appThemeStore.colors.text }]}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
+              <Text style={[blogStyles.listText, { color: appThemeStore.colors.text }]}>{plainArticleText(item)}</Text>
             </View>
           ))}
         </View>
@@ -1919,7 +2045,7 @@ class BlogArticle extends React.Component {
     if (block.type == 'image' && data.file && data.file.url) {
       return (
         <View key={index} style={blogStyles.block}>
-          <Image source={{ uri: articleImageUrl(data.file.url) }} style={blogStyles.contentImage} resizeMode="cover" />
+          <Image source={{ uri: articleImageUrl(data.file.url) }} style={[blogStyles.contentImage, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />
           {data.caption ? <Text style={blogStyles.caption}>{plainArticleText(data.caption)}</Text> : null}
         </View>
       );
@@ -1928,12 +2054,12 @@ class BlogArticle extends React.Component {
   }
 
   render() {
-    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />;
+    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />;
     if (!this.state.article) return <Text style={blogStyles.empty}>Статья не найдена</Text>;
 
     var article = this.state.article;
     return (
-      <SafeAreaView style={blogStyles.screen}>
+      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={blogStyles.articleContent}>
           <View style={blogStyles.articleInfo}>
             <View style={blogStyles.look}>
@@ -1942,8 +2068,8 @@ class BlogArticle extends React.Component {
             </View>
             <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
           </View>
-          <Text style={blogStyles.articleTitle}>{article.title}</Text>
-          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={blogStyles.articleImage} resizeMode="cover" />}
+          <Text style={[blogStyles.articleTitle, { color: appThemeStore.colors.text }]}>{article.title}</Text>
+          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={[blogStyles.articleImage, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>
       </SafeAreaView>
@@ -1973,13 +2099,16 @@ class Bookmark extends React.Component {
       <View style={bookmarksStyles.bookmarkRow}>
         <TouchableOpacity
           onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })}
-          style={bookmarksStyles.bookmarkCard}>
-          <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40 }}>{this.bookmark.book_name}</Text>
-          <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold' }}>Стр. {this.bookmark.page}</Text>
+          style={[bookmarksStyles.bookmarkCard, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40, color: appThemeStore.colors.text }}>{this.bookmark.book_name}</Text>
+          <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold', color: appThemeStore.colors.text }}>Стр. {this.bookmark.page}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => this.props.deleteBookmark()}
-          style={bookmarksStyles.deleteButton}
+          style={[
+            bookmarksStyles.deleteButton,
+            { backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5 }
+          ]}
           accessibilityLabel="Удалить закладку">
           <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>
@@ -2123,7 +2252,7 @@ class Bookmarks extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -2153,8 +2282,8 @@ class Bookmarks extends React.Component {
                 </Text>
                 <Text style={{ marginTop: 50, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили закладку, но она не отображается, обновите раздел</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15 }}>
-                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: '#ddd', borderRadius: 10 }} onPress={() => this.getBookmarks()}>
-                    <Text style={{ lineHeight: 40, textAlign: 'center' }}>Обновить</Text>
+                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 10 }} onPress={() => this.getBookmarks()}>
+                    <Text style={{ lineHeight: 40, textAlign: 'center', color: appThemeStore.colors.text }}>Обновить</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2212,8 +2341,8 @@ function PreviewBookmark() {
   return (
     <React.Fragment>
       <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 50, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: '#eee' }}>
-          <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+        <View style={{ height: 50, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
         </View>
       </View>
     </React.Fragment>
@@ -2230,6 +2359,7 @@ class Dictionary extends React.Component {
       words: [],
       do_not_find: false,
       sorting_by: 'date',
+      hide_studied: true,
       learning: false,
       learning_questions: [],
       learning_index: 0,
@@ -2410,7 +2540,7 @@ class Dictionary extends React.Component {
           </Text>
           <Text style={dictionaryStyles.wordLearningProgressCount}>{repetitions} из 10</Text>
         </View>
-        <View style={dictionaryStyles.wordLearningProgressTrack}>
+        <View style={[dictionaryStyles.wordLearningProgressTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <View style={[
             dictionaryStyles.wordLearningProgressValue,
             { width: (repetitions * 10) + '%' }
@@ -2506,8 +2636,8 @@ class Dictionary extends React.Component {
           <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
             <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={dictionaryStyles.learningBackButton} onPress={() => this.setState({ learning: false })}>
-            <Text style={dictionaryStyles.learningBackButtonText}>Вернуться в словарь</Text>
+          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.setState({ learning: false })}>
+            <Text style={[dictionaryStyles.learningBackButtonText, { color: appThemeStore.colors.text }]}>Вернуться в словарь</Text>
           </TouchableOpacity>
         </ScrollView>
       );
@@ -2526,7 +2656,7 @@ class Dictionary extends React.Component {
             {this.state.learning_index + 1} из {this.state.learning_questions.length}
           </Text>
         </View>
-        <View style={dictionaryStyles.learningCard}>
+        <View style={[dictionaryStyles.learningCard, { backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border }]}>
           <Text style={dictionaryStyles.learningWord}>{question.word.original}</Text>
           {question.word.transcription != null &&
             <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
@@ -2548,9 +2678,9 @@ class Dictionary extends React.Component {
             <TouchableOpacity
               key={answer}
               disabled={this.state.learning_answer != null}
-              style={[dictionaryStyles.learningAnswer, answerStyle]}
+              style={[dictionaryStyles.learningAnswer, { backgroundColor: appThemeStore.colors.backgroundLight, borderColor: appThemeStore.colors.border }, answerStyle]}
               onPress={() => this.selectLearningAnswer(answer)}>
-              <Text style={dictionaryStyles.learningAnswerText}>{answer}</Text>
+              <Text style={[dictionaryStyles.learningAnswerText, { color: appThemeStore.colors.text }]}>{answer}</Text>
             </TouchableOpacity>
           );
         })}
@@ -2568,7 +2698,7 @@ class Dictionary extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
@@ -2599,8 +2729,8 @@ class Dictionary extends React.Component {
                 </Text>
                 <Text style={{ marginTop: 50, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили слово, но оно не отображается, обновите раздел</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15 }}>
-                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: '#ddd', borderRadius: 10 }} onPress={() => this.getWords()}>
-                    <Text style={{ lineHeight: 40, textAlign: 'center' }}>Обновить</Text>
+                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 10 }} onPress={() => this.getWords()}>
+                    <Text style={{ lineHeight: 40, textAlign: 'center', color: appThemeStore.colors.text }}>Обновить</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2626,22 +2756,29 @@ class Dictionary extends React.Component {
                     </React.Fragment>
                   }
 
-                  <Text style={{}}>
-                    Сортировать по:
-                  </Text>
-
-
-                  <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
-                    <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
-                      <View style={[dictionaryStyles.button_sorting, this.state.sorting_by == 'date' ? { backgroundColor: '#aaa', borderColor: '#aaa' } : {}]}>
-                        <Text style={[this.state.sorting_by == 'date' ? { color: '#FFF' } : {}, { fontSize: 12, lineHeight: 22 }]}>дате добавления</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <View>
+                      <Text>Сортировать по:</Text>
+                      <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
+                        <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
+                          <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.border }]}>
+                            <Text style={{ color: this.state.sorting_by == 'date' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 22 }}>дате добавления</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => this.set_sorting_by('alphabet')}>
+                          <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'alphabet' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'alphabet' ? app_theme_colors.red : appThemeStore.colors.border, marginLeft: 8 }]}>
+                            <Text style={{ color: this.state.sorting_by == 'alphabet' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 22 }}>по алфавиту</Text>
+                          </View>
+                        </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => this.set_sorting_by('alphabet')}>
-                      <View style={[dictionaryStyles.button_sorting, this.state.sorting_by == 'alphabet' ? { backgroundColor: '#aaa', borderColor: '#aaa' } : {}, { marginLeft: 8 }]}>
-                        <Text style={[this.state.sorting_by == 'alphabet' ? { color: '#FFF' } : {}, { fontSize: 12, lineHeight: 22 }]}>по алфавиту</Text>
-                      </View>
-                    </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                      <Text style={{ fontSize: 12, marginRight: 6 }}>Убрать изученные</Text>
+                      <Switch
+                        value={this.state.hide_studied}
+                        onValueChange={(value) => this.setState({ hide_studied: value })}
+                      />
+                    </View>
                   </View>
                 </View>
 
@@ -2655,14 +2792,14 @@ class Dictionary extends React.Component {
                   scrollIndicatorInsets={{ right: 1 }}
                   removeClippedSubviews={true}
                   contentContainerStyle={{ paddingBottom: 100 }}
-                  data={this.state.words}
+                  data={this.state.hide_studied ? this.state.words.filter(word => word.studied !== true) : this.state.words}
                   renderItem={(word) => {
                     return (
-                      <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: '#FFF', borderColor: '#eee', borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
-                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : '#eee' }}></View>
+                      <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
+                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : appThemeStore.colors.backgroundLight }}></View>
                         <View style={{ padding: 8 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontWeight: 'bold', flex: 1 }}>{word.item.original}</Text>
+                            <Text style={{ fontWeight: 'bold', flex: 1, color: appThemeStore.colors.text }}>{word.item.original}</Text>
                             <TouchableOpacity
                               onPress={() => this.toggleWordStudied(word.item)}
                               style={[dictionaryStyles.studiedButton, word.item.studied === true && dictionaryStyles.studiedButtonActive]}
@@ -2673,22 +2810,24 @@ class Dictionary extends React.Component {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => this.confirmDeleteWord(word.item)}
-                              style={dictionaryStyles.deleteWordButton}
+                              style={[dictionaryStyles.deleteWordButton, { backgroundColor: appThemeStore.colors.backgroundLight }]}
                               accessibilityLabel="Удалить слово">
                               <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
                             </TouchableOpacity>
                           </View>
                           {word.item.transcription != null &&
-                            <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
+                            <Text style={{ color: appThemeStore.colors.mutedText, marginTop: 4 }}>{word.item.transcription}</Text>
                           }
-                          <Text style={{ marginTop: 4 }}>{word.item.translate}</Text>
+                          <Text style={{ marginTop: 4, color: appThemeStore.colors.text }}>{word.item.translate}</Text>
                           {this.renderWordLearningProgress(word.item)}
                         </View>
                       </View>
                     )
                   }}
                   keyExtractor={(word) => word.original}
-                  ListEmptyComponent={() => <PreviewWords />}
+                  ListEmptyComponent={() => this.state.words.length > 0
+                    ? <Text style={{ padding: 24, textAlign: 'center', color: appThemeStore.colors.mutedText }}>Все слова изучены</Text>
+                    : <PreviewWords />}
                 />
               </View>
             )}
@@ -2723,14 +2862,14 @@ function PreviewWords() {
 function PreviewWord() {
   return (
     <React.Fragment>
-      <View style={{ margin: 8, height: 50, borderRadius: 4, overflow: 'hidden', backgroundColor: '#eee' }}>
-        <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+      <View style={{ margin: 8, height: 50, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.text} />
       </View>
     </React.Fragment>
   );
 }
 
-class Book extends React.Component {
+const Book = observer(class Book extends React.Component {
   constructor(props) {
     super(props);
   }
@@ -2740,7 +2879,7 @@ class Book extends React.Component {
     var percent = this.props.books_percents[book.id];
  
     return (
-      <View style={{ flex: 1, backgroundColor: '#FFF', borderRadius: 10, margin: 5 }}>
+      <View style={{ flex: 1, borderRadius: 10, margin: 5 }}>
         <TouchableOpacity onPress={() => this.props.onPress(book.id, book.color)}
           style={{ marginLeft: 10, marginRight: 10, paddingBottom: 15, paddingTop: 15, flexDirection: 'row' }}>
 
@@ -2752,8 +2891,8 @@ class Book extends React.Component {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: '#666', }}>{book.author}</Text>
-            <Text style={{ fontSize: 14, marginTop: 5, }}>{book.name}</Text>
+            <Text style={{ fontSize: 12, color: appThemeStore.colors.mutedText }}>{book.author}</Text>
+            <Text style={{ fontSize: 14, marginTop: 5, color: appThemeStore.colors.text }}>{book.name}</Text>
             <View style={{ flexDirection: 'row', marginTop: 10 }}>
               <View style={{ height: 15, width: 5, borderRadius: 5, marginRight: 5, overflow: 'hidden' }}>
                 {(book.level > 0) ? (
@@ -2790,22 +2929,22 @@ class Book extends React.Component {
                   <View style={{ backgroundColor: '#ddd', flex: 1 }}></View>
                 )}
               </View>
-              <Text style={{ marginLeft: 5 }}>
-                <Text style={{ fontSize: 14, lineHeight: 15 }}>{book.complexity_text}</Text>
+              <Text style={{ marginLeft: 5, color: appThemeStore.colors.text }}>
+                <Text style={{ fontSize: 14, lineHeight: 15, color: appThemeStore.colors.text }}>{book.complexity_text}</Text>
               </Text>
             </View>
             <View style={{ marginTop: 10, flexDirection: 'row' }}>
               <AppIcon icon={BookOpenIcon} size={20} color={percent == 100 ? '#0fa90f' : '#777'} style={{ marginRight: 8 }} />
-              <Text style={{ lineHeight: 20, fontSize: 12 }}>
+              <Text style={{ lineHeight: 20, fontSize: 12, color: appThemeStore.colors.text }}>
                 <Text style={percent == 100 && { color: '#0fa90f' }}>
                   {percent}%
                 </Text>
               </Text>
 
-              <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: "#444" }}>{book.pages} стр.</Text>
+              <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: appThemeStore.colors.text }}>{book.pages} стр.</Text>
 
 
-              {book.have_file == true && <AppIcon icon={GlobeCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
+              {downloadStore.isCompleted(book.id) && <AppIcon icon={FileCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
             </View>
           </View>
 
@@ -2813,19 +2952,19 @@ class Book extends React.Component {
       </View>
     )
   }
-}
+});
 
 const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   var downloads = Object.values(downloadStore.downloads);
   if (downloads.length === 0) return null;
 
   return (
-    <View style={homeStyles.downloadsPanel}>
+      <View style={[homeStyles.downloadsPanel, { backgroundColor: appThemeStore.colors.surface }]}>
       <Text style={homeStyles.downloadsTitle}>Загрузка книг</Text>
       {downloads.map((download) =>
         <View key={download.bookId} style={homeStyles.downloadRow}>
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={homeStyles.downloadBookName}>{download.nameEn || download.name}</Text>
+            <Text numberOfLines={1} style={[homeStyles.downloadBookName, { color: appThemeStore.colors.text }]}>{download.nameEn || download.name}</Text>
             <View style={homeStyles.downloadProgressTrack}>
               <View style={[
                 homeStyles.downloadProgressValue,
@@ -2835,7 +2974,7 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
                 }
               ]} />
             </View>
-            <Text style={homeStyles.downloadStatus}>
+            <Text style={[homeStyles.downloadStatus, { color: appThemeStore.colors.mutedText }]}>
               {download.status === 'error'
                 ? 'Ошибка загрузки'
                 : download.status === 'completed'
@@ -2854,7 +2993,7 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   );
 });
 
-class Home extends React.Component {
+const Home = observer(class Home extends React.Component {
   constructor(props) {
     super(props);
 
@@ -2933,7 +3072,7 @@ class Home extends React.Component {
   //Фильтрует по Level, Названиям, Скачиванию
   async filter_books() {
     this.setState({
-      books_filtered: false,
+      books_filtered: [],
     }, async () => {
 
       var result = [];
@@ -2984,6 +3123,7 @@ class Home extends React.Component {
           if (check == true) {
             var have_file = await new Storage().get('have_file_' + book.id, 'false');
             book['have_file'] = have_file == 'true';
+            downloadStore.setCompleted(book.id, book['have_file']);
             if (this.state.show_only_loaded == true) {
               check = book['have_file'];
             }
@@ -3013,6 +3153,7 @@ class Home extends React.Component {
       this.props.root.setState({
         books_percents: percents
       });
+      appStore.setBooksPercents(percents);
 
       this.setState({
         books_filtered: result,
@@ -3120,21 +3261,28 @@ class Home extends React.Component {
   render() {
     var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
     var safeAreaTop = safeAreaInsets.top || 0;
+    var visibleBooks = Array.isArray(this.state.books_filtered) ? this.state.books_filtered : [];
+    if (this.state.not_show_read) {
+      visibleBooks = visibleBooks.filter(book => Number(appStore.books_percents[book.id]) !== 100);
+    }
+    if (this.state.show_only_loaded) {
+      visibleBooks = visibleBooks.filter(book => downloadStore.isCompleted(book.id));
+    }
 
     return (
-      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop }]}>
+      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
         <View style={homeStyles.header}>
 
           <View style={homeStyles.header_empty_block} />
 
           <View style={homeStyles.logo}>
-            <Text style={homeStyles.logo_text}>Reedle</Text>
+            <Text style={[homeStyles.logo_text, { color: appThemeStore.colors.text }]}>Reedle</Text>
             <Text style={homeStyles.logo_dot}>.</Text>
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
             <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')}>
-              <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginTop: 3 }} />
+              <AppIcon icon={MegaphoneOffIcon} size={28} color={appThemeStore.colors.text} style={{ marginTop: 3 }} />
             </TouchableOpacity>
           ) : (
             <View style={homeStyles.header_empty_block}></View>
@@ -3143,17 +3291,18 @@ class Home extends React.Component {
 
         <HomeDownloadsPanel />
 
-        <View style={homeStyles.search}>
+        <View style={[homeStyles.search, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <AppIcon icon={SearchIcon} size={24} color="#999" style={homeStyles.search_image} />
           <TextInput
-            style={homeStyles.search_input}
+            style={[homeStyles.search_input, { color: appThemeStore.colors.text, outlineStyle: 'none' }]}
             onChangeText={(value) => this.onChangeText(value)}
             placeholder={"Поиск"}
+            placeholderTextColor={appThemeStore.colors.text}
             clearButtonMode="always"
           />
         </View>
 
-        <View style={homeStyles.level_selector}>
+        <View style={[homeStyles.level_selector, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <View style={homeStyles.level_selector_wrap}>
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color="#aaa" level="all" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A1" color="#89c053" level="1" current_level={this.state.level} />
@@ -3164,21 +3313,21 @@ class Home extends React.Component {
 
 
             <TouchableOpacity onPress={() => this.openProperty()}>
-              <View style={{ backgroundColor: '#ddd', borderRadius: 7, marginLeft: 3 }}>
+              <View style={{ backgroundColor: appThemeStore.colors.border, borderRadius: 7, marginLeft: 3 }}>
                 {this.state.open_property == false &&
-                  <AppIcon icon={SlidersIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={SlidersIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <AppIcon icon={CloseIcon} size={22} color={app_theme_colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={CloseIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>
           </View>
           {this.state.open_property == true &&
-            <View style={homeStyles.properties}>
+            <View style={[homeStyles.properties, { backgroundColor: appThemeStore.colors.surface }]}>
               <View style={homeStyles.properties_point}>
 
-                <Text style={homeStyles.properties_point_text}>Не показывать прочитанные книги</Text>
+                <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Не показывать прочитанные книги</Text>
 
                 <Switch
                   trackColor={{ false: "#eee", true: "#407cfd" }}
@@ -3192,7 +3341,7 @@ class Home extends React.Component {
 
               <View style={homeStyles.properties_point}>
 
-                <Text style={homeStyles.properties_point_text}>Ставить вперед открытые книги</Text>
+                <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Ставить вперед открытые книги</Text>
 
                 <Switch
                   trackColor={{ false: "#eee", true: "#407cfd" }}
@@ -3205,7 +3354,7 @@ class Home extends React.Component {
 
               <View style={[homeStyles.properties_point, { marginBottom: 0 }]}>
 
-                <Text style={homeStyles.properties_point_text}>Показать только скачанные</Text>
+                <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Показать только скачанные</Text>
 
                 <Switch
                   trackColor={{ false: "#eee", true: "#407cfd" }}
@@ -3237,7 +3386,7 @@ class Home extends React.Component {
               scrollIndicatorInsets={{ right: 1 }}
               removeClippedSubviews={true}
               contentContainerStyle={{ paddingBottom: 100 }}
-              data={this.state.books_filtered}
+              data={visibleBooks}
               renderItem={(book) => <Book
                 books_percents={this.props.root.state.books_percents}
                 book={book}
@@ -3247,6 +3396,9 @@ class Home extends React.Component {
                 })}
               />}
               keyExtractor={(book) => String(book.id)}
+              ItemSeparatorComponent={() => (
+                <View style={{ height: 1, marginLeft: 15, marginRight: 15, backgroundColor: appThemeStore.colors.border }} />
+              )}
               ListEmptyComponent={() => <PreviewBooks />}
             />
           }
@@ -3255,16 +3407,16 @@ class Home extends React.Component {
       </View>
     )
   }
-}
+});
 
 
 class LevelSelectorPoint extends React.Component {
   render() {
     return (
-      <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={homeStyles.level_selector_point}>
+      <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={[homeStyles.level_selector_point, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
         <View style={this.props.current_level == this.props.level && [{ backgroundColor: this.props.color }, homeStyles.level_selector_point_active]}>
           <Text style={homeStyles.level_selector_point_text}>
-            <Text style={this.props.current_level == this.props.level ? { color: '#FFF' } : { color: '#000' }}>
+            <Text style={this.props.current_level == this.props.level ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
               {this.props.name}
             </Text>
           </Text>
@@ -3296,13 +3448,13 @@ function PreviewBook() {
   return (
     <React.Fragment>
       <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: '#eee' }}>
-          <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+        <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
         </View>
         <View style={{ flex: 1 }}>
-          <View style={{ borderRadius: 5, height: 25, backgroundColor: '#eee', width: '50%' }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: '#eee' }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: '#eee', width: '70%' }}></View>
+          <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
+          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
+          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
         </View>
       </View>
     </React.Fragment>
@@ -3674,12 +3826,12 @@ class Auth extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view} >
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
         <ScrollView>
           {this.props.modal == true &&
             <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
+              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
+                <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
               </TouchableOpacity>
             </View>
           }
@@ -3711,13 +3863,13 @@ class Auth extends React.Component {
               <View style={{ flex: 1, flexDirection: 'row' }}>
                 <TouchableOpacity onPress={() => this.changeMethod('login')} style={[
                   profileStyles.authorization_form_tab,
-                  this.state.method == 'login' ? { backgroundColor: app_theme_colors.backgroundDarkLight } : null
+                  { backgroundColor: appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[
                   profileStyles.authorization_form_tab,
-                  this.state.method == 'reg' ? { backgroundColor: app_theme_colors.backgroundDarkLight } : null
+                  { backgroundColor: appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
                 </TouchableOpacity>
@@ -3888,7 +4040,7 @@ class Profile extends React.Component {
       <TouchableOpacity
         style={[profileStyles.menu_item, last && profileStyles.menu_item_last]}
         onPress={onPress}>
-        <Text style={profileStyles.menu_item_text}>{title}</Text>
+        <Text style={[profileStyles.menu_item_text, { color: appThemeStore.colors.text }]}>{title}</Text>
         <Text style={profileStyles.menu_item_arrow}>›</Text>
       </TouchableOpacity>
     );
@@ -3898,7 +4050,7 @@ class Profile extends React.Component {
     var current_user = this.props.root.state.current_user;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         {current_user == false ? (
           <Auth />
         ) : (
@@ -3906,12 +4058,13 @@ class Profile extends React.Component {
             <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
               <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
             </View>
-            <Text style={profileStyles.email}>{current_user.email}</Text>
+            <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
 
             <View style={profileStyles.menu}>
+              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'), true)}
+              {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
             </View>
           </ScrollView>
         )}
@@ -3966,9 +4119,9 @@ class ProfileDetails extends React.Component {
         <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
           <Image style={profileStyles.social_icon_image} source={image} />
         </View>
-        <Text style={profileStyles.social_name}>{title}</Text>
+        <Text style={[profileStyles.social_name, { color: appThemeStore.colors.text }]}>{title}</Text>
         {this.state.social_loader == type ? (
-          <ActivityIndicator size="small" color={app_theme_colors.red} />
+          <ActivityIndicator size="small" color={appThemeStore.colors.mutedText} />
         ) : (
           <Text style={profileStyles.social_action}>{connected ? 'Отключить' : 'Подключить'}</Text>
         )}
@@ -3996,11 +4149,11 @@ class ProfileDetails extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <UpdateProfile current_user={current_user} />
 
-          <Text style={profileStyles.social_title}>Привязать соц. сети</Text>
+          <Text style={[profileStyles.social_title, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
           <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
           <View style={profileStyles.social_list}>
             {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
@@ -4027,7 +4180,7 @@ class ProfilePassword extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <ChangePassword current_user={current_user} />
         </ScrollView>
@@ -4042,7 +4195,7 @@ class ProfileStack extends React.Component {
     const childScreenOptions = (navigation) => ({
       headerBackTitle: 'Аккаунт',
       headerBackTitleVisible: Platform.OS === 'ios',
-      headerTintColor: app_theme_colors.red,
+      headerTintColor: appThemeStore.colors.text,
       ...(Platform.OS === 'web' ? {
         headerTitle: '',
         headerLeft: () => (
@@ -4050,8 +4203,8 @@ class ProfileStack extends React.Component {
             onPress={() => navigation.goBack()}
             style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
           >
-            <AppIcon icon={ChevronLeftIcon} size={24} color={app_theme_colors.red} />
-            <Text style={{ marginLeft: 8, color: app_theme_colors.red, fontSize: 17 }}>Аккаунт</Text>
+            <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
+            <Text style={{ marginLeft: 8, color: appThemeStore.colors.text, fontSize: 17 }}>Аккаунт</Text>
           </TouchableOpacity>
         ),
       } : {}),
@@ -4068,7 +4221,93 @@ class ProfileStack extends React.Component {
         <RootStack.Screen name="profile_password" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Изменить пароль' })}>
           {() => <ProfilePassword root={this.props.root} />}
         </RootStack.Screen>
+        <RootStack.Screen name="profile_settings" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Настройки' })}>
+          {() => <ProfileSettings root={this.props.root} />}
+        </RootStack.Screen>
       </RootStack.Navigator>
+    );
+  }
+}
+
+class ProfileSettings extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      loaded: false,
+      fontSize: 18,
+      fontFamily: 'LibreBaskerville-Regular',
+      textAlign: 'flex-start',
+      translate_icon_size: 24,
+      backgroundColorTheme: appThemeStore.colors.background,
+      textColorTheme: appThemeStore.colors.text,
+      secondColorTheme: appThemeStore.colors.second
+    };
+  }
+
+  async componentDidMount() {
+    var value = await new Storage().get('themeReaderSettings');
+    var settings = value ? JSON.parse(value) : {};
+    if (appThemeStore.mode == 'system') {
+      settings.backgroundColorTheme = appThemeStore.colors.background;
+      settings.textColorTheme = appThemeStore.colors.text;
+      settings.secondColorTheme = appThemeStore.colors.second;
+    }
+    this.setState(Object.assign({}, this.state, settings, { loaded: true }));
+  }
+
+  async saveSettings(changes) {
+    var value = await new Storage().get('themeReaderSettings', '{}');
+    var settings = Object.assign({}, JSON.parse(value), changes);
+    await new Storage().set('themeReaderSettings', JSON.stringify(settings));
+    this.setState(changes);
+    readerStore.setThemeSettings(changes);
+  }
+
+  changeFontSize(type) {
+    var fontSize = this.state.fontSize + (type == 'more' ? 2 : -2);
+    var iconSizes = { 14: 18, 16: 22, 18: 24, 20: 26, 22: 28, 24: 30 };
+    this.saveSettings({ fontSize: fontSize, translate_icon_size: iconSizes[fontSize] });
+  }
+
+  textAlignChange() {
+    var alignments = ['flex-start', 'flex-end', 'center', 'space-evenly'];
+    var index = alignments.indexOf(this.state.textAlign);
+    this.saveSettings({ textAlign: alignments[(index + 1) % alignments.length] });
+  }
+
+  changeColorTheme(backgroundColor, textColor, secondColor) {
+    appThemeStore.setCustomTheme(appThemeNameByBackground(backgroundColor));
+    this.saveSettings({ backgroundColorTheme: backgroundColor, textColorTheme: textColor, secondColorTheme: secondColor });
+  }
+
+  previewTextAlign() {
+    return ({ 'flex-start': 'left', 'flex-end': 'right', center: 'center', 'space-evenly': 'justify' })[this.state.textAlign] || 'left';
+  }
+
+  render() {
+    if (!this.state.loaded) return <ActivityIndicator style={{ flex: 1 }} color={appThemeStore.colors.mutedText} />;
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
+        <ScrollView contentContainerStyle={{ padding: 15, paddingBottom: 60 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Пример отображения</Text>
+          <View style={{ minHeight: 420, position: 'relative', padding: 20, paddingRight: 242, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
+            <Text style={{ fontSize: 24, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, marginBottom: 18 }}>The Little Prince</Text>
+            <Text style={{ fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
+              It is only with the heart that one can see rightly; what is essential is invisible to the eye.
+            </Text>
+
+            <View style={{ position: 'absolute', right: 10, top: 10, width: 212, zIndex: 5 }}>
+              <ReaderSettingsPanel
+                {...this.state}
+                changeFontSize={(type) => this.changeFontSize(type)}
+                textAlignChange={() => this.textAlignChange()}
+                changeColorTheme={(background, text, second) => this.changeColorTheme(background, text, second)}
+                chanageFontFamily={(fontFamily) => this.saveSettings({ fontFamily: fontFamily })}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 }
@@ -4091,7 +4330,7 @@ class ModalFastLearning extends React.Component {
               Platform.OS === 'web' ? { width: '100%', paddingHorizontal: 30 } : null
             ]}>
             <View style={[
-              { borderRadius: 15, backgroundColor: '#FFF', padding: 15 },
+              { borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 },
               Platform.OS === 'web' ? { width: '100%', maxWidth: 500 } : { margin: 30 }
             ]}>
 
@@ -4152,7 +4391,7 @@ class ModalNoAd extends React.Component {
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
+            <View style={{ margin: 30, borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 }}>
 
 
               <Text>
@@ -4175,6 +4414,7 @@ class ModalNoAd extends React.Component {
     )
   }
 }
+
 const ModalTranslateSentence = observer(class ModalTranslateSentence extends React.Component {
   render() {
     return (
@@ -4618,15 +4858,15 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
                 {this.props.word_in_dictionary ? (
                   <React.Fragment>
-                    <View style={{ width: 230, backgroundColor: '#eee', borderRadius: 5, marginBottom: 5 }}>
-                      <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5, marginBottom: 5 }}>
+                    <View style={{ width: 230, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5, marginBottom: 5 }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 14, textAlign: 'center', marginTop: 5, marginBottom: 5 }}>
                         Слово добавлено в словарь
                       </Text>
                     </View>
 
                     <TouchableOpacity onPress={() => this.deleteWordFromDictionary()}>
-                      <View style={{ borderWidth: 1, borderColor: '#ddd', margin: 10, marginTop: 0, height: 32, width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                        <Text style={{ color: '#444', lineHeight: 30, textAlign: 'center' }}>Удалить из словаря</Text>
+                      <View style={{ borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, margin: 10, marginTop: 0, height: 32, width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                        <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Удалить из словаря</Text>
                       </View>
                     </TouchableOpacity>
                   </React.Fragment>
@@ -4635,8 +4875,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     <View style={{ flexDirection: 'row', height: 32, width: 230, margin: 10, marginTop: 10, alignItems: 'center' }}>
                       {(this.state.count_words < 30 || this.props.has_subscription) ? (
                         <TouchableOpacity onPress={() => this.addWordToDictionary()}>
-                          <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, borderWidth: 1, borderColor: '#ddd', height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                            <Text style={{ color: '#444', lineHeight: 30, textAlign: 'center' }}>Добавить в словарь</Text>
+                          <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                            <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Добавить в словарь</Text>
                           </View>
                         </TouchableOpacity>
                       ) : (
@@ -4646,11 +4886,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       )}
                       {this.props.has_subscription == false &&
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
-                          <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
+                          <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 4, overflow: 'hidden' }}>
                             {this.state.show_limits_information ? (
-                              <AppIcon icon={CloseIcon} size={20} color="#777" style={{ margin: 1 }} />
+                              <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 1 }} />
                             ) : (
-                              <Text style={{ color: '#777', fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
+                              <Text style={{ color: appThemeStore.colors.text, fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
                             )}
                           </View>
                         </TouchableOpacity>
@@ -4979,198 +5219,99 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 });
 
+class ReaderSettingsPanel extends React.Component {
+  renderColorButton(backgroundColor, textColor, secondColor) {
+    var selected = this.props.backgroundColorTheme == backgroundColor;
+    return (
+      <TouchableOpacity
+        onPress={() => this.props.changeColorTheme(backgroundColor, textColor, secondColor)}
+        style={{ width: 30, height: 30, marginHorizontal: 5, borderWidth: 1, borderColor: secondColor, borderRadius: 20, backgroundColor: backgroundColor, alignItems: 'center', justifyContent: 'center' }}>
+        {selected && <AppIcon icon={CheckIcon} size={14} color={textColor} />}
+      </TouchableOpacity>
+    );
+  }
+
+  renderFontButton(title, fontFamily) {
+    var selected = this.props.fontFamily == fontFamily;
+    return (
+      <TouchableOpacity
+        onPress={() => this.props.chanageFontFamily(fontFamily)}
+        style={{ paddingVertical: 8, paddingHorizontal: 10, marginBottom: 4, borderRadius: 6, borderWidth: selected ? 1 : 0, borderColor: this.props.secondColorTheme, backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <Text style={{ fontSize: 16, fontFamily: fontFamily, color: appThemeStore.colors.text }}>{title}</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  render() {
+    var iconColor = this.props.textColorTheme;
+    var borderColor = this.props.secondColorTheme;
+    return (
+      <View style={{ width: '100%', maxWidth: this.props.maxWidth || 212, alignSelf: 'center', borderRadius: 10, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
+          <TouchableOpacity
+            disabled={this.props.fontSize <= 14}
+            onPress={() => this.props.changeFontSize('less')}
+            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
+          </TouchableOpacity>
+          <View style={{ minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor }}>
+            <Text style={{ fontSize: 14, color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+          </View>
+          <TouchableOpacity
+            disabled={this.props.fontSize >= 24}
+            onPress={() => this.props.changeFontSize('more')}
+            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => this.props.textAlignChange()} style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
+            {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'center' && <AppIcon icon={AlignCenterIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'space-evenly' && <AppIcon icon={AlignJustifyIcon} size={20} color={appThemeStore.colors.text} />}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: borderColor, borderBottomWidth: 1, paddingVertical: 14 }}>
+          {this.renderColorButton('#ffffff', '#000000', '#dddddd')}
+          {this.renderColorButton('#eeeeee', '#000000', '#cccccc')}
+          {this.renderColorButton('#f8f4e9', '#000000', '#d4c8a0')}
+          {this.renderColorButton('#292c2c', '#ffffff', '#5a5d5d')}
+          {this.renderColorButton('#000000', '#ffffff', '#444444')}
+        </View>
+
+        <View style={{ padding: 10 }}>
+          <Text style={{ fontSize: 16, marginBottom: 8, color: this.props.textColorTheme }}>Шрифт текста:</Text>
+          {this.renderFontButton('Libre Baskerville', 'LibreBaskerville-Regular')}
+          {this.renderFontButton('Times', 'Times')}
+          {this.renderFontButton('Arial', 'Arial')}
+          {this.renderFontButton('Verdana', 'Verdana')}
+        </View>
+      </View>
+    );
+  }
+}
+
 class ReaderSettings extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      voices: [],
-    };
-  }
-
-  componentDidMount() {
-    Speech.getAvailableVoices().then((voices) => {
-      var allEnglish = voices.filter(v =>
-        v.language && v.language.toLowerCase().startsWith('en')
-      );
-      var premium = allEnglish.filter(v =>
-        v.quality === 'Enhanced' || (v.identifier && v.identifier.toLowerCase().includes('-network'))
-      );
-      var englishVoices = premium.length > 0 ? premium : allEnglish;
-      var self = this;
-      englishVoices.sort(function (a, b) {
-        return self.getVoiceLabel(a).localeCompare(self.getVoiceLabel(b), 'ru');
-      });
-      this.setState({ voices: englishVoices });
-    }).catch(() => {});
-  }
-
-  getVoiceLabel(voice, index) {
-    var male = isMaleVoice(voice);
-    var count = this.state.voices.slice(0, index).filter(v => isMaleVoice(v) === male).length + 1;
-    return male ? `Мужской ${count}` : `Женский ${count}`;
-  }
-
-  render(){
-    return(
+  render() {
+    return (
       <Modal
         visible={this.props.visible == true}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => (this.props.closeSettings && this.props.closeSettings())}
-        statusBarTranslucent={true}
-      >
+        onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
+        statusBarTranslucent={true}>
         <TouchableOpacity
           activeOpacity={1}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}
-          onPress={() => (this.props.closeSettings && this.props.closeSettings())}
-        >
+          onPress={() => this.props.closeSettings && this.props.closeSettings()}>
           <TouchableWithoutFeedback onPress={() => {}}>
-            <View
-              style={{
-                width: 212,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: '#ddd',
-                position: 'absolute',
-                right: 10,
-                top: 45,
-                backgroundColor: '#fff',
-                overflow: 'hidden',
-              }}
-            >
-                <View style={{ flexDirection: 'row', borderBottomColor: '#ddd', borderBottomWidth: 1 }}>
-                  <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
-                    {this.props.fontSize <= 14 &&
-                      <View style={{ flex: 1, opacity: 0.3 }}>
-                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15  }} />
-                      </View>
-                    }
-                    {this.props.fontSize > 14 &&
-                      <TouchableOpacity onPress={() => this.props.changeFontSize('less')} style={{ flex: 1 }}>
-                        <AppIcon icon={MinusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </TouchableOpacity>
-                    }
-                  </View>
-                  <View pointerEvents="none" style={{ position: 'absolute', height: 25, width: 30, left: 55, top: 12.5, borderRadius: 5, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#FFF' }}>
-                    <Text style={{ fontSize: 13, color: '#aaa', lineHeight: 24, textAlign: 'center' }}>{this.props.fontSize}</Text>
-                  </View>
-                  <View style={{ borderRightWidth: 1, borderRightColor: '#ddd' }}>
-                    {this.props.fontSize >= 24 &&
-                      <View style={{ flex: 1, opacity: 0.3 }}>
-                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </View>
-                    }
-                    {this.props.fontSize < 24 &&
-                      <TouchableOpacity onPress={() => this.props.changeFontSize('more')} style={{ flex: 1 }}>
-                        <AppIcon icon={PlusIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                      </TouchableOpacity>
-                    }
-                  </View>
-                  <TouchableOpacity onPress={() => this.props.textAlignChange()}>
-                    {this.props.textAlign == 'flex-start' &&
-                      <AppIcon icon={AlignLeftIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'flex-end' &&
-                      <AppIcon icon={AlignRightIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'center' &&
-                      <AppIcon icon={AlignCenterIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                    {this.props.textAlign == 'space-evenly' &&
-                      <AppIcon icon={AlignJustifyIcon} size={20} color="#555" style={{ marginLeft: 25, marginRight: 25, marginTop: 15, marginBottom: 15 }} />
-                    }
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'center', borderBottomColor: '#ddd', borderBottomWidth: 1, paddingTop: 15, paddingBottom: 15 }}>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#ffffff', '#000000', '#dddddd')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#ffffff' }}>
-                    {this.props.backgroundColorTheme == '#ffffff' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#eeeeee', '#000000', '#cccccc')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#eeeeee' }}>
-                    {this.props.backgroundColorTheme == '#eeeeee' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#f8f4e9', '#000000', '#d4c8a0')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#c6c4c1', borderRadius: 20, backgroundColor: '#f6f0e3' }}>
-                    {this.props.backgroundColorTheme == '#f8f4e9' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#000" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#292c2c', '#ffffff', '#5a5d5d')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#292c2c', borderRadius: 20, backgroundColor: '#000000' }}>
-                    {this.props.backgroundColorTheme == '#292c2c' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.changeColorTheme('#000000', '#ffffff', '#444')} style={{ width: 30, height: 30, marginLeft: 5, marginRight: 5, borderWidth: 1, borderColor: '#000000', borderRadius: 20, backgroundColor: '#000000' }}>
-                    {this.props.backgroundColorTheme == '#000000' &&
-                      <AppIcon icon={CheckIcon} size={13} color="#FFF" style={{ marginTop: 8, marginLeft: 7 }} />
-                    }
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ padding: 10 }}>
-                  <Text style={{ fontSize: 16, marginBottom: 10 }}>
-                    Шрифт текста:
-                  </Text>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('LibreBaskerville-Regular')}
-                    style={[(this.props.fontFamily == "LibreBaskerville-Regular") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'LibreBaskerville-Regular' }}>
-                      Libre Baskerville
-                    </Text>
-
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Times')}
-                    style={[(this.props.fontFamily == "Times") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Times' }}>
-                      Times
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Arial')}
-                    style={[(this.props.fontFamily == "Arial") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Arial' }}>
-                      Arial
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.props.chanageFontFamily('Verdana')}
-                    style={[(this.props.fontFamily == "Verdana") ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                    <Text style={{ fontSize: 16, fontFamily: 'Verdana' }}>
-                      Verdana
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {FEATURE_SENTENCE_TRANSLATE && this.state.voices.length > 0 &&
-                  <View style={{ borderTopColor: '#ddd', borderTopWidth: 1 }}>
-                    <Text style={{ fontSize: 16, marginTop: 10, marginBottom: 6, marginLeft: 10, marginRight: 10 }}>
-                      Голос озвучки предложений:
-                    </Text>
-                    <ScrollView
-                      style={{ height: 200 }}
-                      nestedScrollEnabled={true}
-                      showsVerticalScrollIndicator={true}
-                      keyboardShouldPersistTaps="handled"
-                      contentContainerStyle={{ paddingLeft: 10, paddingRight: 10, paddingBottom: 10 }}
-                    >
-                      {this.state.voices.map((voice, index) =>
-                        <TouchableOpacity key={index} onPress={() => this.props.changeVoice(voice)}
-                          style={[(this.props.ttsVoice == voice.identifier) ? { padding: 7, paddingLeft: 10, paddingRight: 10, backgroundColor: '#ddd', borderRadius: 5 } : { padding: 7, paddingLeft: 10, paddingRight: 10 }]}>
-                          <Text style={{ fontSize: 14 }}>
-                            {this.getVoiceLabel(voice, index)}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </ScrollView>
-                  </View>
-                }
+            <View style={{ position: 'absolute', right: 10, top: 45, width: 212 }}>
+              <ReaderSettingsPanel {...this.props} />
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
       </Modal>
-    )
+    );
   }
 }
 
@@ -5329,6 +5470,12 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
+    if (appThemeStore.mode == 'system') {
+      settings['backgroundColorTheme'] = appThemeStore.colors.background;
+      settings['textColorTheme'] = appThemeStore.colors.text;
+      settings['secondColorTheme'] = appThemeStore.colors.second;
+    }
+
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
       document.body.style.backgroundColor = settings['backgroundColorTheme'];
@@ -5370,6 +5517,23 @@ class Reader extends React.Component {
     });
 
     readerStore.setThemeSettings(settings);
+    this._appearanceThemeSubscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (appThemeStore.mode != 'system') return;
+      var colors = APP_COLOR_THEMES[colorScheme == 'dark' ? 'dark' : 'light'];
+      this.setState({
+        backgroundColorTheme: colors.background,
+        textColorTheme: colors.text,
+        secondColorTheme: colors.second
+      });
+      readerStore.setThemeSettings({
+        backgroundColorTheme: colors.background,
+        textColorTheme: colors.text,
+        secondColorTheme: colors.second
+      });
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.body.style.backgroundColor = colors.background;
+      }
+    });
     readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
     if (ttsVoice) {
@@ -5417,6 +5581,7 @@ class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    if (this._appearanceThemeSubscription) this._appearanceThemeSubscription.remove();
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
       if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
@@ -5815,6 +5980,7 @@ class Reader extends React.Component {
   }
 
   changeColorTheme(backgroundColor, textColor, secondColor) {
+    appThemeStore.setCustomTheme(appThemeNameByBackground(backgroundColor));
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.style.backgroundColor = backgroundColor;
     }
@@ -6047,7 +6213,7 @@ class Reader extends React.Component {
               <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
             </TouchableOpacity>
 
-            <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
+            <ActivityIndicator style={{ flex: 1 }} size="large" color={this.state.secondColorTheme || appThemeStore.colors.mutedText} />
           </View>
         ) : (
 
@@ -6067,7 +6233,7 @@ class Reader extends React.Component {
 
             {this.state.showAdOpacity == true &&
               <View style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10 }}>
-                <ActivityIndicator style={{ flex: 1 }} size="large" color="#999" />
+                <ActivityIndicator style={{ flex: 1 }} size="large" color={this.state.secondColorTheme || appThemeStore.colors.mutedText} />
               </View>
             }
 
@@ -6177,6 +6343,8 @@ class Reader extends React.Component {
                   textAlignChange={() => this.textAlignChange()}
 
                   backgroundColorTheme={this.state.backgroundColorTheme}
+                  textColorTheme={this.state.textColorTheme}
+                  secondColorTheme={this.state.secondColorTheme}
                   changeColorTheme={(backgroundColor, textColor, secondColor) => this.changeColorTheme(backgroundColor, textColor, secondColor)}
 
                   fontFamily={this.state.fontFamily}
@@ -6314,7 +6482,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: '#FFF', padding: 15 }}>
+            <View style={{ margin: 30, borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Обновите приложение</Text>
 
@@ -6351,8 +6519,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
                 </React.Fragment>
               }
 
-              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 15, backgroundColor: '#ddd', height: 40, borderRadius: 10 }}>
-                <Text style={{ color: '#444', textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Обновить позже</Text>
+              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 15, backgroundColor: appThemeStore.colors.backgroundLight, height: 40, borderRadius: 10 }}>
+                <Text style={{ color: appThemeStore.colors.text, textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Обновить позже</Text>
               </TouchableOpacity>
 
             </View>
@@ -6363,6 +6531,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
     )
   }
 });
+
 function PwaInstallBanner() {
   const [installEvent, setInstallEvent] = React.useState(null);
   const [visible, setVisible] = React.useState(false);
@@ -6417,13 +6586,13 @@ function PwaInstallBanner() {
   return (
     <View style={{
       position: 'absolute', top: 8, left: 8, right: 8, zIndex: 10000,
-      padding: 12, borderRadius: 12, backgroundColor: '#fff',
+      padding: 12, borderRadius: 12, backgroundColor: appThemeStore.colors.surface,
       shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8,
       flexDirection: 'row', alignItems: 'center'
     }}>
       <View style={{ flex: 1, paddingRight: 10 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 3 }}>Установить Reedle</Text>
-        <Text style={{ fontSize: 12, color: '#555' }}>{instruction}</Text>
+        <Text style={{ fontSize: 12, color: appThemeStore.colors.mutedText }}>{instruction}</Text>
       </View>
       {installEvent &&
         <TouchableOpacity onPress={install} style={{ backgroundColor: '#f05458', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 }}>
@@ -6431,7 +6600,7 @@ function PwaInstallBanner() {
         </TouchableOpacity>
       }
       <TouchableOpacity accessibilityLabel="Закрыть" onPress={close} style={{ padding: 8 }}>
-        <Text style={{ color: '#777', fontSize: 20 }}>×</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 20 }}>×</Text>
       </TouchableOpacity>
     </View>
   );
@@ -6440,10 +6609,10 @@ function PwaInstallBanner() {
 class Header extends React.Component {
   render(){
     return(
-      <SafeAreaView style={{backgroundColor: '#FFF'}}>
+      <SafeAreaView style={{backgroundColor: appThemeStore.colors.surface}}>
         <View style={applicationStyles.header}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
-            <AppIcon icon={MenuIcon} size={26} color={app_theme_colors.text} />
+            <AppIcon icon={MenuIcon} size={26} color={appThemeStore.colors.text} />
           </TouchableOpacity> 
           <Text style={applicationStyles.header_title}>{this.props.title}</Text>
           <View style={applicationStyles.header_empty_block}/>
@@ -6466,6 +6635,27 @@ const appLinking = {
     },
   },
 };
+
+const ThemeTestSwitcher = observer(() => {
+  if (Platform.OS !== 'web') return null;
+
+  return (
+    <View style={{ position: 'fixed', top: 10, right: 10, zIndex: 100000, flexDirection: 'row', padding: 5, borderRadius: 18, backgroundColor: appThemeStore.colors.surface, borderWidth: 1, borderColor: appThemeStore.colors.border }}>
+      {Object.keys(APP_COLOR_THEMES).map((themeName) => {
+        var colors = APP_COLOR_THEMES[themeName];
+        var selected = appThemeStore.themeName == themeName;
+        return (
+          <TouchableOpacity
+            key={themeName}
+            onPress={() => appThemeStore.setCustomTheme(themeName)}
+            accessibilityLabel={'Тема ' + themeName}
+            style={{ width: 24, height: 24, marginHorizontal: 3, borderRadius: 12, backgroundColor: colors.background, borderWidth: selected ? 3 : 1, borderColor: selected ? appThemeStore.colors.text : colors.border }}
+          />
+        );
+      })}
+    </View>
+  );
+});
 
 class RootApp extends React.Component {
   constructor(props) {
@@ -6604,6 +6794,15 @@ class RootApp extends React.Component {
       this._linkSub.remove();
     }
     clearTimeout(this.notification_timer);
+    this._subscriptionActivationCancelled = true;
+    if (this._subscriptionActivationTimer) {
+      clearTimeout(this._subscriptionActivationTimer);
+      this._subscriptionActivationTimer = null;
+    }
+    if (this._subscriptionActivationTimerResolve) {
+      this._subscriptionActivationTimerResolve();
+      this._subscriptionActivationTimerResolve = null;
+    }
   }
 
   async handleOAuthURL(url) {
@@ -6672,13 +6871,47 @@ class RootApp extends React.Component {
   }
 
   async checkSubscription() {
-    if (this._checkingSubscription) return;
-    this._checkingSubscription = true;
+    if (this._checkingSubscriptionPromise) return this._checkingSubscriptionPromise;
+
+    this._checkingSubscriptionPromise = this._doCheckSubscription();
     try {
-      return await this._doCheckSubscription();
+      return await this._checkingSubscriptionPromise;
     } finally {
-      this._checkingSubscription = false;
+      this._checkingSubscriptionPromise = null;
     }
+  }
+
+  waitForSubscriptionActivation() {
+    if (this._subscriptionActivationPromise) return this._subscriptionActivationPromise;
+
+    this._subscriptionActivationCancelled = false;
+
+    this._subscriptionActivationPromise = (async () => {
+      for (var elapsed = 5000; elapsed <= 300000; elapsed += 5000) {
+        await new Promise((resolve) => {
+          this._subscriptionActivationTimerResolve = resolve;
+          this._subscriptionActivationTimer = setTimeout(() => {
+            this._subscriptionActivationTimer = null;
+            this._subscriptionActivationTimerResolve = null;
+            resolve();
+          }, 5000);
+        });
+
+        if (this._subscriptionActivationCancelled) return false;
+        if (await this.checkSubscription()) {
+          AppAlert.alert('Поздравляем! PRO-доступ активирован');
+          return true;
+        }
+      }
+
+      return false;
+    })().finally(() => {
+      this._subscriptionActivationTimer = null;
+      this._subscriptionActivationTimerResolve = null;
+      this._subscriptionActivationPromise = null;
+    });
+
+    return this._subscriptionActivationPromise;
   }
 
   async _doCheckSubscription() {
@@ -6836,14 +7069,19 @@ class RootApp extends React.Component {
 
 
     const Stack = createStackNavigator();
+    var themeColors = appThemeStore.colors;
 
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: themeColors.background }}>
+        <StatusBar
+          barStyle={themeColors.text == '#ffffff' ? 'light-content' : 'dark-content'}
+          backgroundColor={themeColors.surface}
+        />
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
-          <View style={{ flex: 1, backgroundColor: '#fff' }} />
+          <View style={{ flex: 1, backgroundColor: themeColors.background }} />
         ) : this.state.confirm_conditions == false ? (
-          <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15 }}>
+          <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15, backgroundColor: themeColors.background }}>
             <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
               <Image
                 style={{ height: 200, width: 200, }}
@@ -6873,6 +7111,7 @@ class RootApp extends React.Component {
         ) : (
           <View style={{ flex: 1 }}>
             <NavigationContainer
+              theme={appThemeStore.navigationTheme}
               ref={this.navigationRef}
               linking={Platform.OS === 'web' ? undefined : appLinking}
               onReady={() => this.openPendingDeepLink()}>
@@ -6966,6 +7205,7 @@ class RootApp extends React.Component {
         )}
         <PwaInstallBanner />
         <AppAlertModal />
+        <ThemeTestSwitcher />
       </View>
     );
   }
@@ -6983,7 +7223,7 @@ class TabStack extends React.Component {
     return (
       <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
-          tabBarActiveTintColor: '#f05458'
+          tabBarActiveTintColor: appThemeStore.colors.text
         })}>
         <Tab.Screen name="books"
           listeners={{
@@ -7135,7 +7375,7 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
         ) : downloading ? (
           this.renderProgress(download)
         ) : haveFile ? (
-          <AppIcon icon={ChevronRightIcon} size={20} color='#000' style={{ margin: 20 }} />
+          <AppIcon icon={ChevronRightIcon} size={20} color="#000" style={{ margin: 20 }} />
         ) : !appStore.has_internet ? (
           <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
         ) : (
@@ -7148,7 +7388,7 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
   }
 });
 
-class Show extends React.Component {
+const Show = observer(class Show extends React.Component {
   constructor(props) {
     super(props);
 
@@ -7178,12 +7418,15 @@ class Show extends React.Component {
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
+      document.body.dataset.reedleBackgroundOwner = 'book';
       document.body.style.backgroundColor = initialColor;
       this.unsubscribeBodyFocus = this.props.stack.navigation.addListener('focus', () => {
+        document.body.dataset.reedleBackgroundOwner = 'book';
         document.body.style.backgroundColor = this.state.book.color || initialColor;
       });
       this.unsubscribeBodyBlur = this.props.stack.navigation.addListener('blur', () => {
-        document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+        delete document.body.dataset.reedleBackgroundOwner;
+        document.body.style.backgroundColor = appThemeStore.colors.background;
       });
     }
 
@@ -7194,6 +7437,7 @@ class Show extends React.Component {
       books.map(async (book) => {
         if (book.id == this.props.stack.route.params.book_id) {
           var have_file = await new Storage().get('have_file_' + book.id, 'false');
+          downloadStore.setCompleted(book.id, have_file == 'true');
 
           AppMetrica.reportEvent('openDetail', {
             book_name: book.name
@@ -7223,7 +7467,8 @@ class Show extends React.Component {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
       if (this.unsubscribeBodyBlur) this.unsubscribeBodyBlur();
-      document.body.style.backgroundColor = this.previousBodyBackgroundColor || '#fff';
+      delete document.body.dataset.reedleBackgroundOwner;
+      document.body.style.backgroundColor = appThemeStore.colors.background;
     }
   }
 
@@ -7244,6 +7489,7 @@ class Show extends React.Component {
     await new Storage().set('percent_' + bookId, '100');
     var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
     this.props.root.setState({ books_percents: percents });
+    appStore.setBooksPercents(Object.assign({}, appStore.books_percents, { [bookId]: 100 }));
     this.setState({ percent: 100, context_menu_visible: false });
   }
 
@@ -7263,6 +7509,7 @@ class Show extends React.Component {
     await new Storage().set('have_file_' + bookId, '');
     var bookDirectory = file_root + '/books/' + bookId + '/';
     if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+    downloadStore.setCompleted(bookId, false);
     this.setState({ have_file: false });
   }
 
@@ -7279,9 +7526,9 @@ class Show extends React.Component {
             onPress={() => this.setState({ context_menu_visible: false })}
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
                 <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 16, color: '#222' }}>Отметить прочитанной</Text>
+                  <Text style={{ fontSize: 16, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
                 </TouchableOpacity>
                 {this.state.have_file &&
                   <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
@@ -7294,7 +7541,7 @@ class Show extends React.Component {
         }
 
         {this.state.book == false &&
-          <ActivityIndicator style={{ flex: 1 }} size="large" color="#aaa" />
+          <ActivityIndicator style={{ flex: 1 }} size="large" color="#FFF" />
         }
 
         {this.state.book != false &&
@@ -7319,7 +7566,7 @@ class Show extends React.Component {
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
                   {this.props.root.state.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
-                      <AppIcon icon={ChevronRightIcon} size={28} color='#000' style={{ margin: 16 }} />
+                      <AppIcon icon={ChevronRightIcon} size={28} color="#000" style={{ margin: 16 }} />
                     </TouchableOpacity>
                   ) : (
                     <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
@@ -7378,7 +7625,7 @@ class Show extends React.Component {
     );
 
   }
-};
+});
 
 const Subscription = observer(class Subscription extends React.Component {
   constructor() {
@@ -7472,38 +7719,41 @@ const Subscription = observer(class Subscription extends React.Component {
         auth_modal: true
       });
     } else {
-      if (this.state.load_payment_button == false) {
-        this.setState({
-          load_payment_button: true
-        });
+      if (this.state.load_payment_button == true) return;
 
+      this.setState({ load_payment_button: true });
+      try {
         var response = await new Request('/api/v1/payments', {
           user_id: this.props.root.state.current_user.id,
           subscription_id: subscription_id,
           app_payment: 'true'
         }, {}).post();
 
-        this.setState({
-          load_payment_button: false
-        });
-
-        if (response != false) {
+        if (response != false && response.payment_url) {
           this.setState({
             modal_yoo_kassa: true,
             payment_url: response.payment_url,
             payment_webview_loading: true
           });
+        } else {
+          AppAlert.alert('Ошибка', 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.');
         }
+      } catch (error) {
+        AppAlert.alert('Ошибка', 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.');
+      } finally {
+        this.setState({ load_payment_button: false });
       }
     }
   }
 
   closeYooKassa() {
-    this.props.root.checkSubscription();
+    this.props.root.waitForSubscriptionActivation();
 
     this.setState({
       modal_yoo_kassa: false,
       payment_webview_loading: false
+    }, () => {
+      AppAlert.alert('Ожидайте подтверждения оплаты. Через некоторое время ПРО доступ автоматически активируется');
     });
   }
 
@@ -7513,7 +7763,7 @@ const Subscription = observer(class Subscription extends React.Component {
       return;
     }
 
-    const { subscription_info } = this.props.root.state;
+    const { subscription_info } = appStore;
     if (!subscription_info || !subscription_info.subscription_id) {
       AppAlert.alert('Нет данных подписки для синхронизации');
       return;
@@ -7572,9 +7822,9 @@ const Subscription = observer(class Subscription extends React.Component {
 
   can_show_pricing() {
     var can_show = true;
-    if (this.props.root.state.has_subscription == true) {
-      if (this.props.root.state.subscription_info != undefined) {
-        can_show = this.props.root.state.subscription_info.subscription_id != 4;
+    if (appStore.has_subscription == true) {
+      if (appStore.subscription_info != undefined) {
+        can_show = appStore.subscription_info.subscription_id != 4;
       }
     }
 
@@ -7593,17 +7843,19 @@ const Subscription = observer(class Subscription extends React.Component {
 
   render() {
     const isCompact = Dimensions.get('window').width <= 360;
+    const isDarkTheme = appThemeStore.colors.text == '#ffffff';
+    const subscriptionTextColor = (lightColor) => isDarkTheme ? '#FFF' : lightColor;
     const pageHorizontalMargin = isCompact ? 16 : 30;
     const planPadding = isCompact ? 11 : 15;
     const planTitleFontSize = isCompact ? 19 : 22;
     const planPriceFontSize = isCompact ? 16 : 18;
     const badgeFontSize = isCompact ? 9 : 11;
     const selectedPlanStyle = isCompact
-      ? { borderColor: '#f05458', borderWidth: 2, zIndex: 2 }
-      : { borderColor: '#f05458', borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
+      ? { borderColor: appThemeStore.colors.border, borderWidth: 2, zIndex: 2 }
+      : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
 
         <Modal
           animationType="slide"
@@ -7619,29 +7871,37 @@ const Subscription = observer(class Subscription extends React.Component {
           visible={this.state.modal_yoo_kassa}
         >
           <View activeOpacity={1} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <View style={{ backgroundColor: '#FFF', flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 10 }}>
+            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 10 }}>
               <View style={{
                 height: 55, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1
               }}>
-                <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 35, height: 35, backgroundColor: '#ddd', borderRadius: 7, margin: 10 }}>
-                  <AppIcon icon={CloseIcon} size={20} color={app_theme_colors.text} style={{ margin: 7.5 }} />
+                <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
+                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
                 </TouchableOpacity>
 
               </View>
               <View style={{ flex: 1 }}>
-                <WebView
-                  source={{
-                    uri: this.state.payment_url,
-                  }}
-                  style={{ flex: 1 }}
-                  onLoadStart={() => this.setState({ payment_webview_loading: true })}
-                  onLoadEnd={() => this.setState({ payment_webview_loading: false })}
-                  onError={() => this.setState({ payment_webview_loading: false })}
-                />
+                {Platform.OS === 'web' ? (
+                  <iframe
+                    key={this.state.payment_url}
+                    src={this.state.payment_url}
+                    title="Оплата подписки"
+                    style={{ width: '100%', height: '100%', border: 0, display: 'block', backgroundColor: '#FFF' }}
+                    onLoad={() => this.setState({ payment_webview_loading: false })}
+                  />
+                ) : (
+                  <WebView
+                    source={{ uri: this.state.payment_url }}
+                    style={{ flex: 1 }}
+                    onLoadStart={() => this.setState({ payment_webview_loading: true })}
+                    onLoadEnd={() => this.setState({ payment_webview_loading: false })}
+                    onError={() => this.setState({ payment_webview_loading: false })}
+                  />
+                )}
                 {this.state.payment_webview_loading &&
-                  <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' }}>
-                    <ActivityIndicator size="large" color="#f05458" />
-                    <Text style={{ marginTop: 12, color: '#777', fontSize: 14 }}>Загрузка страницы оплаты...</Text>
+                  <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: appThemeStore.colors.surface, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={appThemeStore.colors.mutedText} />
+                    <Text style={{ marginTop: 12, color: subscriptionTextColor('#777'), fontSize: 14 }}>Загрузка страницы оплаты...</Text>
                   </View>
                 }
               </View>
@@ -7653,10 +7913,10 @@ const Subscription = observer(class Subscription extends React.Component {
 
           <View style={{ marginLeft: pageHorizontalMargin, marginRight: pageHorizontalMargin }}>
 
-            {this.props.root.state.has_subscription == true &&
+            {appStore.has_subscription == true &&
               <React.Fragment>
                 <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
-                  {this.props.root.state.subscription_info.subscription_id == 4 ? (
+                  {appStore.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
                       <Text style={{ textAlign: 'center', fontSize: 18 }}>
                         У вас активирован
@@ -7671,7 +7931,7 @@ const Subscription = observer(class Subscription extends React.Component {
                         Ваш PRO-доступ активен до:
                       </Text>
                       <View style={{ marginTop: 5 }}>
-                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: '#f05458' }}> {moment(this.props.root.state.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: subscriptionTextColor('#f05458') }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
                       </View>
                     </React.Fragment>
                   )}
@@ -7694,10 +7954,10 @@ const Subscription = observer(class Subscription extends React.Component {
               </React.Fragment>
             }
 
-            {this.props.root.state.has_subscription == false &&
+            {appStore.has_subscription == false &&
               <React.Fragment>
                 <View style={{ marginTop: 16, flexDirection: 'column', justifyContent: 'center' }}>
-                  {this.props.root.state.has_subscription == true &&
+                  {appStore.has_subscription == true &&
                     <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Продлить доступ</Text>
                   }
                 </View>
@@ -7705,7 +7965,7 @@ const Subscription = observer(class Subscription extends React.Component {
                 <View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={MegaphoneOffIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                      <AppIcon icon={MegaphoneOffIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Выключить рекламу</Text>
@@ -7713,7 +7973,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   </View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={WifiIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                      <AppIcon icon={WifiIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Чтение без интернета</Text>
@@ -7722,7 +7982,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={BookAIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                      <AppIcon icon={BookAIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Словарь без лимитов</Text>
@@ -7730,7 +7990,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   </View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={VolumeIcon} size={28} color="#000" style={{ marginBottom: 16 }} />
+                      <AppIcon icon={VolumeIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Озвучка слов без лимитов</Text>
@@ -7742,16 +8002,16 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {this.can_show_pricing() &&
               <React.Fragment>
-                <View style={{ marginTop: 16, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
+                <View style={{ marginTop: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
                     }, this.state.active_subscription == 1 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
-                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 1 && { color: '#f05458' }]}>1 месяц</Text>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 1 && { color: app_theme_colors.red }]}>1 месяц</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
@@ -7760,20 +8020,20 @@ const Subscription = observer(class Subscription extends React.Component {
                     </View>
                   </TouchableWithoutFeedback>
 
-                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
+                  <View style={{ height: 1, backgroundColor: appThemeStore.colors.border }} />
 
                   {/* 6 месяцев */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(2)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
                     }, this.state.active_subscription == 2 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
-                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 2 && { color: '#f05458' }]}>6 месяцев</Text>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 2 && { color: app_theme_colors.red }]}>6 месяцев</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ borderColor: '#ddd', borderWidth: 1, borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
+                        <View style={{ borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
                           <Text numberOfLines={1} style={{ fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
@@ -7781,16 +8041,16 @@ const Subscription = observer(class Subscription extends React.Component {
                     </View>
                   </TouchableWithoutFeedback>
 
-                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
+                  <View style={{ height: 1, backgroundColor: appThemeStore.colors.border }} />
 
                   {/* 1 год */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(3)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
                     }, this.state.active_subscription == 3 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
-                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 3 && { color: '#f05458' }]}>1 год</Text>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 3 && { color: app_theme_colors.red }]}>1 год</Text>
                         <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
@@ -7802,16 +8062,16 @@ const Subscription = observer(class Subscription extends React.Component {
                     </View>
                   </TouchableWithoutFeedback>
 
-                  <View style={{ height: 1, backgroundColor: '#ddd' }} />
+                  <View style={{ height: 1, backgroundColor: appThemeStore.colors.border }} />
 
                   {/* Навсегда */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(4)}>
                     <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: '#FFF', padding: planPadding, height: 85,
+                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
                       flexDirection: 'row', justifyContent: 'space-between',
                     }, this.state.active_subscription == 4 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
-                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: '#000' }, this.state.active_subscription == 4 && { color: '#f05458' }]}>Навсегда</Text>
+                        <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 4 && { color: app_theme_colors.red }]}>Навсегда</Text>
                         <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 5 }}>Единоразовый платёж</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
@@ -7823,13 +8083,13 @@ const Subscription = observer(class Subscription extends React.Component {
                 </View>
 
                 {this.state.active_subscription == 4 &&
-                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
+                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
                 }
                 {appStore.type_payment == 'by_yoo_kassa' && this.state.active_subscription != 4 &&
-                  <Text style={{ marginTop: 16, color: '#888', fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
+                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
                 }
 
-                <Text style={{ marginTop: 8, color: '#888', fontSize: 13 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
+                <Text style={{ marginTop: 8, color: subscriptionTextColor('#888'), fontSize: 13 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: subscriptionTextColor(app_theme_colors.red) }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
 
                 <TouchableOpacity
                   onPress={() => this.state.active_subscription == 4 ? this.initForeverPayment() : this.initSubscriptionPayment()}
@@ -7838,7 +8098,7 @@ const Subscription = observer(class Subscription extends React.Component {
                     <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
                   ) : (
                     <Text numberOfLines={1} adjustsFontSizeToFit={true} style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16, fontWeight: 'bold', paddingHorizontal: 10 }}>
-                      {this.props.root.state.has_subscription ? 'Продлить' : this.getButtonLabel()}
+                      {appStore.has_subscription ? 'Продлить' : this.getButtonLabel()}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -7851,9 +8111,9 @@ const Subscription = observer(class Subscription extends React.Component {
                   }}
                   style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
                   {this.state.load_restore_button ? (
-                    <ActivityIndicator size="small" color="#888" />
+                    <ActivityIndicator size="small" color={subscriptionTextColor('#888')} />
                   ) : (
-                    <Text style={{ color: '#555', textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
+                    <Text style={{ color: subscriptionTextColor('#555'), textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
                   )}
                 </TouchableOpacity>
 
@@ -7862,19 +8122,19 @@ const Subscription = observer(class Subscription extends React.Component {
 
             <View style={{ marginTop: 30, marginBottom: 30, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
               <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")} style={{ marginRight: 15 }}>
-                <Text style={{ color: '#aaa', textAlign: 'center', fontSize: 14 }}>Terms of Use</Text>
+                <Text style={{ color: subscriptionTextColor('#aaa'), textAlign: 'center', fontSize: 14 }}>Terms of Use</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_policy")} style={{}}>
-                <Text style={{ color: '#aaa', textAlign: 'center', fontSize: 14 }}>Privacy policy</Text>
+                <Text style={{ color: subscriptionTextColor('#aaa'), textAlign: 'center', fontSize: 14 }}>Privacy policy</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Подробности условий использования</Text>
 
-            <Text style={{ fontSize: 13, marginTop: 8, color: '#555', lineHeight: 20 }}>
+            <Text style={{ fontSize: 13, marginTop: 8, color: subscriptionTextColor('#555'), lineHeight: 20 }}>
               Приложение распространяется бесплатно, без ограничений по времени. Автоматического списания средств нет.{'\n\n'}
               {'PRO-доступ можно приобрести на 1 месяц (' + this.getPrice('read_1_month', this.read_1_month) + '), 6 месяцев (' + this.getPrice('read_6_month', this.read_6_month) + '), 1 год (' + this.getPrice('read_1_year', this.read_1_year) + ') или навсегда (' + this.getPrice('read_forever', this.read_forever) + '). PRO убирает рекламу и открывает чтение без интернета.\n\n'}
-              По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: app_theme_colors.red }}>reedle.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
+              По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: subscriptionTextColor(app_theme_colors.red) }}>reedle.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}
               Возврат средств возможен только через поддержку Apple (для покупок через App Store). По другим вопросам пишите на info@reedle.ru.
             </Text>
 

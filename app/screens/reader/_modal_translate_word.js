@@ -363,15 +363,15 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
                 {this.props.word_in_dictionary ? (
                   <React.Fragment>
-                    <View style={{ width: 230, backgroundColor: '#eee', borderRadius: 5, marginBottom: 5 }}>
-                      <Text style={{ fontSize: 14, textAlign: 'center', marginTop: 5, marginBottom: 5 }}>
+                    <View style={{ width: 230, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5, marginBottom: 5 }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 14, textAlign: 'center', marginTop: 5, marginBottom: 5 }}>
                         Слово добавлено в словарь
                       </Text>
                     </View>
 
                     <TouchableOpacity onPress={() => this.deleteWordFromDictionary()}>
-                      <View style={{ borderWidth: 1, borderColor: '#ddd', margin: 10, marginTop: 0, height: 32, width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                        <Text style={{ color: '#444', lineHeight: 30, textAlign: 'center' }}>Удалить из словаря</Text>
+                      <View style={{ borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, margin: 10, marginTop: 0, height: 32, width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                        <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Удалить из словаря</Text>
                       </View>
                     </TouchableOpacity>
                   </React.Fragment>
@@ -380,8 +380,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     <View style={{ flexDirection: 'row', height: 32, width: 230, margin: 10, marginTop: 10, alignItems: 'center' }}>
                       {(this.state.count_words < 30 || this.props.has_subscription) ? (
                         <TouchableOpacity onPress={() => this.addWordToDictionary()}>
-                          <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, borderWidth: 1, borderColor: '#ddd', height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                            <Text style={{ color: '#444', lineHeight: 30, textAlign: 'center' }}>Добавить в словарь</Text>
+                          <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                            <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Добавить в словарь</Text>
                           </View>
                         </TouchableOpacity>
                       ) : (
@@ -391,11 +391,11 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                       )}
                       {this.props.has_subscription == false &&
                         <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
-                          <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 4, overflow: 'hidden' }}>
+                          <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 4, overflow: 'hidden' }}>
                             {this.state.show_limits_information ? (
-                              <AppIcon icon={CloseIcon} size={20} color="#777" style={{ margin: 1 }} />
+                              <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 1 }} />
                             ) : (
-                              <Text style={{ color: '#777', fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
+                              <Text style={{ color: appThemeStore.colors.text, fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
                             )}
                           </View>
                         </TouchableOpacity>

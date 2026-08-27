@@ -20,13 +20,16 @@ class Bookmark extends React.Component {
       <View style={bookmarksStyles.bookmarkRow}>
         <TouchableOpacity
           onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })}
-          style={bookmarksStyles.bookmarkCard}>
-          <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40 }}>{this.bookmark.book_name}</Text>
-          <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold' }}>Стр. {this.bookmark.page}</Text>
+          style={[bookmarksStyles.bookmarkCard, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40, color: appThemeStore.colors.text }}>{this.bookmark.book_name}</Text>
+          <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold', color: appThemeStore.colors.text }}>Стр. {this.bookmark.page}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => this.props.deleteBookmark()}
-          style={bookmarksStyles.deleteButton}
+          style={[
+            bookmarksStyles.deleteButton,
+            { backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5 }
+          ]}
           accessibilityLabel="Удалить закладку">
           <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>

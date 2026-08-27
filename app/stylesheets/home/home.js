@@ -57,7 +57,8 @@ const homeStyles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
-    color: app_theme_colors.text
+    color: app_theme_colors.text,
+    backgroundColor: 'transparent'
   },
   level_selector: { 
     backgroundColor: '#eee',

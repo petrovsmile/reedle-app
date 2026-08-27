@@ -52,13 +52,13 @@ function PwaInstallBanner() {
   return (
     <View style={{
       position: 'absolute', top: 8, left: 8, right: 8, zIndex: 10000,
-      padding: 12, borderRadius: 12, backgroundColor: '#fff',
+      padding: 12, borderRadius: 12, backgroundColor: appThemeStore.colors.surface,
       shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 8,
       flexDirection: 'row', alignItems: 'center'
     }}>
       <View style={{ flex: 1, paddingRight: 10 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 3 }}>Установить Reedle</Text>
-        <Text style={{ fontSize: 12, color: '#555' }}>{instruction}</Text>
+        <Text style={{ fontSize: 12, color: appThemeStore.colors.mutedText }}>{instruction}</Text>
       </View>
       {installEvent &&
         <TouchableOpacity onPress={install} style={{ backgroundColor: '#f05458', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 }}>
@@ -66,7 +66,7 @@ function PwaInstallBanner() {
         </TouchableOpacity>
       }
       <TouchableOpacity accessibilityLabel="Закрыть" onPress={close} style={{ padding: 8 }}>
-        <Text style={{ color: '#777', fontSize: 20 }}>×</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 20 }}>×</Text>
       </TouchableOpacity>
     </View>
   );

@@ -107,6 +107,10 @@ class DownloadStore {
     return this.completed[bookId] === true;
   }
 
+  setCompleted(bookId, completed) {
+    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
+  }
+
   setDownload(bookId, changes) {
     this.downloads = Object.assign({}, this.downloads, {
       [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
@@ -149,7 +153,7 @@ class DownloadStore {
       }
 
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
-      this.completed = Object.assign({}, this.completed, { [book.id]: true });
+      this.setCompleted(book.id, true);
       this.dismiss(book.id);
       AppMetrica.reportEvent('loader', { status: 'finish' });
       AppMetrica.reportEvent('loader', { progress: 100 });

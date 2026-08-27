@@ -65,7 +65,7 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
         ) : downloading ? (
           this.renderProgress(download)
         ) : haveFile ? (
-          <AppIcon icon={ChevronRightIcon} size={20} color='#000' style={{ margin: 20 }} />
+          <AppIcon icon={ChevronRightIcon} size={20} color="#000" style={{ margin: 20 }} />
         ) : !appStore.has_internet ? (
           <AppIcon icon={WifiOffIcon} size={28} color="#aaa" style={{ margin: 16 }} />
         ) : (

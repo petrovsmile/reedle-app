@@ -8,6 +8,7 @@ class Dictionary extends React.Component {
       words: [],
       do_not_find: false,
       sorting_by: 'date',
+      hide_studied: true,
       learning: false,
       learning_questions: [],
       learning_index: 0,
@@ -188,7 +189,7 @@ class Dictionary extends React.Component {
           </Text>
           <Text style={dictionaryStyles.wordLearningProgressCount}>{repetitions} из 10</Text>
         </View>
-        <View style={dictionaryStyles.wordLearningProgressTrack}>
+        <View style={[dictionaryStyles.wordLearningProgressTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <View style={[
             dictionaryStyles.wordLearningProgressValue,
             { width: (repetitions * 10) + '%' }
@@ -284,8 +285,8 @@ class Dictionary extends React.Component {
           <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
             <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={dictionaryStyles.learningBackButton} onPress={() => this.setState({ learning: false })}>
-            <Text style={dictionaryStyles.learningBackButtonText}>Вернуться в словарь</Text>
+          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.setState({ learning: false })}>
+            <Text style={[dictionaryStyles.learningBackButtonText, { color: appThemeStore.colors.text }]}>Вернуться в словарь</Text>
           </TouchableOpacity>
         </ScrollView>
       );
@@ -304,7 +305,7 @@ class Dictionary extends React.Component {
             {this.state.learning_index + 1} из {this.state.learning_questions.length}
           </Text>
         </View>
-        <View style={dictionaryStyles.learningCard}>
+        <View style={[dictionaryStyles.learningCard, { backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border }]}>
           <Text style={dictionaryStyles.learningWord}>{question.word.original}</Text>
           {question.word.transcription != null &&
             <Text style={dictionaryStyles.learningTranscription}>{question.word.transcription}</Text>
@@ -326,9 +327,9 @@ class Dictionary extends React.Component {
             <TouchableOpacity
               key={answer}
               disabled={this.state.learning_answer != null}
-              style={[dictionaryStyles.learningAnswer, answerStyle]}
+              style={[dictionaryStyles.learningAnswer, { backgroundColor: appThemeStore.colors.backgroundLight, borderColor: appThemeStore.colors.border }, answerStyle]}
               onPress={() => this.selectLearningAnswer(answer)}>
-              <Text style={dictionaryStyles.learningAnswerText}>{answer}</Text>
+              <Text style={[dictionaryStyles.learningAnswerText, { color: appThemeStore.colors.text }]}>{answer}</Text>
             </TouchableOpacity>
           );
         })}
@@ -346,7 +347,7 @@ class Dictionary extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={applicationStyles.save_area_view}>
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
@@ -377,8 +378,8 @@ class Dictionary extends React.Component {
                 </Text>
                 <Text style={{ marginTop: 50, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили слово, но оно не отображается, обновите раздел</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15 }}>
-                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: '#ddd', borderRadius: 10 }} onPress={() => this.getWords()}>
-                    <Text style={{ lineHeight: 40, textAlign: 'center' }}>Обновить</Text>
+                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 10 }} onPress={() => this.getWords()}>
+                    <Text style={{ lineHeight: 40, textAlign: 'center', color: appThemeStore.colors.text }}>Обновить</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -404,22 +405,29 @@ class Dictionary extends React.Component {
                     </React.Fragment>
                   }
 
-                  <Text style={{}}>
-                    Сортировать по:
-                  </Text>
-
-
-                  <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
-                    <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
-                      <View style={[dictionaryStyles.button_sorting, this.state.sorting_by == 'date' ? { backgroundColor: '#aaa', borderColor: '#aaa' } : {}]}>
-                        <Text style={[this.state.sorting_by == 'date' ? { color: '#FFF' } : {}, { fontSize: 12, lineHeight: 22 }]}>дате добавления</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <View>
+                      <Text>Сортировать по:</Text>
+                      <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
+                        <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
+                          <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.border }]}>
+                            <Text style={{ color: this.state.sorting_by == 'date' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 22 }}>дате добавления</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => this.set_sorting_by('alphabet')}>
+                          <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'alphabet' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'alphabet' ? app_theme_colors.red : appThemeStore.colors.border, marginLeft: 8 }]}>
+                            <Text style={{ color: this.state.sorting_by == 'alphabet' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 22 }}>по алфавиту</Text>
+                          </View>
+                        </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => this.set_sorting_by('alphabet')}>
-                      <View style={[dictionaryStyles.button_sorting, this.state.sorting_by == 'alphabet' ? { backgroundColor: '#aaa', borderColor: '#aaa' } : {}, { marginLeft: 8 }]}>
-                        <Text style={[this.state.sorting_by == 'alphabet' ? { color: '#FFF' } : {}, { fontSize: 12, lineHeight: 22 }]}>по алфавиту</Text>
-                      </View>
-                    </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                      <Text style={{ fontSize: 12, marginRight: 6 }}>Убрать изученные</Text>
+                      <Switch
+                        value={this.state.hide_studied}
+                        onValueChange={(value) => this.setState({ hide_studied: value })}
+                      />
+                    </View>
                   </View>
                 </View>
 
@@ -433,14 +441,14 @@ class Dictionary extends React.Component {
                   scrollIndicatorInsets={{ right: 1 }}
                   removeClippedSubviews={true}
                   contentContainerStyle={{ paddingBottom: 100 }}
-                  data={this.state.words}
+                  data={this.state.hide_studied ? this.state.words.filter(word => word.studied !== true) : this.state.words}
                   renderItem={(word) => {
                     return (
-                      <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: '#FFF', borderColor: '#eee', borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
-                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : '#eee' }}></View>
+                      <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
+                        <View style={{ height: 4, backgroundColor: word.item.studied === true ? '#75b641' : appThemeStore.colors.backgroundLight }}></View>
                         <View style={{ padding: 8 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontWeight: 'bold', flex: 1 }}>{word.item.original}</Text>
+                            <Text style={{ fontWeight: 'bold', flex: 1, color: appThemeStore.colors.text }}>{word.item.original}</Text>
                             <TouchableOpacity
                               onPress={() => this.toggleWordStudied(word.item)}
                               style={[dictionaryStyles.studiedButton, word.item.studied === true && dictionaryStyles.studiedButtonActive]}
@@ -451,22 +459,24 @@ class Dictionary extends React.Component {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => this.confirmDeleteWord(word.item)}
-                              style={dictionaryStyles.deleteWordButton}
+                              style={[dictionaryStyles.deleteWordButton, { backgroundColor: appThemeStore.colors.backgroundLight }]}
                               accessibilityLabel="Удалить слово">
                               <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
                             </TouchableOpacity>
                           </View>
                           {word.item.transcription != null &&
-                            <Text style={{ color: '#aaa', marginTop: 4 }}>{word.item.transcription}</Text>
+                            <Text style={{ color: appThemeStore.colors.mutedText, marginTop: 4 }}>{word.item.transcription}</Text>
                           }
-                          <Text style={{ marginTop: 4 }}>{word.item.translate}</Text>
+                          <Text style={{ marginTop: 4, color: appThemeStore.colors.text }}>{word.item.translate}</Text>
                           {this.renderWordLearningProgress(word.item)}
                         </View>
                       </View>
                     )
                   }}
                   keyExtractor={(word) => word.original}
-                  ListEmptyComponent={() => <PreviewWords />}
+                  ListEmptyComponent={() => this.state.words.length > 0
+                    ? <Text style={{ padding: 24, textAlign: 'center', color: appThemeStore.colors.mutedText }}>Все слова изучены</Text>
+                    : <PreviewWords />}
                 />
               </View>
             )}
@@ -501,8 +511,8 @@ function PreviewWords() {
 function PreviewWord() {
   return (
     <React.Fragment>
-      <View style={{ margin: 8, height: 50, borderRadius: 4, overflow: 'hidden', backgroundColor: '#eee' }}>
-        <ActivityIndicator style={{ flex: 1 }} size="small" color="#aaa" />
+      <View style={{ margin: 8, height: 50, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.text} />
       </View>
     </React.Fragment>
   );

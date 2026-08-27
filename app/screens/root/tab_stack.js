@@ -10,7 +10,7 @@ class TabStack extends React.Component {
     return (
       <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
-          tabBarActiveTintColor: '#f05458'
+          tabBarActiveTintColor: appThemeStore.colors.text
         })}>
         <Tab.Screen name="books"
           listeners={{
