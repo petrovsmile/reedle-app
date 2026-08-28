@@ -4,7 +4,7 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
 
   return (
       <View style={[homeStyles.downloadsPanel, { backgroundColor: appThemeStore.colors.surface }]}>
-      <Text style={homeStyles.downloadsTitle}>Загрузка книг</Text>
+      <Text style={[homeStyles.downloadsTitle, { color: appThemeStore.colors.text }]}>Загрузка книг</Text>
       {downloads.map((download) =>
         <View key={download.bookId} style={homeStyles.downloadRow}>
           <View style={{ flex: 1 }}>
@@ -92,6 +92,7 @@ const Home = observer(class Home extends React.Component {
 
       var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
       books = JSON.parse(books);
+      appStore.setBooksOrder(books.map(book => book.id));
 
       this.setState({
         books: books,
@@ -103,6 +104,7 @@ const Home = observer(class Home extends React.Component {
           if (server_books.length != books.length) {
             books = server_books;
             await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
+            appStore.setBooksOrder(server_books.map(book => book.id));
 
             this.setState({ books: books }, () => this.filter_books());
           } else {
@@ -312,6 +314,17 @@ const Home = observer(class Home extends React.Component {
     if (this.state.show_only_loaded) {
       visibleBooks = visibleBooks.filter(book => downloadStore.isCompleted(book.id));
     }
+    if (this.state.sort_new_book && appStore.books_order.length > 0) {
+      var bookOrderPositions = {};
+      appStore.books_order.forEach((bookId, index) => { bookOrderPositions[String(bookId)] = index; });
+      visibleBooks = visibleBooks.slice().sort((leftBook, rightBook) => {
+        var leftPosition = bookOrderPositions[String(leftBook.id)];
+        var rightPosition = bookOrderPositions[String(rightBook.id)];
+        if (leftPosition === undefined) leftPosition = Number.MAX_SAFE_INTEGER;
+        if (rightPosition === undefined) rightPosition = Number.MAX_SAFE_INTEGER;
+        return leftPosition - rightPosition;
+      });
+    }
 
     return (
       <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
@@ -374,8 +387,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Не показывать прочитанные книги</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertyShowRead()}
                   value={this.state.not_show_read}
                 />
@@ -388,8 +403,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Ставить вперед открытые книги</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertySortNewBook()}
                   value={this.state.sort_new_book}
                 />
@@ -401,8 +418,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Показать только скачанные</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertyShowOnlyLoaded()}
                   value={this.state.show_only_loaded}
                 />

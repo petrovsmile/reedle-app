@@ -150,13 +150,6 @@ class Auth extends React.Component {
     }
   }
 
-  socialLink(type) {
-    let platform = Platform.OS === 'web' ? "web" : "app"
-    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
-
-    Linking.openURL(link);
-  }
-
   render() {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
@@ -192,17 +185,17 @@ class Auth extends React.Component {
               <Text style={profileStyles.title}>Восстановить пароль</Text>
             }
 
-            <View style={profileStyles.authorization_form_tabs}>
+            <View style={[profileStyles.authorization_form_tabs, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
               <View style={{ flex: 1, flexDirection: 'row' }}>
                 <TouchableOpacity onPress={() => this.changeMethod('login')} style={[
                   profileStyles.authorization_form_tab,
-                  { backgroundColor: appThemeStore.colors.backgroundLight }
+                  { backgroundColor: this.state.method == 'login' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[
                   profileStyles.authorization_form_tab,
-                  { backgroundColor: appThemeStore.colors.backgroundLight }
+                  { backgroundColor: this.state.method == 'reg' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
                 </TouchableOpacity>
@@ -292,13 +285,13 @@ class Auth extends React.Component {
                   Войти через соц. сети
                 </Text>
                 <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('vk')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('vk')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/vk.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('yandex')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('yandex')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/ya.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('google')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('google')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/google.png')} />
                   </TouchableOpacity>
                 </View>

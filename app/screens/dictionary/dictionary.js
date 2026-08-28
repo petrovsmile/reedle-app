@@ -22,6 +22,24 @@ class Dictionary extends React.Component {
   }
 
   async componentDidMount() {
+    this.props.tabs.navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => this.openLearningFromHeader()}
+          style={{
+            height: 32,
+            paddingHorizontal: 12,
+            marginRight: 10,
+            borderRadius: 6,
+            backgroundColor: app_theme_colors.red,
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+          <Text style={{ color: '#FFF', fontSize: 13 }}>Учить слова</Text>
+        </TouchableOpacity>
+      )
+    });
+
     this._unsubFocus = this.props.stack.navigation.addListener('focus', () => {
       this.getWords();
     });
@@ -33,6 +51,24 @@ class Dictionary extends React.Component {
     if (this._unsubFocus) {
       this._unsubFocus();
     }
+  }
+
+  openLearningFromHeader() {
+    if (this.props.root.state.current_user == false) {
+      this.setState({ auth_modal: true, auth_method: 'login' });
+      return;
+    }
+
+    var source = this.state.words.filter(word => word.original && word.translate && word.studied !== true);
+    if (source.length < 10) {
+      AppAlert.alert(
+        'Недостаточно слов',
+        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+      );
+      return;
+    }
+
+    this.props.stack.navigation.navigate('dictionary_learning', { words: this.state.words });
   }
 
   async getWords() {
@@ -269,6 +305,10 @@ class Dictionary extends React.Component {
     }
   }
 
+  closeLearning() {
+    this.setState({ learning: false });
+  }
+
   renderLearning() {
     if (this.state.learning_complete) {
       return (
@@ -285,7 +325,7 @@ class Dictionary extends React.Component {
           <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
             <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.setState({ learning: false })}>
+          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.closeLearning()}>
             <Text style={[dictionaryStyles.learningBackButtonText, { color: appThemeStore.colors.text }]}>Вернуться в словарь</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -297,10 +337,7 @@ class Dictionary extends React.Component {
 
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
-        <View style={dictionaryStyles.learningHeader}>
-          <TouchableOpacity onPress={() => this.setState({ learning: false })}>
-            <Text style={dictionaryStyles.learningClose}>Закрыть</Text>
-          </TouchableOpacity>
+        <View style={[dictionaryStyles.learningHeader, { justifyContent: 'flex-end' }]}>
           <Text style={dictionaryStyles.learningProgress}>
             {this.state.learning_index + 1} из {this.state.learning_questions.length}
           </Text>
@@ -329,7 +366,7 @@ class Dictionary extends React.Component {
               disabled={this.state.learning_answer != null}
               style={[dictionaryStyles.learningAnswer, { backgroundColor: appThemeStore.colors.backgroundLight, borderColor: appThemeStore.colors.border }, answerStyle]}
               onPress={() => this.selectLearningAnswer(answer)}>
-              <Text style={[dictionaryStyles.learningAnswerText, { color: appThemeStore.colors.text }]}>{answer}</Text>
+              <Text style={[dictionaryStyles.learningAnswerText, { color: answerStyle ? '#000' : appThemeStore.colors.text }]}>{answer}</Text>
             </TouchableOpacity>
           );
         })}
@@ -388,10 +425,6 @@ class Dictionary extends React.Component {
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
 
-                  <TouchableOpacity style={dictionaryStyles.learningStartButton} onPress={() => this.startLearning()}>
-                    <Text style={dictionaryStyles.learningPrimaryButtonText}>Учить слова</Text>
-                  </TouchableOpacity>
-
                   {this.props.root.state.has_subscription == false &&
                     <React.Fragment>
                       <Text>Вы использовали {this.state.words.length} из 30 слов</Text>
@@ -421,9 +454,17 @@ class Dictionary extends React.Component {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                      <Text style={{ fontSize: 12, marginRight: 6 }}>Убрать изученные</Text>
+                    <View style={{ height: 24, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 12, marginRight: 6 }}>Скрыть изученные</Text>
                       <Switch
+                        style={{ transform: [{ scale: 0.75 }] }}
+                        trackColor={{
+                          false: appThemeStore.colors.backgroundLight,
+                          true: app_theme_colors.red
+                        }}
+                        thumbColor="#aaa"
+                        activeThumbColor="#aaa"
+                        ios_backgroundColor={appThemeStore.colors.backgroundLight}
                         value={this.state.hide_studied}
                         onValueChange={(value) => this.setState({ hide_studied: value })}
                       />
@@ -459,7 +500,7 @@ class Dictionary extends React.Component {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => this.confirmDeleteWord(word.item)}
-                              style={[dictionaryStyles.deleteWordButton, { backgroundColor: appThemeStore.colors.backgroundLight }]}
+                              style={dictionaryStyles.deleteWordButton}
                               accessibilityLabel="Удалить слово">
                               <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
                             </TouchableOpacity>
@@ -485,6 +526,25 @@ class Dictionary extends React.Component {
       </SafeAreaView>
 
     )
+  }
+}
+
+class DictionaryLearning extends Dictionary {
+  componentDidMount() {
+    var words = this.props.stack.route.params.words || [];
+    this.setState({ words: words }, () => this.startLearning());
+  }
+
+  closeLearning() {
+    this.props.stack.navigation.goBack();
+  }
+
+  render() {
+    return (
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+        {this.renderLearning()}
+      </SafeAreaView>
+    );
   }
 }
 

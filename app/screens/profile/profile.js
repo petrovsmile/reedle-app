@@ -98,13 +98,6 @@ class ProfileDetails extends React.Component {
     };
   }
 
-  socialLink(type) {
-    let platform = Platform.OS === 'web' ? "web" : "app"
-    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
-
-    Linking.openURL(link);
-  }
-
   async disconnectSocial(type) {
     if (this.state.social_loader) return;
 
@@ -123,14 +116,18 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.socialLink(type);
+      this.props.root.oauthAuthorization.authorize(type);
     }
   }
 
   renderSocialRow(type, title, color, image, connected, last) {
     return (
       <TouchableOpacity
-        style={[profileStyles.social_row, last && profileStyles.social_row_last]}
+        style={[
+          profileStyles.social_row,
+          { borderBottomColor: appThemeStore.colors.border },
+          last && profileStyles.social_row_last,
+        ]}
         disabled={this.state.social_loader != false}
         onPress={() => this.socialAction(type, connected)}>
         <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
@@ -172,7 +169,7 @@ class ProfileDetails extends React.Component {
 
           <Text style={[profileStyles.social_title, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
           <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
-          <View style={profileStyles.social_list}>
+          <View style={[profileStyles.social_list, { borderColor: appThemeStore.colors.border }]}>
             {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
             {this.renderSocialRow('yandex', 'Яндекс', '#f9d657', require('./app/images/profile/auth/socials/ya.png'), current_user.yandex_connected)}
             {this.renderSocialRow('google', 'Google', '#df432f', require('./app/images/profile/auth/socials/google.png'), current_user.google_connected, true)}

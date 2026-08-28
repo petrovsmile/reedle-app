@@ -286,23 +286,23 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {appStore.has_subscription == true &&
               <React.Fragment>
-                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
+                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: appThemeStore.colors.backgroundLight, padding: 10 }}>
                   {appStore.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         У вас активирован
                       </Text>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         вечный PRO-доступ
                       </Text>
                     </React.Fragment>
                   ) : (
                     <React.Fragment>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         Ваш PRO-доступ активен до:
                       </Text>
                       <View style={{ marginTop: 5 }}>
-                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: subscriptionTextColor('#f05458') }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: appThemeStore.colors.text }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
                       </View>
                     </React.Fragment>
                   )}

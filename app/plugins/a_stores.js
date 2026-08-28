@@ -6,6 +6,7 @@ class AppStore {
   current_user = false;
   confirm_conditions = true;
   books_percents = {};
+  books_order = [];
   error_show = false;
   error_title = '';
   error_description = '';
@@ -23,6 +24,7 @@ class AppStore {
   setCurrentUser(user) { this.current_user = user; }
   setConfirmConditions(value) { this.confirm_conditions = value; }
   setBooksPercents(percents) { this.books_percents = percents; }
+  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
   setTypePayment(value) { this.type_payment = value; }
   setShowSubscription(value) { this.show_subsription = value; }
 
@@ -58,8 +60,6 @@ class ReaderStore {
   secondColorTheme = '#bbb';
   bookmark = false;
   page = '';
-  ttsVoice = false;
-  ttsVoiceApplied = false; // true, если текущий ttsVoice уже применён в Tts engine
   list_words = null;
   currentSpeaking = null;
 
@@ -82,8 +82,6 @@ class ReaderStore {
 
   setBookmark(value) { this.bookmark = value; }
   setPage(value) { this.page = value; }
-  setTtsVoice(value) { this.ttsVoice = value; this.ttsVoiceApplied = false; }
-  setTtsVoiceApplied(value) { this.ttsVoiceApplied = value; }
   setCurrentSpeaking(value) { this.currentSpeaking = value; }
   setListWords(words) { this.list_words = words; }
   clearListWords() { this.list_words = null; }

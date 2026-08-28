@@ -48,8 +48,8 @@ class UpdateProfile extends React.Component {
       <React.Fragment>
         {this.state.success == true ? (
           <React.Fragment>
-            <View style={profileStyles.thanks_form}>
-              <Text style={profileStyles.thanks_form_title}>
+            <View style={[profileStyles.thanks_form, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+              <Text style={[profileStyles.thanks_form_title, { color: appThemeStore.colors.text }]}>
                 Информация успешно обновлена
               </Text>
               <View style={profileStyles.thanks_form_button_parent}>

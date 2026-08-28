@@ -1,11 +1,13 @@
-const CACHE_NAME = 'reedle-pwa-v1';
+const CACHE_NAME = 'reedle-pwa-__BUILD_HASH__';
 const APP_SHELL = [
   '/app/',
   '/app/index.html',
-  '/app/bundle.js',
   '/app/manifest.webmanifest',
   '/app/icons/icon-192.png',
   '/app/icons/icon-512.png',
+  '/app/fonts/fonts.css',
+  '/app/fonts/libre-baskerville-400-latin.woff2',
+  '/app/fonts/libre-baskerville-400-latin-ext.woff2',
 ];
 
 self.addEventListener('install', (event) => {

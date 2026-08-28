@@ -26,10 +26,7 @@ class Bookmark extends React.Component {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => this.props.deleteBookmark()}
-          style={[
-            bookmarksStyles.deleteButton,
-            { backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5 }
-          ]}
+          style={bookmarksStyles.deleteButton}
           accessibilityLabel="Удалить закладку">
           <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>

@@ -3,6 +3,12 @@ class TabStack extends React.Component {
     super(props);
   }
 
+  setWebDocumentTitle(title) {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = title;
+    }
+  }
+
   render() {
     const Tab = createBottomTabNavigator();
 
@@ -14,6 +20,7 @@ class TabStack extends React.Component {
         })}>
         <Tab.Screen name="books"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Книги'),
             tabPress: () => {
               if (this.homeRef) this.homeRef.getBooks();
             }
@@ -40,6 +47,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="bookmarks"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Закладки'),
             tabPress: () => {
               if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
             }
@@ -54,6 +62,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="dictionary"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Словарь'),
             tabPress: () => {
               if (this.dictionaryRef) this.dictionaryRef.getWords();
             }
@@ -68,6 +77,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="blog"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Блог'),
             tabPress: () => {
               if (this.blogRef) this.blogRef.loadArticles(1);
             }
@@ -81,6 +91,9 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
+          listeners={{
+            focus: () => this.setWebDocumentTitle('Профиль'),
+          }}
           options={({ route }) => ({
             tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
             title: 'Аккаунт',

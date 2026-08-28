@@ -55,15 +55,24 @@ class ProfileSettings extends React.Component {
 
   render() {
     if (!this.state.loaded) return <ActivityIndicator style={{ flex: 1 }} color={appThemeStore.colors.mutedText} />;
+    var previewParagraphs = [
+      'It is only with the heart that one can see rightly; what is essential is invisible to the eye.',
+      'The morning was quiet, and a pale golden light stretched across the fields. A small bird landed nearby and listened to the wind.',
+      'He opened the old book and continued reading. Every page carried him farther from the room and closer to a new adventure.',
+      'When evening came, the stars appeared one by one. Their soft light reminded him that even a long journey begins with a single step.',
+      'The road continued beyond the hill, turning gently toward the distant town. He smiled and walked on without looking back.'
+    ];
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 15, paddingBottom: 60 }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Пример отображения</Text>
-          <View style={{ minHeight: 420, position: 'relative', padding: 20, paddingRight: 242, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
+          <View style={{ minHeight: 620, position: 'relative', padding: 20, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
             <Text style={{ fontSize: 24, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, marginBottom: 18 }}>The Little Prince</Text>
-            <Text style={{ fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
-              It is only with the heart that one can see rightly; what is essential is invisible to the eye.
-            </Text>
+            {previewParagraphs.map((paragraph, index) =>
+              <Text key={index} style={{ marginBottom: 16, fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
+                {paragraph}
+              </Text>
+            )}
 
             <View style={{ position: 'absolute', right: 10, top: 10, width: 212, zIndex: 5 }}>
               <ReaderSettingsPanel

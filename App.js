@@ -76,7 +76,6 @@ import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
-import Speech from '@mhpdev/react-native-speech';
 import {
   AlignCenter as AlignCenterIcon,
   AlignJustify as AlignJustifyIcon,
@@ -223,7 +222,14 @@ const TextInput = observer(React.forwardRef(function ThemedTextInput(props, ref)
       {...props}
       ref={ref}
       placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
-      style={[{ color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface }, props.style]}
+      style={[
+        { color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface },
+        props.style,
+        {
+          borderColor: appThemeStore.colors.border,
+          ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
+        }
+      ]}
     />
   );
 }));
@@ -318,17 +324,6 @@ class AppAlertModal extends React.Component {
 }
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
-
-setTimeout(async () => {
-  try {
-    await Speech.setEngine('com.google.android.tts');
-    console.log('Google TTS engine activated');
-  } catch (err) {
-    console.warn('Google TTS not available, using default engine', err);
-  }
-  // Выбор голоса по умолчанию выполняется в одном месте — в reader.js
-  // (функция pickDefaultVoice), чтобы логика не дублировалась.
-}, 1000);
 
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
@@ -426,18 +421,14 @@ const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416
 //   AsyncStorage.setItem('time_short_ad', moment().format());
 // });
 
-const CURRENT_IOS_VERSION = '1.4.0'
-const CURRENT_ANDROID_VERSION = '1.4.0'
+const CURRENT_IOS_VERSION = '2.0.0'
+const CURRENT_ANDROID_VERSION = '2.0.0'
 const BOOKS_FILENAME = 'books_v1.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
 const HOST="https://stage.reedle.ru"
 //const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
-
-// Feature flags
-// Перевод предложений — временно отключён в приложении, доступен только на сайте
-const FEATURE_SENTENCE_TRANSLATE = false;
 
 const app_theme_colors = {
   background: "#FFF",
@@ -1352,6 +1343,7 @@ class AppStore {
   current_user = false;
   confirm_conditions = true;
   books_percents = {};
+  books_order = [];
   error_show = false;
   error_title = '';
   error_description = '';
@@ -1369,6 +1361,7 @@ class AppStore {
   setCurrentUser(user) { this.current_user = user; }
   setConfirmConditions(value) { this.confirm_conditions = value; }
   setBooksPercents(percents) { this.books_percents = percents; }
+  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
   setTypePayment(value) { this.type_payment = value; }
   setShowSubscription(value) { this.show_subsription = value; }
 
@@ -1404,8 +1397,6 @@ class ReaderStore {
   secondColorTheme = '#bbb';
   bookmark = false;
   page = '';
-  ttsVoice = false;
-  ttsVoiceApplied = false; // true, если текущий ttsVoice уже применён в Tts engine
   list_words = null;
   currentSpeaking = null;
 
@@ -1428,8 +1419,6 @@ class ReaderStore {
 
   setBookmark(value) { this.bookmark = value; }
   setPage(value) { this.page = value; }
-  setTtsVoice(value) { this.ttsVoice = value; this.ttsVoiceApplied = false; }
-  setTtsVoiceApplied(value) { this.ttsVoiceApplied = value; }
   setCurrentSpeaking(value) { this.currentSpeaking = value; }
   setListWords(words) { this.list_words = words; }
   clearListWords() { this.list_words = null; }
@@ -1528,6 +1517,148 @@ class HomeStore {
   setOpenProperty(value) { this.open_property = value; }
 }
 const homeStore = new HomeStore();
+
+class OAuthAuthorization {
+  constructor(root) {
+    this.root = root;
+    this.webAttempt = 0;
+  }
+
+  async authorize(type) {
+    var platform = Platform.OS === 'web' ? 'pwa' : 'app';
+    var link = HOST + '/oauth_redirect/' + type + '/' + platform;
+
+    this.open();
+
+    if (Platform.OS === 'web') {
+      await this.startWeb(type);
+      return;
+    }
+
+    await Linking.openURL(link);
+  }
+
+  open() {
+    this.root.setState({
+      oauth_modal_show: true,
+      oauth_manual_token: '',
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
+    });
+  }
+
+  close() {
+    this.cancel();
+    this.root.setState({
+      oauth_modal_show: false,
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
+    });
+  }
+
+  cancel() {
+    this.webAttempt += 1;
+  }
+
+  async authorizeByManualToken() {
+    var token = String(this.root.state.oauth_manual_token || '').trim();
+    if (!token || this.root.state.oauth_manual_loading) return;
+
+    this.root.setState({ oauth_manual_loading: true, oauth_manual_error: false });
+    var user = await new Request('/api/v1/users/by_oauth_token', {
+      token: token,
+    }, {
+      do_not_show_error: true,
+    }).get();
+
+    if (!user || user.error != undefined) {
+      this.root.setState({
+        oauth_manual_loading: false,
+        oauth_manual_error: 'Не удалось подтвердить токен. Проверьте его и попробуйте ещё раз.',
+      });
+      return;
+    }
+
+    this.cancel();
+    await this.setCurrentUser(user);
+  }
+
+  async startWeb(type) {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    var attempt = ++this.webAttempt;
+    var oauthWindow = window.open('', '_blank');
+    var oauthResponse = await new Request('/oauth_redirect/' + type + '/pwa', {}, {
+      do_not_show_error: true,
+    }).get();
+
+    if (attempt != this.webAttempt) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    if (!oauthResponse || oauthResponse.error != undefined || !oauthResponse.redirect_url || !oauthResponse.session_token) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    if (oauthWindow) {
+      oauthWindow.location.href = oauthResponse.redirect_url;
+    } else {
+      window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
+    }
+
+    var expiresAt = Date.now() + 5 * 60 * 1000;
+
+    while (attempt == this.webAttempt && Date.now() < expiresAt) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
+
+      var user = await new Request('/api/v1/users/by_oauth_token', {
+        token: oauthResponse.session_token,
+      }, {
+        do_not_show_error: true,
+      }).get();
+
+      if (!user || user.error != undefined) continue;
+
+      this.cancel();
+      await this.setCurrentUser(user);
+      return;
+    }
+  }
+
+  async handleURL(url) {
+    if (!url || !url.includes('token=')) return;
+
+    var tokenPart = url.split('token=')[1];
+    if (!tokenPart) return;
+    var token = tokenPart.split('/')[0].split('&')[0];
+
+    var user = await new Request('/api/v1/users/by_oauth_token', {
+      token: token,
+    }).get();
+
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user);
+  }
+
+  async loadPwaUser() {
+    var user = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user, false);
+  }
+
+  async setCurrentUser(user, closeModal = true) {
+    appStore.setCurrentUser(user);
+    this.root.setState({
+      current_user: user,
+      ...(closeModal ? { oauth_modal_show: false, oauth_manual_loading: false } : {}),
+    });
+    await new Storage().set('current_user', JSON.stringify(user));
+    this.root.checkSubscription();
+  }
+}
 
 class Request {
   constructor(url, params, options) {
@@ -2105,10 +2236,7 @@ class Bookmark extends React.Component {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => this.props.deleteBookmark()}
-          style={[
-            bookmarksStyles.deleteButton,
-            { backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5 }
-          ]}
+          style={bookmarksStyles.deleteButton}
           accessibilityLabel="Удалить закладку">
           <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
         </TouchableOpacity>
@@ -2373,6 +2501,24 @@ class Dictionary extends React.Component {
   }
 
   async componentDidMount() {
+    this.props.tabs.navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => this.openLearningFromHeader()}
+          style={{
+            height: 32,
+            paddingHorizontal: 12,
+            marginRight: 10,
+            borderRadius: 6,
+            backgroundColor: app_theme_colors.red,
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+          <Text style={{ color: '#FFF', fontSize: 13 }}>Учить слова</Text>
+        </TouchableOpacity>
+      )
+    });
+
     this._unsubFocus = this.props.stack.navigation.addListener('focus', () => {
       this.getWords();
     });
@@ -2384,6 +2530,24 @@ class Dictionary extends React.Component {
     if (this._unsubFocus) {
       this._unsubFocus();
     }
+  }
+
+  openLearningFromHeader() {
+    if (this.props.root.state.current_user == false) {
+      this.setState({ auth_modal: true, auth_method: 'login' });
+      return;
+    }
+
+    var source = this.state.words.filter(word => word.original && word.translate && word.studied !== true);
+    if (source.length < 10) {
+      AppAlert.alert(
+        'Недостаточно слов',
+        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+      );
+      return;
+    }
+
+    this.props.stack.navigation.navigate('dictionary_learning', { words: this.state.words });
   }
 
   async getWords() {
@@ -2620,6 +2784,10 @@ class Dictionary extends React.Component {
     }
   }
 
+  closeLearning() {
+    this.setState({ learning: false });
+  }
+
   renderLearning() {
     if (this.state.learning_complete) {
       return (
@@ -2636,7 +2804,7 @@ class Dictionary extends React.Component {
           <TouchableOpacity style={dictionaryStyles.learningSecondaryButton} onPress={() => this.startLearning()}>
             <Text style={dictionaryStyles.learningSecondaryButtonText}>Новый тест</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.setState({ learning: false })}>
+          <TouchableOpacity style={[dictionaryStyles.learningBackButton, { backgroundColor: appThemeStore.colors.backgroundLight }]} onPress={() => this.closeLearning()}>
             <Text style={[dictionaryStyles.learningBackButtonText, { color: appThemeStore.colors.text }]}>Вернуться в словарь</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -2648,10 +2816,7 @@ class Dictionary extends React.Component {
 
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={dictionaryStyles.learningContainer}>
-        <View style={dictionaryStyles.learningHeader}>
-          <TouchableOpacity onPress={() => this.setState({ learning: false })}>
-            <Text style={dictionaryStyles.learningClose}>Закрыть</Text>
-          </TouchableOpacity>
+        <View style={[dictionaryStyles.learningHeader, { justifyContent: 'flex-end' }]}>
           <Text style={dictionaryStyles.learningProgress}>
             {this.state.learning_index + 1} из {this.state.learning_questions.length}
           </Text>
@@ -2680,7 +2845,7 @@ class Dictionary extends React.Component {
               disabled={this.state.learning_answer != null}
               style={[dictionaryStyles.learningAnswer, { backgroundColor: appThemeStore.colors.backgroundLight, borderColor: appThemeStore.colors.border }, answerStyle]}
               onPress={() => this.selectLearningAnswer(answer)}>
-              <Text style={[dictionaryStyles.learningAnswerText, { color: appThemeStore.colors.text }]}>{answer}</Text>
+              <Text style={[dictionaryStyles.learningAnswerText, { color: answerStyle ? '#000' : appThemeStore.colors.text }]}>{answer}</Text>
             </TouchableOpacity>
           );
         })}
@@ -2739,10 +2904,6 @@ class Dictionary extends React.Component {
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
 
-                  <TouchableOpacity style={dictionaryStyles.learningStartButton} onPress={() => this.startLearning()}>
-                    <Text style={dictionaryStyles.learningPrimaryButtonText}>Учить слова</Text>
-                  </TouchableOpacity>
-
                   {this.props.root.state.has_subscription == false &&
                     <React.Fragment>
                       <Text>Вы использовали {this.state.words.length} из 30 слов</Text>
@@ -2772,9 +2933,17 @@ class Dictionary extends React.Component {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                      <Text style={{ fontSize: 12, marginRight: 6 }}>Убрать изученные</Text>
+                    <View style={{ height: 24, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 12, marginRight: 6 }}>Скрыть изученные</Text>
                       <Switch
+                        style={{ transform: [{ scale: 0.75 }] }}
+                        trackColor={{
+                          false: appThemeStore.colors.backgroundLight,
+                          true: app_theme_colors.red
+                        }}
+                        thumbColor="#aaa"
+                        activeThumbColor="#aaa"
+                        ios_backgroundColor={appThemeStore.colors.backgroundLight}
                         value={this.state.hide_studied}
                         onValueChange={(value) => this.setState({ hide_studied: value })}
                       />
@@ -2810,7 +2979,7 @@ class Dictionary extends React.Component {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => this.confirmDeleteWord(word.item)}
-                              style={[dictionaryStyles.deleteWordButton, { backgroundColor: appThemeStore.colors.backgroundLight }]}
+                              style={dictionaryStyles.deleteWordButton}
                               accessibilityLabel="Удалить слово">
                               <AppIcon icon={TrashIcon} size={16} color={app_theme_colors.red} />
                             </TouchableOpacity>
@@ -2836,6 +3005,25 @@ class Dictionary extends React.Component {
       </SafeAreaView>
 
     )
+  }
+}
+
+class DictionaryLearning extends Dictionary {
+  componentDidMount() {
+    var words = this.props.stack.route.params.words || [];
+    this.setState({ words: words }, () => this.startLearning());
+  }
+
+  closeLearning() {
+    this.props.stack.navigation.goBack();
+  }
+
+  render() {
+    return (
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+        {this.renderLearning()}
+      </SafeAreaView>
+    );
   }
 }
 
@@ -2960,7 +3148,7 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
 
   return (
       <View style={[homeStyles.downloadsPanel, { backgroundColor: appThemeStore.colors.surface }]}>
-      <Text style={homeStyles.downloadsTitle}>Загрузка книг</Text>
+      <Text style={[homeStyles.downloadsTitle, { color: appThemeStore.colors.text }]}>Загрузка книг</Text>
       {downloads.map((download) =>
         <View key={download.bookId} style={homeStyles.downloadRow}>
           <View style={{ flex: 1 }}>
@@ -3048,6 +3236,7 @@ const Home = observer(class Home extends React.Component {
 
       var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
       books = JSON.parse(books);
+      appStore.setBooksOrder(books.map(book => book.id));
 
       this.setState({
         books: books,
@@ -3059,6 +3248,7 @@ const Home = observer(class Home extends React.Component {
           if (server_books.length != books.length) {
             books = server_books;
             await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
+            appStore.setBooksOrder(server_books.map(book => book.id));
 
             this.setState({ books: books }, () => this.filter_books());
           } else {
@@ -3268,6 +3458,17 @@ const Home = observer(class Home extends React.Component {
     if (this.state.show_only_loaded) {
       visibleBooks = visibleBooks.filter(book => downloadStore.isCompleted(book.id));
     }
+    if (this.state.sort_new_book && appStore.books_order.length > 0) {
+      var bookOrderPositions = {};
+      appStore.books_order.forEach((bookId, index) => { bookOrderPositions[String(bookId)] = index; });
+      visibleBooks = visibleBooks.slice().sort((leftBook, rightBook) => {
+        var leftPosition = bookOrderPositions[String(leftBook.id)];
+        var rightPosition = bookOrderPositions[String(rightBook.id)];
+        if (leftPosition === undefined) leftPosition = Number.MAX_SAFE_INTEGER;
+        if (rightPosition === undefined) rightPosition = Number.MAX_SAFE_INTEGER;
+        return leftPosition - rightPosition;
+      });
+    }
 
     return (
       <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
@@ -3330,8 +3531,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Не показывать прочитанные книги</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertyShowRead()}
                   value={this.state.not_show_read}
                 />
@@ -3344,8 +3547,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Ставить вперед открытые книги</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertySortNewBook()}
                   value={this.state.sort_new_book}
                 />
@@ -3357,8 +3562,10 @@ const Home = observer(class Home extends React.Component {
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Показать только скачанные</Text>
 
                 <Switch
-                  trackColor={{ false: "#eee", true: "#407cfd" }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
                   onValueChange={() => this.setPropertyShowOnlyLoaded()}
                   value={this.state.show_only_loaded}
                 />
@@ -3622,8 +3829,8 @@ class UpdateProfile extends React.Component {
       <React.Fragment>
         {this.state.success == true ? (
           <React.Fragment>
-            <View style={profileStyles.thanks_form}>
-              <Text style={profileStyles.thanks_form_title}>
+            <View style={[profileStyles.thanks_form, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+              <Text style={[profileStyles.thanks_form_title, { color: appThemeStore.colors.text }]}>
                 Информация успешно обновлена
               </Text>
               <View style={profileStyles.thanks_form_button_parent}>
@@ -3817,13 +4024,6 @@ class Auth extends React.Component {
     }
   }
 
-  socialLink(type) {
-    let platform = Platform.OS === 'web' ? "web" : "app"
-    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
-
-    Linking.openURL(link);
-  }
-
   render() {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
@@ -3859,17 +4059,17 @@ class Auth extends React.Component {
               <Text style={profileStyles.title}>Восстановить пароль</Text>
             }
 
-            <View style={profileStyles.authorization_form_tabs}>
+            <View style={[profileStyles.authorization_form_tabs, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
               <View style={{ flex: 1, flexDirection: 'row' }}>
                 <TouchableOpacity onPress={() => this.changeMethod('login')} style={[
                   profileStyles.authorization_form_tab,
-                  { backgroundColor: appThemeStore.colors.backgroundLight }
+                  { backgroundColor: this.state.method == 'login' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[
                   profileStyles.authorization_form_tab,
-                  { backgroundColor: appThemeStore.colors.backgroundLight }
+                  { backgroundColor: this.state.method == 'reg' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
                 ]}>
                   <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
                 </TouchableOpacity>
@@ -3959,13 +4159,13 @@ class Auth extends React.Component {
                   Войти через соц. сети
                 </Text>
                 <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('vk')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('vk')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/vk.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('yandex')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('yandex')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/ya.png')} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => this.socialLink('google')}>
+                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('google')}>
                     <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/google.png')} />
                   </TouchableOpacity>
                 </View>
@@ -4081,13 +4281,6 @@ class ProfileDetails extends React.Component {
     };
   }
 
-  socialLink(type) {
-    let platform = Platform.OS === 'web' ? "web" : "app"
-    let link = HOST + `/oauth_redirect/${type}?platform=${platform}`
-
-    Linking.openURL(link);
-  }
-
   async disconnectSocial(type) {
     if (this.state.social_loader) return;
 
@@ -4106,14 +4299,18 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.socialLink(type);
+      this.props.root.oauthAuthorization.authorize(type);
     }
   }
 
   renderSocialRow(type, title, color, image, connected, last) {
     return (
       <TouchableOpacity
-        style={[profileStyles.social_row, last && profileStyles.social_row_last]}
+        style={[
+          profileStyles.social_row,
+          { borderBottomColor: appThemeStore.colors.border },
+          last && profileStyles.social_row_last,
+        ]}
         disabled={this.state.social_loader != false}
         onPress={() => this.socialAction(type, connected)}>
         <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
@@ -4155,7 +4352,7 @@ class ProfileDetails extends React.Component {
 
           <Text style={[profileStyles.social_title, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
           <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
-          <View style={profileStyles.social_list}>
+          <View style={[profileStyles.social_list, { borderColor: appThemeStore.colors.border }]}>
             {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
             {this.renderSocialRow('yandex', 'Яндекс', '#f9d657', require('./app/images/profile/auth/socials/ya.png'), current_user.yandex_connected)}
             {this.renderSocialRow('google', 'Google', '#df432f', require('./app/images/profile/auth/socials/google.png'), current_user.google_connected, true)}
@@ -4286,15 +4483,24 @@ class ProfileSettings extends React.Component {
 
   render() {
     if (!this.state.loaded) return <ActivityIndicator style={{ flex: 1 }} color={appThemeStore.colors.mutedText} />;
+    var previewParagraphs = [
+      'It is only with the heart that one can see rightly; what is essential is invisible to the eye.',
+      'The morning was quiet, and a pale golden light stretched across the fields. A small bird landed nearby and listened to the wind.',
+      'He opened the old book and continued reading. Every page carried him farther from the room and closer to a new adventure.',
+      'When evening came, the stars appeared one by one. Their soft light reminded him that even a long journey begins with a single step.',
+      'The road continued beyond the hill, turning gently toward the distant town. He smiled and walked on without looking back.'
+    ];
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 15, paddingBottom: 60 }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Пример отображения</Text>
-          <View style={{ minHeight: 420, position: 'relative', padding: 20, paddingRight: 242, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
+          <View style={{ minHeight: 620, position: 'relative', padding: 20, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
             <Text style={{ fontSize: 24, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, marginBottom: 18 }}>The Little Prince</Text>
-            <Text style={{ fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
-              It is only with the heart that one can see rightly; what is essential is invisible to the eye.
-            </Text>
+            {previewParagraphs.map((paragraph, index) =>
+              <Text key={index} style={{ marginBottom: 16, fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
+                {paragraph}
+              </Text>
+            )}
 
             <View style={{ position: 'absolute', right: 10, top: 10, width: 212, zIndex: 5 }}>
               <ReaderSettingsPanel
@@ -4934,6 +5140,10 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 });
 
+var currentSentenceSound = null;
+var currentSentenceSoundKey = null;
+var currentSentenceSoundOwner = null;
+
 const Paragraph = observer(class Paragraph extends React.Component {
   constructor(props) {
     super(props);
@@ -4974,42 +5184,71 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   speakSentence(sentence, sentenceIndex) {
-    var text = (sentence['b'] || []).map(function (b) { return b['v'] || ''; }).join('');
-    if (!text || !text.trim()) return;
+    var soundKey = this.props.book_id + '_' + this.props.data['name'] + '_' + sentenceIndex;
 
     // Если нажали на уже играющее предложение — остановить
-    if (this.isSpeaking(sentenceIndex)) {
-      Speech.stop();
+    if (currentSentenceSoundKey === soundKey && currentSentenceSound) {
+      currentSentenceSound.release();
+      currentSentenceSound = null;
+      currentSentenceSoundKey = null;
+      currentSentenceSoundOwner = null;
       readerStore.setCurrentSpeaking(null);
       this.stopPulseAnimation();
       return;
     }
 
-    // Остановить текущую озвучку и запустить новую.
-    Speech.stop();
+    // Как на сайте: одновременно воспроизводится только один готовый аудиофайл.
+    if (currentSentenceSound) {
+      currentSentenceSound.release();
+      if (currentSentenceSoundOwner) currentSentenceSoundOwner.stopPulseAnimation();
+    }
+    currentSentenceSound = null;
+    currentSentenceSoundKey = null;
+    currentSentenceSoundOwner = null;
+
     readerStore.setCurrentSpeaking({ p: this.props.data['name'], i: sentenceIndex });
     this.startPulseAnimation();
 
-    var applyAndSpeak = function () {
-      try { Speech.speak(text.trim()); } catch (e) {}
-    };
+    var url = HOST + '/voiceover_books/' + this.props.book_id + '/' + this.props.data['name'] + '/' + sentenceIndex + '.mp3';
+    var sound = new Sound(url, '', error => {
+      if (currentSentenceSound !== sound) {
+        sound.release();
+        return;
+      }
 
-    // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
-    if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
-      try {
-        Speech.configure({ voice: readerStore.ttsVoice });
-        readerStore.setTtsVoiceApplied(true);
-      } catch (e) {}
-      applyAndSpeak();
-    } else {
-      applyAndSpeak();
-    }
+      if (error || sound.getDuration() <= 0) {
+        appStore.showError('Озвучка не найдена');
+        sound.release();
+        currentSentenceSound = null;
+        currentSentenceSoundKey = null;
+        currentSentenceSoundOwner = null;
+        readerStore.setCurrentSpeaking(null);
+        this.stopPulseAnimation();
+        return;
+      }
+
+      sound.setVolume(1);
+      sound.play(success => {
+        if (!success) appStore.showError('Ошибка воспроизведения');
+        if (currentSentenceSound === sound) {
+          sound.release();
+          currentSentenceSound = null;
+          currentSentenceSoundKey = null;
+          currentSentenceSoundOwner = null;
+          readerStore.setCurrentSpeaking(null);
+          this.stopPulseAnimation();
+        } else {
+          sound.release();
+        }
+      });
+    });
+
+    currentSentenceSound = sound;
+    currentSentenceSoundKey = soundKey;
+    currentSentenceSoundOwner = this;
   }
 
   async componentDidMount() {
-    this._ttsFinish = Speech.onFinish(() => {
-      readerStore.setCurrentSpeaking(null);
-    });
     var paragraph_translate = [];
     for (const s in this.props.data['sentences']) {
       paragraph_translate.push(this.props.data['sentences'][s]['tr']);
@@ -5022,7 +5261,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   componentWillUnmount() {
-    if (this._ttsFinish) this._ttsFinish.remove();
+    if (currentSentenceSoundOwner === this && currentSentenceSound) {
+      currentSentenceSound.release();
+      currentSentenceSound = null;
+      currentSentenceSoundKey = null;
+      currentSentenceSoundOwner = null;
+      readerStore.setCurrentSpeaking(null);
+    }
   }
 
   async addBookmark() {
@@ -5152,7 +5397,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
             <View style={readerScreenStyles.sentenceIndent}></View>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {FEATURE_SENTENCE_TRANSLATE && (appStore.has_internet ? (
+                {appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
@@ -5162,7 +5407,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
-                ))}
+                )}
                 {sentence['b'].map((block, index) => {
 
                   var past_value = "";
@@ -5248,21 +5493,23 @@ class ReaderSettingsPanel extends React.Component {
     return (
       <View style={{ width: '100%', maxWidth: this.props.maxWidth || 212, alignSelf: 'center', borderRadius: 10, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
-          <TouchableOpacity
-            disabled={this.props.fontSize <= 14}
-            onPress={() => this.props.changeFontSize('less')}
-            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
-            <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
-          </TouchableOpacity>
-          <View style={{ minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor }}>
-            <Text style={{ fontSize: 14, color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+          <View style={{ flex: 2, minHeight: 50, flexDirection: 'row', position: 'relative', borderRightWidth: 1, borderRightColor: borderColor }}>
+            <TouchableOpacity
+              disabled={this.props.fontSize <= 14}
+              onPress={() => this.props.changeFontSize('less')}
+              style={{ flex: 1, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+              <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              disabled={this.props.fontSize >= 24}
+              onPress={() => this.props.changeFontSize('more')}
+              style={{ flex: 1, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
+              <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
+            </TouchableOpacity>
+            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: 12.5, marginLeft: -15, width: 30, height: 25, zIndex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 5, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: this.props.backgroundColorTheme }}>
+              <Text style={{ fontSize: 13, lineHeight: 23, textAlign: 'center', color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            disabled={this.props.fontSize >= 24}
-            onPress={() => this.props.changeFontSize('more')}
-            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
-            <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => this.props.textAlignChange()} style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
             {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} color={appThemeStore.colors.text} />}
             {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} color={appThemeStore.colors.text} />}
@@ -5317,59 +5564,6 @@ class ReaderSettings extends React.Component {
 
 var scroll_percent = 0;
 
-// ============================================================
-// Единая точка выбора голоса озвучки по умолчанию.
-// Приоритет: английский → онлайн → мужской.
-// Используется ТОЛЬКО здесь — в reader.js при первом запуске,
-// когда в Storage ещё нет сохранённого ttsVoice.
-// ============================================================
-// Google TTS: только точно мужские коды. tpf/tpc/sfg/ene — женские,
-// rjs — неопределённый, не включаем во избежание ошибочной детекции.
-var MALE_ANDROID_CODES = ['iol', 'iom', 'iob'];
-var MALE_IOS_NAMES = [
-  'daniel', 'alex', 'aaron', 'fred', 'tom', 'arthur',
-  'oliver', 'rishi', 'gordon', 'albert', 'bruce', 'ralph',
-  'jorge', 'diego', 'juan', 'luca', 'reed'
-];
-
-function isEnglishVoice(v) {
-  return v && v.language && v.language.toLowerCase().startsWith('en');
-}
-function isOnlineVoice(v) {
-  if (!v) return false;
-  // iOS: @mhpdev/react-native-speech возвращает 'Enhanced' для высококачественных голосов
-  if (v.quality === 'Enhanced') return true;
-  // Android Google TTS: онлайн-голоса содержат '-network' в identifier
-  if (v.identifier && v.identifier.toLowerCase().includes('-network')) return true;
-  return false;
-}
-function isMaleVoice(v) {
-  if (!v) return false;
-  // Android Google TTS: identifier вида "en-us-x-tpf-network"
-  var id = (v.identifier || '').toLowerCase();
-  var parts = id.split('-');
-  if (parts.length >= 4 && MALE_ANDROID_CODES.indexOf(parts[3]) !== -1) return true;
-  // iOS: человекочитаемое имя
-  var name = (v.name || '').toLowerCase();
-  for (var i = 0; i < MALE_IOS_NAMES.length; i++) {
-    if (name.indexOf(MALE_IOS_NAMES[i]) !== -1) return true;
-  }
-  return false;
-}
-
-function pickDefaultVoice(voices) {
-  if (!voices || !voices.length) return null;
-  var english = voices.filter(isEnglishVoice).filter(isOnlineVoice);
-  if (!english.length) return null;
-
-  // 1. Мужской онлайн-голос
-  var male = english.filter(isMaleVoice);
-  if (male.length) return male[0];
-
-  // 2. Любой онлайн английский
-  return english[0];
-}
-
 
 class Reader extends React.Component {
   constructor(props) {
@@ -5411,8 +5605,6 @@ class Reader extends React.Component {
       bookmark: false,
 
       word_in_dictionary: false,
-
-      ttsVoice: false,
     };
 
     this.modalTranslateWordOriginal = null;
@@ -5487,24 +5679,6 @@ class Reader extends React.Component {
       });
     }
 
-    var ttsVoice = await new Storage().get('ttsVoice');
-    var ttsVoiceApplied = false;
-
-    if (!ttsVoice) {
-      try {
-        var allVoices = await Speech.getAvailableVoices();
-        var picked = pickDefaultVoice(allVoices);
-        if (picked) {
-          ttsVoice = picked.identifier;
-          try {
-            Speech.configure({ voice: ttsVoice });
-            ttsVoiceApplied = true;
-          } catch (e) { }
-          new Storage().set('ttsVoice', ttsVoice);
-        }
-      } catch (e) { }
-    }
-
     this.setState({
       translate_icon_size: settings['translate_icon_size'],
       fontSize: settings['fontSize'],
@@ -5513,7 +5687,6 @@ class Reader extends React.Component {
       textColorTheme: settings['textColorTheme'],
       secondColorTheme: settings['secondColorTheme'],
       fontFamily: settings['fontFamily'],
-      ttsVoice: ttsVoice || false,
     });
 
     readerStore.setThemeSettings(settings);
@@ -5536,11 +5709,6 @@ class Reader extends React.Component {
     });
     readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
-    if (ttsVoice) {
-      readerStore.setTtsVoice(ttsVoice);
-      readerStore.setTtsVoiceApplied(ttsVoiceApplied);
-    }
-
     if (this.have_file == true) {
       var words = await RNFS.readFile(file_root + '/books/' + this.props.stack.route.params.book_id + '/words.json');
       words = JSON.parse(words);
@@ -6125,28 +6293,8 @@ class Reader extends React.Component {
       });
 
       await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
+      appStore.setBooksOrder(new_result.map(book => book.id));
     }
-  }
-
-  async changeVoice(voice) {
-    // Принимаем как объект voice, так и строку (id) для обратной совместимости
-    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.identifier);
-    if (!voiceId) return;
-
-    // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Speech.stop(); } catch (e) { }
-    readerStore.setCurrentSpeaking(null);
-
-    var applied = false;
-    try {
-      Speech.configure({ voice: voiceId });
-      applied = true;
-    } catch (e) { }
-
-    new Storage().set('ttsVoice', voiceId);
-    readerStore.setTtsVoice(voiceId);           // сбрасывает ttsVoiceApplied в false
-    readerStore.setTtsVoiceApplied(applied);    // и сразу ставит true, если успешно применили
-    this.setState({ ttsVoice: voiceId });
   }
 
   setWordInDictionary(word_in_dictionary) {
@@ -6349,9 +6497,6 @@ class Reader extends React.Component {
 
                   fontFamily={this.state.fontFamily}
                   chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
-
-                  ttsVoice={this.state.ttsVoice}
-                  changeVoice={(voiceId) => this.changeVoice(voiceId)}
                 />
 
               </View>
@@ -6636,31 +6781,11 @@ const appLinking = {
   },
 };
 
-const ThemeTestSwitcher = observer(() => {
-  if (Platform.OS !== 'web') return null;
-
-  return (
-    <View style={{ position: 'fixed', top: 10, right: 10, zIndex: 100000, flexDirection: 'row', padding: 5, borderRadius: 18, backgroundColor: appThemeStore.colors.surface, borderWidth: 1, borderColor: appThemeStore.colors.border }}>
-      {Object.keys(APP_COLOR_THEMES).map((themeName) => {
-        var colors = APP_COLOR_THEMES[themeName];
-        var selected = appThemeStore.themeName == themeName;
-        return (
-          <TouchableOpacity
-            key={themeName}
-            onPress={() => appThemeStore.setCustomTheme(themeName)}
-            accessibilityLabel={'Тема ' + themeName}
-            style={{ width: 24, height: 24, marginHorizontal: 3, borderRadius: 12, backgroundColor: colors.background, borderWidth: selected ? 3 : 1, borderColor: selected ? appThemeStore.colors.text : colors.border }}
-          />
-        );
-      })}
-    </View>
-  );
-});
-
 class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
+    this.oauthAuthorization = new OAuthAuthorization(this);
     this.navigationRef = React.createRef();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
@@ -6675,11 +6800,16 @@ class RootApp extends React.Component {
       error_show: false,
       error_title: '',
       error_description: '',
+      oauth_modal_show: false,
+      oauth_manual_token: '',
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
       type_payment: Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa'
     }
 
     this.notification_timer;
     this._checkingSubscription = false;
+    this._webFullscreenAdRequested = false;
   }
 
   deepLinkFromWebLocation() {
@@ -6731,7 +6861,7 @@ class RootApp extends React.Component {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       var oauthParams = new URLSearchParams(window.location.search);
       if (oauthParams.get('oauth') == 'pwa') {
-        await this.loadPwaOAuthUser();
+        await this.oauthAuthorization.loadPwaUser();
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -6757,7 +6887,7 @@ class RootApp extends React.Component {
 
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
     this._linkSub = Linking.addEventListener('url', (e) => {
-      this.handleOAuthURL(e.url);
+      this.oauthAuthorization.handleURL(e.url);
       this.pendingDeepLink = this.deepLinkFromUrl(e.url);
       this.openPendingDeepLink();
     });
@@ -6765,7 +6895,7 @@ class RootApp extends React.Component {
     // Обработка URL-схемы когда приложение было убито iOS и запускается заново
     Linking.getInitialURL().then((url) => {
       if (url) {
-        this.handleOAuthURL(url);
+        this.oauthAuthorization.handleURL(url);
         this.pendingDeepLink = this.deepLinkFromUrl(url) || this.pendingDeepLink;
         this.openPendingDeepLink();
       }
@@ -6787,6 +6917,7 @@ class RootApp extends React.Component {
   }
 
   componentWillUnmount() {
+    this.oauthAuthorization.cancel();
     if (this._unsubNet) {
       this._unsubNet();
     }
@@ -6805,35 +6936,6 @@ class RootApp extends React.Component {
     }
   }
 
-  async handleOAuthURL(url) {
-    if (!url || !url.includes('token=')) return;
-
-    const tokenPart = url.split('token=')[1];
-    if (!tokenPart) return;
-    const token = tokenPart.split('/')[0].split('&')[0];
-
-    const response = await new Request('/api/v1/users/by_oauth_token', {
-      token: token,
-    }).get();
-
-    if (!response || response['error'] != undefined) return;
-
-    appStore.setCurrentUser(response);
-    this.setState({ current_user: response }); // обновление UI
-    await new Storage().set('current_user', JSON.stringify(response));
-    this.checkSubscription(); // читает current_user из appStore (синхронно)
-  }
-
-  async loadPwaOAuthUser() {
-    var response = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
-    if (!response || response['error'] != undefined) return;
-
-    appStore.setCurrentUser(response);
-    this.setState({ current_user: response });
-    await new Storage().set('current_user', JSON.stringify(response));
-    this.checkSubscription();
-  }
-
   async initAds() {
     if (Platform.OS === 'ios') {
       try {
@@ -6844,6 +6946,24 @@ class RootApp extends React.Component {
     adSizeBig = await BannerAdSize.inlineSize(300, 250);
     adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
+  }
+
+  showWebFullscreenAd() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (appStore.has_subscription || this._webFullscreenAdRequested) return;
+
+    this._webFullscreenAdRequested = true;
+    window.yaContextCb = window.yaContextCb || [];
+    window.yaContextCb.push(() => {
+      // Статус мог измениться, пока загружался рекламный скрипт.
+      if (appStore.has_subscription) return;
+      if (!window.Ya || !window.Ya.Context || !window.Ya.Context.AdvManager) return;
+
+      window.Ya.Context.AdvManager.render({
+        type: 'fullscreen',
+        blockId: 'R-A-19117521-1'
+      });
+    });
   }
 
   async check_location() {
@@ -7008,6 +7128,7 @@ class RootApp extends React.Component {
     this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
+    if (!has_subscription) this.showWebFullscreenAd();
 
     if (sync_with_server) {
       this.sync_subscription_with_server(
@@ -7175,6 +7296,23 @@ class RootApp extends React.Component {
                     <Subscription root={this} />
                   )}
                 </Stack.Screen>
+                <Stack.Screen
+                  name="dictionary_learning"
+                  options={({ navigation }) => ({
+                    title: '',
+                    headerLeft: () => (
+                      <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+                        <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
+                        <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Словарь</Text>
+                      </TouchableOpacity>
+                    )
+                  })}>
+                  {(stack) => (
+                    <DictionaryLearning root={this} stack={stack} />
+                  )}
+                </Stack.Screen>
                 <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
@@ -7205,7 +7343,68 @@ class RootApp extends React.Component {
         )}
         <PwaInstallBanner />
         <AppAlertModal />
-        <ThemeTestSwitcher />
+        <Modal
+          animationType="slide"
+          presentationStyle="fullScreen"
+          visible={this.state.oauth_modal_show}
+          onRequestClose={() => this.oauthAuthorization.close()}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+            <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity
+                  accessibilityLabel="Закрыть"
+                  onPress={() => this.oauthAuthorization.close()}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon icon={CloseIcon} size={26} color={themeColors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'center', paddingBottom: 80 }}>
+                <ActivityIndicator size="large" color={app_theme_colors.red} />
+                <Text style={{ fontSize: 28, fontWeight: '600', textAlign: 'center', marginTop: 24 }}>
+                  Идёт авторизация…
+                </Text>
+                <Text style={{ fontSize: 17, lineHeight: 25, textAlign: 'center', marginTop: 16 }}>
+                  Авторизуйтесь в социальной сети и вернитесь в приложение.
+                </Text>
+                <Text style={{ color: themeColors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 }}>
+                  Если авторизация не подтвердилась автоматически, введите токен, который вы получите после успешного входа.
+                </Text>
+
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={this.state.oauth_manual_token}
+                  onChangeText={(value) => this.setState({ oauth_manual_token: value, oauth_manual_error: false })}
+                  onSubmitEditing={() => this.oauthAuthorization.authorizeByManualToken()}
+                  placeholder="Токен авторизации"
+                  returnKeyType="done"
+                  style={{ height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, fontSize: 16, marginTop: 28 }}
+                />
+
+                {this.state.oauth_manual_error != false &&
+                  <Text style={{ color: app_theme_colors.red, lineHeight: 20, marginTop: 10 }}>
+                    {this.state.oauth_manual_error}
+                  </Text>
+                }
+
+                <TouchableOpacity
+                  disabled={!String(this.state.oauth_manual_token || '').trim() || this.state.oauth_manual_loading}
+                  onPress={() => this.oauthAuthorization.authorizeByManualToken()}
+                  style={[
+                    profileStyles.form_button,
+                    { marginTop: 16, opacity: !String(this.state.oauth_manual_token || '').trim() ? 0.5 : 1 },
+                  ]}>
+                  {this.state.oauth_manual_loading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={profileStyles.form_button_text}>Подтвердить токен</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
       </View>
     );
   }
@@ -7214,6 +7413,12 @@ class RootApp extends React.Component {
 class TabStack extends React.Component {
   constructor(props) {
     super(props);
+  }
+
+  setWebDocumentTitle(title) {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = title;
+    }
   }
 
   render() {
@@ -7227,6 +7432,7 @@ class TabStack extends React.Component {
         })}>
         <Tab.Screen name="books"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Книги'),
             tabPress: () => {
               if (this.homeRef) this.homeRef.getBooks();
             }
@@ -7253,6 +7459,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="bookmarks"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Закладки'),
             tabPress: () => {
               if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
             }
@@ -7267,6 +7474,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="dictionary"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Словарь'),
             tabPress: () => {
               if (this.dictionaryRef) this.dictionaryRef.getWords();
             }
@@ -7281,6 +7489,7 @@ class TabStack extends React.Component {
         </Tab.Screen>
         <Tab.Screen name="blog"
           listeners={{
+            focus: () => this.setWebDocumentTitle('Блог'),
             tabPress: () => {
               if (this.blogRef) this.blogRef.loadArticles(1);
             }
@@ -7294,6 +7503,9 @@ class TabStack extends React.Component {
           )}
         </Tab.Screen>
         <Tab.Screen name="profile"
+          listeners={{
+            focus: () => this.setWebDocumentTitle('Профиль'),
+          }}
           options={({ route }) => ({
             tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
             title: 'Аккаунт',
@@ -7915,23 +8127,23 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {appStore.has_subscription == true &&
               <React.Fragment>
-                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: '#eee', padding: 10 }}>
+                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: appThemeStore.colors.backgroundLight, padding: 10 }}>
                   {appStore.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         У вас активирован
                       </Text>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         вечный PRO-доступ
                       </Text>
                     </React.Fragment>
                   ) : (
                     <React.Fragment>
-                      <Text style={{ textAlign: 'center', fontSize: 18 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         Ваш PRO-доступ активен до:
                       </Text>
                       <View style={{ marginTop: 5 }}>
-                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: subscriptionTextColor('#f05458') }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: appThemeStore.colors.text }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
                       </View>
                     </React.Fragment>
                   )}

@@ -76,7 +76,6 @@ import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
 
-import Speech from '@mhpdev/react-native-speech';
 import {
   AlignCenter as AlignCenterIcon,
   AlignJustify as AlignJustifyIcon,
@@ -223,7 +222,14 @@ const TextInput = observer(React.forwardRef(function ThemedTextInput(props, ref)
       {...props}
       ref={ref}
       placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
-      style={[{ color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface }, props.style]}
+      style={[
+        { color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface },
+        props.style,
+        {
+          borderColor: appThemeStore.colors.border,
+          ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
+        }
+      ]}
     />
   );
 }));
@@ -318,17 +324,6 @@ class AppAlertModal extends React.Component {
 }
 
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
-
-setTimeout(async () => {
-  try {
-    await Speech.setEngine('com.google.android.tts');
-    console.log('Google TTS engine activated');
-  } catch (err) {
-    console.warn('Google TTS not available, using default engine', err);
-  }
-  // Выбор голоса по умолчанию выполняется в одном месте — в reader.js
-  // (функция pickDefaultVoice), чтобы логика не дублировалась.
-}, 1000);
 
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);

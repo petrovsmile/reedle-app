@@ -1,58 +1,5 @@
 var scroll_percent = 0;
 
-// ============================================================
-// Единая точка выбора голоса озвучки по умолчанию.
-// Приоритет: английский → онлайн → мужской.
-// Используется ТОЛЬКО здесь — в reader.js при первом запуске,
-// когда в Storage ещё нет сохранённого ttsVoice.
-// ============================================================
-// Google TTS: только точно мужские коды. tpf/tpc/sfg/ene — женские,
-// rjs — неопределённый, не включаем во избежание ошибочной детекции.
-var MALE_ANDROID_CODES = ['iol', 'iom', 'iob'];
-var MALE_IOS_NAMES = [
-  'daniel', 'alex', 'aaron', 'fred', 'tom', 'arthur',
-  'oliver', 'rishi', 'gordon', 'albert', 'bruce', 'ralph',
-  'jorge', 'diego', 'juan', 'luca', 'reed'
-];
-
-function isEnglishVoice(v) {
-  return v && v.language && v.language.toLowerCase().startsWith('en');
-}
-function isOnlineVoice(v) {
-  if (!v) return false;
-  // iOS: @mhpdev/react-native-speech возвращает 'Enhanced' для высококачественных голосов
-  if (v.quality === 'Enhanced') return true;
-  // Android Google TTS: онлайн-голоса содержат '-network' в identifier
-  if (v.identifier && v.identifier.toLowerCase().includes('-network')) return true;
-  return false;
-}
-function isMaleVoice(v) {
-  if (!v) return false;
-  // Android Google TTS: identifier вида "en-us-x-tpf-network"
-  var id = (v.identifier || '').toLowerCase();
-  var parts = id.split('-');
-  if (parts.length >= 4 && MALE_ANDROID_CODES.indexOf(parts[3]) !== -1) return true;
-  // iOS: человекочитаемое имя
-  var name = (v.name || '').toLowerCase();
-  for (var i = 0; i < MALE_IOS_NAMES.length; i++) {
-    if (name.indexOf(MALE_IOS_NAMES[i]) !== -1) return true;
-  }
-  return false;
-}
-
-function pickDefaultVoice(voices) {
-  if (!voices || !voices.length) return null;
-  var english = voices.filter(isEnglishVoice).filter(isOnlineVoice);
-  if (!english.length) return null;
-
-  // 1. Мужской онлайн-голос
-  var male = english.filter(isMaleVoice);
-  if (male.length) return male[0];
-
-  // 2. Любой онлайн английский
-  return english[0];
-}
-
 
 class Reader extends React.Component {
   constructor(props) {
@@ -94,8 +41,6 @@ class Reader extends React.Component {
       bookmark: false,
 
       word_in_dictionary: false,
-
-      ttsVoice: false,
     };
 
     this.modalTranslateWordOriginal = null;
@@ -170,24 +115,6 @@ class Reader extends React.Component {
       });
     }
 
-    var ttsVoice = await new Storage().get('ttsVoice');
-    var ttsVoiceApplied = false;
-
-    if (!ttsVoice) {
-      try {
-        var allVoices = await Speech.getAvailableVoices();
-        var picked = pickDefaultVoice(allVoices);
-        if (picked) {
-          ttsVoice = picked.identifier;
-          try {
-            Speech.configure({ voice: ttsVoice });
-            ttsVoiceApplied = true;
-          } catch (e) { }
-          new Storage().set('ttsVoice', ttsVoice);
-        }
-      } catch (e) { }
-    }
-
     this.setState({
       translate_icon_size: settings['translate_icon_size'],
       fontSize: settings['fontSize'],
@@ -196,7 +123,6 @@ class Reader extends React.Component {
       textColorTheme: settings['textColorTheme'],
       secondColorTheme: settings['secondColorTheme'],
       fontFamily: settings['fontFamily'],
-      ttsVoice: ttsVoice || false,
     });
 
     readerStore.setThemeSettings(settings);
@@ -219,11 +145,6 @@ class Reader extends React.Component {
     });
     readerStore.setBookmark(bookmarkParagraph);
     readerStore.setPage(this.state.page);
-    if (ttsVoice) {
-      readerStore.setTtsVoice(ttsVoice);
-      readerStore.setTtsVoiceApplied(ttsVoiceApplied);
-    }
-
     if (this.have_file == true) {
       var words = await RNFS.readFile(file_root + '/books/' + this.props.stack.route.params.book_id + '/words.json');
       words = JSON.parse(words);
@@ -808,28 +729,8 @@ class Reader extends React.Component {
       });
 
       await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(new_result), 'utf8');
+      appStore.setBooksOrder(new_result.map(book => book.id));
     }
-  }
-
-  async changeVoice(voice) {
-    // Принимаем как объект voice, так и строку (id) для обратной совместимости
-    var voiceId = (typeof voice === 'string') ? voice : (voice && voice.identifier);
-    if (!voiceId) return;
-
-    // Остановить текущую озвучку, чтобы новая стартовала чистой
-    try { Speech.stop(); } catch (e) { }
-    readerStore.setCurrentSpeaking(null);
-
-    var applied = false;
-    try {
-      Speech.configure({ voice: voiceId });
-      applied = true;
-    } catch (e) { }
-
-    new Storage().set('ttsVoice', voiceId);
-    readerStore.setTtsVoice(voiceId);           // сбрасывает ttsVoiceApplied в false
-    readerStore.setTtsVoiceApplied(applied);    // и сразу ставит true, если успешно применили
-    this.setState({ ttsVoice: voiceId });
   }
 
   setWordInDictionary(word_in_dictionary) {
@@ -1032,9 +933,6 @@ class Reader extends React.Component {
 
                   fontFamily={this.state.fontFamily}
                   chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
-
-                  ttsVoice={this.state.ttsVoice}
-                  changeVoice={(voiceId) => this.changeVoice(voiceId)}
                 />
 
               </View>

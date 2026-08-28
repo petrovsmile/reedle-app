@@ -1,3 +1,7 @@
+var currentSentenceSound = null;
+var currentSentenceSoundKey = null;
+var currentSentenceSoundOwner = null;
+
 const Paragraph = observer(class Paragraph extends React.Component {
   constructor(props) {
     super(props);
@@ -38,42 +42,71 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   speakSentence(sentence, sentenceIndex) {
-    var text = (sentence['b'] || []).map(function (b) { return b['v'] || ''; }).join('');
-    if (!text || !text.trim()) return;
+    var soundKey = this.props.book_id + '_' + this.props.data['name'] + '_' + sentenceIndex;
 
     // Если нажали на уже играющее предложение — остановить
-    if (this.isSpeaking(sentenceIndex)) {
-      Speech.stop();
+    if (currentSentenceSoundKey === soundKey && currentSentenceSound) {
+      currentSentenceSound.release();
+      currentSentenceSound = null;
+      currentSentenceSoundKey = null;
+      currentSentenceSoundOwner = null;
       readerStore.setCurrentSpeaking(null);
       this.stopPulseAnimation();
       return;
     }
 
-    // Остановить текущую озвучку и запустить новую.
-    Speech.stop();
+    // Как на сайте: одновременно воспроизводится только один готовый аудиофайл.
+    if (currentSentenceSound) {
+      currentSentenceSound.release();
+      if (currentSentenceSoundOwner) currentSentenceSoundOwner.stopPulseAnimation();
+    }
+    currentSentenceSound = null;
+    currentSentenceSoundKey = null;
+    currentSentenceSoundOwner = null;
+
     readerStore.setCurrentSpeaking({ p: this.props.data['name'], i: sentenceIndex });
     this.startPulseAnimation();
 
-    var applyAndSpeak = function () {
-      try { Speech.speak(text.trim()); } catch (e) {}
-    };
+    var url = HOST + '/voiceover_books/' + this.props.book_id + '/' + this.props.data['name'] + '/' + sentenceIndex + '.mp3';
+    var sound = new Sound(url, '', error => {
+      if (currentSentenceSound !== sound) {
+        sound.release();
+        return;
+      }
 
-    // configure вызываем ОДИН РАЗ на голос — при смене или первом запуске.
-    if (readerStore.ttsVoice && !readerStore.ttsVoiceApplied) {
-      try {
-        Speech.configure({ voice: readerStore.ttsVoice });
-        readerStore.setTtsVoiceApplied(true);
-      } catch (e) {}
-      applyAndSpeak();
-    } else {
-      applyAndSpeak();
-    }
+      if (error || sound.getDuration() <= 0) {
+        appStore.showError('Озвучка не найдена');
+        sound.release();
+        currentSentenceSound = null;
+        currentSentenceSoundKey = null;
+        currentSentenceSoundOwner = null;
+        readerStore.setCurrentSpeaking(null);
+        this.stopPulseAnimation();
+        return;
+      }
+
+      sound.setVolume(1);
+      sound.play(success => {
+        if (!success) appStore.showError('Ошибка воспроизведения');
+        if (currentSentenceSound === sound) {
+          sound.release();
+          currentSentenceSound = null;
+          currentSentenceSoundKey = null;
+          currentSentenceSoundOwner = null;
+          readerStore.setCurrentSpeaking(null);
+          this.stopPulseAnimation();
+        } else {
+          sound.release();
+        }
+      });
+    });
+
+    currentSentenceSound = sound;
+    currentSentenceSoundKey = soundKey;
+    currentSentenceSoundOwner = this;
   }
 
   async componentDidMount() {
-    this._ttsFinish = Speech.onFinish(() => {
-      readerStore.setCurrentSpeaking(null);
-    });
     var paragraph_translate = [];
     for (const s in this.props.data['sentences']) {
       paragraph_translate.push(this.props.data['sentences'][s]['tr']);
@@ -86,7 +119,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   componentWillUnmount() {
-    if (this._ttsFinish) this._ttsFinish.remove();
+    if (currentSentenceSoundOwner === this && currentSentenceSound) {
+      currentSentenceSound.release();
+      currentSentenceSound = null;
+      currentSentenceSoundKey = null;
+      currentSentenceSoundOwner = null;
+      readerStore.setCurrentSpeaking(null);
+    }
   }
 
   async addBookmark() {
@@ -216,7 +255,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
             <View style={readerScreenStyles.sentenceIndent}></View>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {FEATURE_SENTENCE_TRANSLATE && (appStore.has_internet ? (
+                {appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
@@ -226,7 +265,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
-                ))}
+                )}
                 {sentence['b'].map((block, index) => {
 
                   var past_value = "";

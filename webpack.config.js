@@ -30,9 +30,15 @@ class EmitPwaAssetsPlugin {
                     };
 
                     Object.entries(assets).forEach(([outputPath, sourcePath]) => {
+                        let source = compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath));
+                        if (outputPath === 'sw.js') {
+                            source = source
+                                .toString()
+                                .replace('__BUILD_HASH__', compilation.fullHash.slice(0, 12));
+                        }
                         compilation.emitAsset(
                             outputPath,
-                            new RawSource(compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath)))
+                            new RawSource(source)
                         );
                     });
 
@@ -58,7 +64,8 @@ module.exports = {
     output: {
         path: isProduction ? webOutputPath : path.resolve(__dirname, 'web'),
         publicPath: isProduction ? '/app/' : '/',
-        filename: 'bundle.js',
+        filename: isProduction ? 'bundle.[contenthash:8].js' : 'bundle.js',
+        chunkFilename: isProduction ? '[name].[contenthash:8].js' : '[name].js',
         clean: true,
     },
 
@@ -125,7 +132,6 @@ module.exports = {
             'react-native-fs': path.resolve(__dirname, 'web-stubs/react-native-fs.js'),
             'react-native-nitro-modules': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
             'react-native-sound': path.resolve(__dirname, 'web-stubs/react-native-sound.js'),
-            'react-native-tts': path.resolve(__dirname, 'web-stubs/react-native-tts.js'),
             'react-native-store-review': path.resolve(__dirname, 'web-stubs/react-native-store-review.js'),
             'react-native-tracking-transparency': path.resolve(__dirname, 'web-stubs/react-native-tracking-transparency.js'),
             'react-native-iap': path.resolve(__dirname, 'web-stubs/react-native-iap.js'),
@@ -133,7 +139,6 @@ module.exports = {
             'react-native-restart': path.resolve(__dirname, 'web-stubs/react-native-restart.js'),
             'react-native-webview': path.resolve(__dirname, 'web-stubs/react-native-webview.js'),
             'react-native-worklets$': path.resolve(__dirname, 'web-stubs/react-native-nitro-modules.js'),
-            '@mhpdev/react-native-speech': path.resolve(__dirname, 'web-stubs/react-native-speech.js'),
             '@appmetrica/react-native-analytics': path.resolve(__dirname, 'web-stubs/appmetrica.js'),
             '@react-native-async-storage/async-storage': path.resolve(__dirname, 'web-stubs/async-storage.js'),
             '@react-native-community/netinfo': path.resolve(__dirname, 'web-stubs/netinfo.js'),
@@ -181,6 +186,7 @@ module.exports = {
     ],
 
     devServer: {
+        host: '127.0.0.1',
         static: {
             directory: path.join(__dirname, 'public'),
         },

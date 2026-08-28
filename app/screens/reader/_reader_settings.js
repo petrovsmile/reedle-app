@@ -27,21 +27,23 @@ class ReaderSettingsPanel extends React.Component {
     return (
       <View style={{ width: '100%', maxWidth: this.props.maxWidth || 212, alignSelf: 'center', borderRadius: 10, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
-          <TouchableOpacity
-            disabled={this.props.fontSize <= 14}
-            onPress={() => this.props.changeFontSize('less')}
-            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
-            <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
-          </TouchableOpacity>
-          <View style={{ minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor }}>
-            <Text style={{ fontSize: 14, color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+          <View style={{ flex: 2, minHeight: 50, flexDirection: 'row', position: 'relative', borderRightWidth: 1, borderRightColor: borderColor }}>
+            <TouchableOpacity
+              disabled={this.props.fontSize <= 14}
+              onPress={() => this.props.changeFontSize('less')}
+              style={{ flex: 1, opacity: this.props.fontSize <= 14 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
+              <AppIcon icon={MinusIcon} size={20} color={appThemeStore.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              disabled={this.props.fontSize >= 24}
+              onPress={() => this.props.changeFontSize('more')}
+              style={{ flex: 1, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
+              <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
+            </TouchableOpacity>
+            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: 12.5, marginLeft: -15, width: 30, height: 25, zIndex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 5, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: this.props.backgroundColorTheme }}>
+              <Text style={{ fontSize: 13, lineHeight: 23, textAlign: 'center', color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            disabled={this.props.fontSize >= 24}
-            onPress={() => this.props.changeFontSize('more')}
-            style={{ flex: 1, minHeight: 50, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: borderColor, backgroundColor: appThemeStore.colors.backgroundLight }}>
-            <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => this.props.textAlignChange()} style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
             {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} color={appThemeStore.colors.text} />}
             {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} color={appThemeStore.colors.text} />}

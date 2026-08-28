@@ -11,31 +11,11 @@ const appLinking = {
   },
 };
 
-const ThemeTestSwitcher = observer(() => {
-  if (Platform.OS !== 'web') return null;
-
-  return (
-    <View style={{ position: 'fixed', top: 10, right: 10, zIndex: 100000, flexDirection: 'row', padding: 5, borderRadius: 18, backgroundColor: appThemeStore.colors.surface, borderWidth: 1, borderColor: appThemeStore.colors.border }}>
-      {Object.keys(APP_COLOR_THEMES).map((themeName) => {
-        var colors = APP_COLOR_THEMES[themeName];
-        var selected = appThemeStore.themeName == themeName;
-        return (
-          <TouchableOpacity
-            key={themeName}
-            onPress={() => appThemeStore.setCustomTheme(themeName)}
-            accessibilityLabel={'Тема ' + themeName}
-            style={{ width: 24, height: 24, marginHorizontal: 3, borderRadius: 12, backgroundColor: colors.background, borderWidth: selected ? 3 : 1, borderColor: selected ? appThemeStore.colors.text : colors.border }}
-          />
-        );
-      })}
-    </View>
-  );
-});
-
 class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
+    this.oauthAuthorization = new OAuthAuthorization(this);
     this.navigationRef = React.createRef();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
@@ -50,11 +30,16 @@ class RootApp extends React.Component {
       error_show: false,
       error_title: '',
       error_description: '',
+      oauth_modal_show: false,
+      oauth_manual_token: '',
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
       type_payment: Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa'
     }
 
     this.notification_timer;
     this._checkingSubscription = false;
+    this._webFullscreenAdRequested = false;
   }
 
   deepLinkFromWebLocation() {
@@ -106,7 +91,7 @@ class RootApp extends React.Component {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       var oauthParams = new URLSearchParams(window.location.search);
       if (oauthParams.get('oauth') == 'pwa') {
-        await this.loadPwaOAuthUser();
+        await this.oauthAuthorization.loadPwaUser();
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -132,7 +117,7 @@ class RootApp extends React.Component {
 
     // Обработка URL-схемы когда приложение уже запущено (foreground/background)
     this._linkSub = Linking.addEventListener('url', (e) => {
-      this.handleOAuthURL(e.url);
+      this.oauthAuthorization.handleURL(e.url);
       this.pendingDeepLink = this.deepLinkFromUrl(e.url);
       this.openPendingDeepLink();
     });
@@ -140,7 +125,7 @@ class RootApp extends React.Component {
     // Обработка URL-схемы когда приложение было убито iOS и запускается заново
     Linking.getInitialURL().then((url) => {
       if (url) {
-        this.handleOAuthURL(url);
+        this.oauthAuthorization.handleURL(url);
         this.pendingDeepLink = this.deepLinkFromUrl(url) || this.pendingDeepLink;
         this.openPendingDeepLink();
       }
@@ -162,6 +147,7 @@ class RootApp extends React.Component {
   }
 
   componentWillUnmount() {
+    this.oauthAuthorization.cancel();
     if (this._unsubNet) {
       this._unsubNet();
     }
@@ -180,35 +166,6 @@ class RootApp extends React.Component {
     }
   }
 
-  async handleOAuthURL(url) {
-    if (!url || !url.includes('token=')) return;
-
-    const tokenPart = url.split('token=')[1];
-    if (!tokenPart) return;
-    const token = tokenPart.split('/')[0].split('&')[0];
-
-    const response = await new Request('/api/v1/users/by_oauth_token', {
-      token: token,
-    }).get();
-
-    if (!response || response['error'] != undefined) return;
-
-    appStore.setCurrentUser(response);
-    this.setState({ current_user: response }); // обновление UI
-    await new Storage().set('current_user', JSON.stringify(response));
-    this.checkSubscription(); // читает current_user из appStore (синхронно)
-  }
-
-  async loadPwaOAuthUser() {
-    var response = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
-    if (!response || response['error'] != undefined) return;
-
-    appStore.setCurrentUser(response);
-    this.setState({ current_user: response });
-    await new Storage().set('current_user', JSON.stringify(response));
-    this.checkSubscription();
-  }
-
   async initAds() {
     if (Platform.OS === 'ios') {
       try {
@@ -219,6 +176,24 @@ class RootApp extends React.Component {
     adSizeBig = await BannerAdSize.inlineSize(300, 250);
     adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
+  }
+
+  showWebFullscreenAd() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (appStore.has_subscription || this._webFullscreenAdRequested) return;
+
+    this._webFullscreenAdRequested = true;
+    window.yaContextCb = window.yaContextCb || [];
+    window.yaContextCb.push(() => {
+      // Статус мог измениться, пока загружался рекламный скрипт.
+      if (appStore.has_subscription) return;
+      if (!window.Ya || !window.Ya.Context || !window.Ya.Context.AdvManager) return;
+
+      window.Ya.Context.AdvManager.render({
+        type: 'fullscreen',
+        blockId: 'R-A-19117521-1'
+      });
+    });
   }
 
   async check_location() {
@@ -383,6 +358,7 @@ class RootApp extends React.Component {
     this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
+    if (!has_subscription) this.showWebFullscreenAd();
 
     if (sync_with_server) {
       this.sync_subscription_with_server(
@@ -550,6 +526,23 @@ class RootApp extends React.Component {
                     <Subscription root={this} />
                   )}
                 </Stack.Screen>
+                <Stack.Screen
+                  name="dictionary_learning"
+                  options={({ navigation }) => ({
+                    title: '',
+                    headerLeft: () => (
+                      <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+                        <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
+                        <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Словарь</Text>
+                      </TouchableOpacity>
+                    )
+                  })}>
+                  {(stack) => (
+                    <DictionaryLearning root={this} stack={stack} />
+                  )}
+                </Stack.Screen>
                 <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
@@ -580,7 +573,68 @@ class RootApp extends React.Component {
         )}
         <PwaInstallBanner />
         <AppAlertModal />
-        <ThemeTestSwitcher />
+        <Modal
+          animationType="slide"
+          presentationStyle="fullScreen"
+          visible={this.state.oauth_modal_show}
+          onRequestClose={() => this.oauthAuthorization.close()}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+            <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity
+                  accessibilityLabel="Закрыть"
+                  onPress={() => this.oauthAuthorization.close()}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon icon={CloseIcon} size={26} color={themeColors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'center', paddingBottom: 80 }}>
+                <ActivityIndicator size="large" color={app_theme_colors.red} />
+                <Text style={{ fontSize: 28, fontWeight: '600', textAlign: 'center', marginTop: 24 }}>
+                  Идёт авторизация…
+                </Text>
+                <Text style={{ fontSize: 17, lineHeight: 25, textAlign: 'center', marginTop: 16 }}>
+                  Авторизуйтесь в социальной сети и вернитесь в приложение.
+                </Text>
+                <Text style={{ color: themeColors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 }}>
+                  Если авторизация не подтвердилась автоматически, введите токен, который вы получите после успешного входа.
+                </Text>
+
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={this.state.oauth_manual_token}
+                  onChangeText={(value) => this.setState({ oauth_manual_token: value, oauth_manual_error: false })}
+                  onSubmitEditing={() => this.oauthAuthorization.authorizeByManualToken()}
+                  placeholder="Токен авторизации"
+                  returnKeyType="done"
+                  style={{ height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, fontSize: 16, marginTop: 28 }}
+                />
+
+                {this.state.oauth_manual_error != false &&
+                  <Text style={{ color: app_theme_colors.red, lineHeight: 20, marginTop: 10 }}>
+                    {this.state.oauth_manual_error}
+                  </Text>
+                }
+
+                <TouchableOpacity
+                  disabled={!String(this.state.oauth_manual_token || '').trim() || this.state.oauth_manual_loading}
+                  onPress={() => this.oauthAuthorization.authorizeByManualToken()}
+                  style={[
+                    profileStyles.form_button,
+                    { marginTop: 16, opacity: !String(this.state.oauth_manual_token || '').trim() ? 0.5 : 1 },
+                  ]}>
+                  {this.state.oauth_manual_loading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={profileStyles.form_button_text}>Подтвердить токен</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
       </View>
     );
   }
