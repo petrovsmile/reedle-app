@@ -42,6 +42,18 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   speakSentence(sentence, sentenceIndex) {
+    if (!appStore.has_subscription) {
+      AppAlert.alert(
+        'Озвучка предложений доступна при наличии PRO-доступа',
+        '',
+        [
+          { text: 'Купить PRO-доступ', onPress: this.props.openSubscription },
+          { text: 'Отменить', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     var soundKey = this.props.book_id + '_' + this.props.data['name'] + '_' + sentenceIndex;
 
     // Если нажали на уже играющее предложение — остановить
@@ -258,7 +270,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 {appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
-                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
+                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
                 ) : (

@@ -287,14 +287,18 @@ class AppAlertModal extends React.Component {
         statusBarTranslucent={true}
         onRequestClose={() => this.close()}
       >
-        <View style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => this.close()}
+          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
-            {this.state.title ? <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
+            {this.state.title ? <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
             {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: appThemeStore.colors.mutedText }}>{this.state.message}</Text> : null}
-            <View style={{ flexDirection: 'row', marginTop: 20 }}>
+            <View style={{ flexDirection: 'column', marginTop: 20 }}>
               {this.state.buttons.map((button, index) => {
                 var isCancel = button.style == 'cancel';
-                var isDestructive = button.style == 'destructive';
                 return (
                   <TouchableOpacity
                     key={index}
@@ -302,22 +306,23 @@ class AppAlertModal extends React.Component {
                     style={{
                       flex: 1,
                       minHeight: 44,
-                      marginLeft: index == 0 ? 0 : 8,
+                      marginTop: index == 0 ? 0 : 8,
                       borderWidth: isCancel ? 1 : 0,
                       borderColor: appThemeStore.colors.border,
                       borderRadius: 8,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : (isDestructive ? '#d9363e' : '#f05458')
+                      backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : app_theme_colors.red
                     }}
                   >
-                    <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                    <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
     );
   }
@@ -1766,6 +1771,111 @@ class Request {
   }
 }
 
+class Select extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false };
+  }
+
+  selectedOption() {
+    return this.props.options.find(option => option.value == this.props.value) || this.props.options[0];
+  }
+
+  select(value) {
+    this.setState({ visible: false }, () => this.props.onValueChange(value));
+  }
+
+  renderWeb() {
+    var style = Object.assign({
+      width: '100%',
+      height: 24,
+      paddingLeft: 8,
+      paddingRight: 8,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: appThemeStore.colors.border,
+      borderRadius: 4,
+      backgroundColor: appThemeStore.colors.backgroundLight,
+      color: appThemeStore.colors.text,
+      fontSize: 12,
+      boxSizing: 'border-box'
+    }, StyleSheet.flatten(this.props.style));
+
+    return React.createElement(
+      'select',
+      {
+        value: this.props.value,
+        onChange: (event) => this.props.onValueChange(event.target.value),
+        style: style
+      },
+      this.props.options.map(option => React.createElement(
+        'option',
+        {
+          key: option.value,
+          value: option.value,
+          style: { backgroundColor: appThemeStore.colors.surface, color: appThemeStore.colors.text }
+        },
+        option.title
+      ))
+    );
+  }
+
+  render() {
+    if (Platform.OS == 'web') return this.renderWeb();
+
+    var selectedOption = this.selectedOption();
+
+    return (
+      <React.Fragment>
+        <TouchableOpacity
+          onPress={() => this.setState({ visible: true })}
+          style={[{
+            height: 24,
+            paddingHorizontal: 8,
+            borderWidth: 1,
+            borderRadius: 4,
+            borderColor: appThemeStore.colors.border,
+            backgroundColor: appThemeStore.colors.backgroundLight,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }, this.props.style]}>
+          <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 12 }}>{selectedOption.title}</Text>
+          <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 10, marginLeft: 8 }}>▼</Text>
+        </TouchableOpacity>
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={this.state.visible}
+          onRequestClose={() => this.setState({ visible: false })}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => this.setState({ visible: false })}
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={{ width: '100%', maxWidth: 320, padding: 8, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
+                {this.props.options.map(option => {
+                  var isSelected = option.value == this.props.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => this.select(option.value)}
+                      style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isSelected ? appThemeStore.colors.backgroundLight : 'transparent' }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 15 }}>{option.title}</Text>
+                      {isSelected && <Text style={{ color: app_theme_colors.red, fontSize: 16 }}>✓</Text>}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      </React.Fragment>
+    );
+  }
+}
+
 class Storage {
   async get(key, default_value) {
     var value = await AsyncStorage.getItem(key);
@@ -2487,7 +2597,7 @@ class Dictionary extends React.Component {
       words: [],
       do_not_find: false,
       sorting_by: 'date',
-      hide_studied: true,
+      words_filter: 'unstudied',
       learning: false,
       learning_questions: [],
       learning_index: 0,
@@ -2630,6 +2740,18 @@ class Dictionary extends React.Component {
     });
   }
 
+  filteredWords() {
+    if (this.state.words_filter == 'studied') {
+      return this.state.words.filter(word => word.studied === true);
+    }
+
+    if (this.state.words_filter == 'unstudied') {
+      return this.state.words.filter(word => word.studied !== true);
+    }
+
+    return this.state.words;
+  }
+
   shuffle(items) {
     var result = items.slice();
     for (var i = result.length - 1; i > 0; i--) {
@@ -2667,7 +2789,12 @@ class Dictionary extends React.Component {
   }
 
   async toggleWordStudied(word) {
-    await this.updateWordLearningState(word, { studied: word.studied !== true });
+    var changes = { studied: word.studied !== true };
+    if (word.studied === true) {
+      changes.learning_shows = 0;
+      changes.study_prompted = false;
+    }
+    await this.updateWordLearningState(word, changes);
   }
 
   async recordLearningShow(word) {
@@ -2933,19 +3060,17 @@ class Dictionary extends React.Component {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={{ height: 24, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                      <Text style={{ color: appThemeStore.colors.text, fontSize: 12, marginRight: 6 }}>Скрыть изученные</Text>
-                      <Switch
-                        style={{ transform: [{ scale: 0.75 }] }}
-                        trackColor={{
-                          false: appThemeStore.colors.backgroundLight,
-                          true: app_theme_colors.red
-                        }}
-                        thumbColor="#aaa"
-                        activeThumbColor="#aaa"
-                        ios_backgroundColor={appThemeStore.colors.backgroundLight}
-                        value={this.state.hide_studied}
-                        onValueChange={(value) => this.setState({ hide_studied: value })}
+                    <View style={{ width: 132, marginLeft: 12 }}>
+                      <Text style={{ color: appThemeStore.colors.text, textAlign: 'right' }}>Показывать:</Text>
+                      <Select
+                        style={{ marginTop: 8 }}
+                        value={this.state.words_filter}
+                        options={[
+                          { value: 'all', title: 'Все слова' },
+                          { value: 'studied', title: 'Изученные' },
+                          { value: 'unstudied', title: 'Не изученные' }
+                        ]}
+                        onValueChange={(value) => this.setState({ words_filter: value })}
                       />
                     </View>
                   </View>
@@ -2961,7 +3086,7 @@ class Dictionary extends React.Component {
                   scrollIndicatorInsets={{ right: 1 }}
                   removeClippedSubviews={true}
                   contentContainerStyle={{ paddingBottom: 100 }}
-                  data={this.state.hide_studied ? this.state.words.filter(word => word.studied !== true) : this.state.words}
+                  data={this.filteredWords()}
                   renderItem={(word) => {
                     return (
                       <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
@@ -3482,7 +3607,7 @@ const Home = observer(class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')}>
+            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Книги' })}>
               <AppIcon icon={MegaphoneOffIcon} size={28} color={appThemeStore.colors.text} style={{ marginTop: 3 }} />
             </TouchableOpacity>
           ) : (
@@ -4028,15 +4153,16 @@ class Auth extends React.Component {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
         <ScrollView>
-          {this.props.modal == true &&
-            <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
-                <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
-              </TouchableOpacity>
-            </View>
-          }
+          <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
+            {this.props.modal == true &&
+              <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
+                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
+                </TouchableOpacity>
+              </View>
+            }
 
-          <View style={profileStyles.content}>
+            <View style={profileStyles.content}>
             {this.props.bookmark_info != undefined &&
               <React.Fragment>
                 <Text style={bookmarksStyles.auth_into}>
@@ -4174,6 +4300,7 @@ class Auth extends React.Component {
 
             <View style={{ height: 100 }}></View>
 
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -4261,7 +4388,7 @@ class Profile extends React.Component {
             <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
 
             <View style={profileStyles.menu}>
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'))}
+              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
@@ -4313,7 +4440,7 @@ class ProfileDetails extends React.Component {
         ]}
         disabled={this.state.social_loader != false}
         onPress={() => this.socialAction(type, connected)}>
-        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
+        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : appThemeStore.colors.backgroundLight }]}>
           <Image style={profileStyles.social_icon_image} source={image} />
         </View>
         <Text style={[profileStyles.social_name, { color: appThemeStore.colors.text }]}>{title}</Text>
@@ -4390,21 +4517,17 @@ class ProfileStack extends React.Component {
   render() {
     const RootStack = createStackNavigator();
     const childScreenOptions = (navigation) => ({
-      headerBackTitle: 'Аккаунт',
-      headerBackTitleVisible: Platform.OS === 'ios',
+      headerTitle: '',
+      headerBackVisible: false,
       headerTintColor: appThemeStore.colors.text,
-      ...(Platform.OS === 'web' ? {
-        headerTitle: '',
-        headerLeft: () => (
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
-          >
-            <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-            <Text style={{ marginLeft: 8, color: appThemeStore.colors.text, fontSize: 17 }}>Аккаунт</Text>
-          </TouchableOpacity>
-        ),
-      } : {}),
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+          <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
+          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Аккаунт</Text>
+        </TouchableOpacity>
+      )
     });
 
     return (
@@ -4412,13 +4535,13 @@ class ProfileStack extends React.Component {
         <RootStack.Screen name="profile_home" options={{ headerShown: false }}>
           {(stack) => <Profile root={this.props.root} root_stack={this.props.root_stack} stack={stack} />}
         </RootStack.Screen>
-        <RootStack.Screen name="profile_details" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Аккаунт' })}>
+        <RootStack.Screen name="profile_details" options={({ navigation }) => childScreenOptions(navigation)}>
           {() => <ProfileDetails root={this.props.root} />}
         </RootStack.Screen>
-        <RootStack.Screen name="profile_password" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Изменить пароль' })}>
+        <RootStack.Screen name="profile_password" options={({ navigation }) => childScreenOptions(navigation)}>
           {() => <ProfilePassword root={this.props.root} />}
         </RootStack.Screen>
-        <RootStack.Screen name="profile_settings" options={({ navigation }) => ({ ...childScreenOptions(navigation), title: 'Настройки' })}>
+        <RootStack.Screen name="profile_settings" options={({ navigation }) => childScreenOptions(navigation)}>
           {() => <ProfileSettings root={this.props.root} />}
         </RootStack.Screen>
       </RootStack.Navigator>
@@ -5184,6 +5307,18 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   speakSentence(sentence, sentenceIndex) {
+    if (!appStore.has_subscription) {
+      AppAlert.alert(
+        'Озвучка предложений доступна при наличии PRO-доступа',
+        '',
+        [
+          { text: 'Купить PRO-доступ', onPress: this.props.openSubscription },
+          { text: 'Отменить', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     var soundKey = this.props.book_id + '_' + this.props.data['name'] + '_' + sentenceIndex;
 
     // Если нажали на уже играющее предложение — остановить
@@ -5400,7 +5535,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 {appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
-                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.secondColorTheme} />
+                      <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
                 ) : (
@@ -6322,6 +6457,7 @@ class Reader extends React.Component {
           data={item}
           openTranslateSentence={(value) => this.translateSentence(value)}
           openTranslateWord={(o, tr, ts) => this.openTranslateWord(o, tr, ts)}
+          openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
           openAuthModal={() => this.openAuthModal()}
           setBookmark={(value) => this.setBookmark(value)}
           current_user={this.props.root.state.current_user}
@@ -6406,7 +6542,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -6439,7 +6575,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('subscription')}
+              openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
             />
 
             <View style={readerScreenStyles.layout}>
@@ -7191,6 +7327,18 @@ class RootApp extends React.Component {
 
     const Stack = createStackNavigator();
     var themeColors = appThemeStore.colors;
+    var backButtonOptions = (navigation, title, color) => ({
+      headerTitle: '',
+      headerBackVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+          <AppIcon icon={ChevronLeftIcon} size={24} color={color || appThemeStore.colors.text} />
+          <Text style={{ marginLeft: 4, color: color || appThemeStore.colors.text, fontSize: 16 }}>{title}</Text>
+        </TouchableOpacity>
+      )
+    });
 
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -7243,31 +7391,13 @@ class RootApp extends React.Component {
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="show" options={({ navigation, route }) => ({
-                  headerTitle: '',
+                  ...backButtonOptions(navigation, 'Список книг', '#FFF'),
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
                     shadowColor: 'transparent'
                   },
                   headerShadowVisible: false,
-                  headerBackTitle: 'Список книг',
-                  headerBackTitleStyle: {
-                    color: '#FFF',
-                  },
-                  headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />,
-                  ...(Platform.OS === 'web' ? {
-                    headerTitle: '',
-                    headerLeft: () => (
-                      <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
-                      >
-                        <AppIcon icon={ChevronLeftIcon} size={24} color="#FFF" />
-                        <Text style={{ marginLeft: 8, color: '#FFF', fontSize: 17 }}>Список книг</Text>
-                      </TouchableOpacity>
-                    ),
-                  } : {}),
                 }
                 )}>
                   {(stack) => (
@@ -7291,7 +7421,9 @@ class RootApp extends React.Component {
                     </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="subscription" options={{ title: 'ПРО-доступ' }}>
+                <Stack.Screen name="subscription" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Книги')
+                })}>
                   {() => (
                     <Subscription root={this} />
                   )}
@@ -7299,21 +7431,15 @@ class RootApp extends React.Component {
                 <Stack.Screen
                   name="dictionary_learning"
                   options={({ navigation }) => ({
-                    title: '',
-                    headerLeft: () => (
-                      <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
-                        <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-                        <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Словарь</Text>
-                      </TouchableOpacity>
-                    )
+                    ...backButtonOptions(navigation, 'Словарь')
                   })}>
                   {(stack) => (
                     <DictionaryLearning root={this} stack={stack} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
+                <Stack.Screen name="article" options={({ navigation }) => ({
+                  ...backButtonOptions(navigation, 'Блог')
+                })}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
                   )}
@@ -7738,13 +7864,13 @@ const Show = observer(class Show extends React.Component {
             onPress={() => this.setState({ context_menu_visible: false })}
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
-                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 16, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
+              <View style={{ position: 'absolute', top: 8, right: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 34, paddingHorizontal: 16, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 14, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
                 </TouchableOpacity>
                 {this.state.have_file &&
-                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
-                    <Text style={{ fontSize: 16, color: app_theme_colors.red }}>Удалить из памяти</Text>
+                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 34, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: appThemeStore.colors.border }}>
+                    <Text style={{ fontSize: 14, color: app_theme_colors.red }}>Удалить из памяти</Text>
                   </TouchableOpacity>
                 }
               </View>

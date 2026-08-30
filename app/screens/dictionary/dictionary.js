@@ -8,7 +8,7 @@ class Dictionary extends React.Component {
       words: [],
       do_not_find: false,
       sorting_by: 'date',
-      hide_studied: true,
+      words_filter: 'unstudied',
       learning: false,
       learning_questions: [],
       learning_index: 0,
@@ -151,6 +151,18 @@ class Dictionary extends React.Component {
     });
   }
 
+  filteredWords() {
+    if (this.state.words_filter == 'studied') {
+      return this.state.words.filter(word => word.studied === true);
+    }
+
+    if (this.state.words_filter == 'unstudied') {
+      return this.state.words.filter(word => word.studied !== true);
+    }
+
+    return this.state.words;
+  }
+
   shuffle(items) {
     var result = items.slice();
     for (var i = result.length - 1; i > 0; i--) {
@@ -188,7 +200,12 @@ class Dictionary extends React.Component {
   }
 
   async toggleWordStudied(word) {
-    await this.updateWordLearningState(word, { studied: word.studied !== true });
+    var changes = { studied: word.studied !== true };
+    if (word.studied === true) {
+      changes.learning_shows = 0;
+      changes.study_prompted = false;
+    }
+    await this.updateWordLearningState(word, changes);
   }
 
   async recordLearningShow(word) {
@@ -454,19 +471,17 @@ class Dictionary extends React.Component {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={{ height: 24, flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                      <Text style={{ color: appThemeStore.colors.text, fontSize: 12, marginRight: 6 }}>Скрыть изученные</Text>
-                      <Switch
-                        style={{ transform: [{ scale: 0.75 }] }}
-                        trackColor={{
-                          false: appThemeStore.colors.backgroundLight,
-                          true: app_theme_colors.red
-                        }}
-                        thumbColor="#aaa"
-                        activeThumbColor="#aaa"
-                        ios_backgroundColor={appThemeStore.colors.backgroundLight}
-                        value={this.state.hide_studied}
-                        onValueChange={(value) => this.setState({ hide_studied: value })}
+                    <View style={{ width: 132, marginLeft: 12 }}>
+                      <Text style={{ color: appThemeStore.colors.text, textAlign: 'right' }}>Показывать:</Text>
+                      <Select
+                        style={{ marginTop: 8 }}
+                        value={this.state.words_filter}
+                        options={[
+                          { value: 'all', title: 'Все слова' },
+                          { value: 'studied', title: 'Изученные' },
+                          { value: 'unstudied', title: 'Не изученные' }
+                        ]}
+                        onValueChange={(value) => this.setState({ words_filter: value })}
                       />
                     </View>
                   </View>
@@ -482,7 +497,7 @@ class Dictionary extends React.Component {
                   scrollIndicatorInsets={{ right: 1 }}
                   removeClippedSubviews={true}
                   contentContainerStyle={{ paddingBottom: 100 }}
-                  data={this.state.hide_studied ? this.state.words.filter(word => word.studied !== true) : this.state.words}
+                  data={this.filteredWords()}
                   renderItem={(word) => {
                     return (
                       <View style={{ marginLeft: 8, marginRight: 8, backgroundColor: appThemeStore.colors.surface, borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>

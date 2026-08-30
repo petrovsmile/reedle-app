@@ -154,15 +154,16 @@ class Auth extends React.Component {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
         <ScrollView>
-          {this.props.modal == true &&
-            <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
-                <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
-              </TouchableOpacity>
-            </View>
-          }
+          <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
+            {this.props.modal == true &&
+              <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
+                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
+                </TouchableOpacity>
+              </View>
+            }
 
-          <View style={profileStyles.content}>
+            <View style={profileStyles.content}>
             {this.props.bookmark_info != undefined &&
               <React.Fragment>
                 <Text style={bookmarksStyles.auth_into}>
@@ -300,6 +301,7 @@ class Auth extends React.Component {
 
             <View style={{ height: 100 }}></View>
 
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>

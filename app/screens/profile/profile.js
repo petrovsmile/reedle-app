@@ -78,7 +78,7 @@ class Profile extends React.Component {
             <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
 
             <View style={profileStyles.menu}>
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription'))}
+              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
@@ -130,7 +130,7 @@ class ProfileDetails extends React.Component {
         ]}
         disabled={this.state.social_loader != false}
         onPress={() => this.socialAction(type, connected)}>
-        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : '#ddd' }]}>
+        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : appThemeStore.colors.backgroundLight }]}>
           <Image style={profileStyles.social_icon_image} source={image} />
         </View>
         <Text style={[profileStyles.social_name, { color: appThemeStore.colors.text }]}>{title}</Text>

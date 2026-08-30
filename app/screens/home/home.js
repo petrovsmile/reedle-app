@@ -338,7 +338,7 @@ const Home = observer(class Home extends React.Component {
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
-            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription')}>
+            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Книги' })}>
               <AppIcon icon={MegaphoneOffIcon} size={28} color={appThemeStore.colors.text} style={{ marginTop: 3 }} />
             </TouchableOpacity>
           ) : (

@@ -421,6 +421,18 @@ class RootApp extends React.Component {
 
     const Stack = createStackNavigator();
     var themeColors = appThemeStore.colors;
+    var backButtonOptions = (navigation, title, color) => ({
+      headerTitle: '',
+      headerBackVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+          <AppIcon icon={ChevronLeftIcon} size={24} color={color || appThemeStore.colors.text} />
+          <Text style={{ marginLeft: 4, color: color || appThemeStore.colors.text, fontSize: 16 }}>{title}</Text>
+        </TouchableOpacity>
+      )
+    });
 
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.background }}>
@@ -473,31 +485,13 @@ class RootApp extends React.Component {
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="show" options={({ navigation, route }) => ({
-                  headerTitle: '',
+                  ...backButtonOptions(navigation, 'Список книг', '#FFF'),
                   headerStyle: {
                     backgroundColor: route.params.color,
                     borderColor: 'transparent',
                     shadowColor: 'transparent'
                   },
                   headerShadowVisible: false,
-                  headerBackTitle: 'Список книг',
-                  headerBackTitleStyle: {
-                    color: '#FFF',
-                  },
-                  headerBackTitleVisible: Platform.OS === 'ios',
-                  headerBackImage: () => <AppIcon icon={ChevronLeftIcon} size={22} color="#FFF" style={{ marginLeft: 10 }} />,
-                  ...(Platform.OS === 'web' ? {
-                    headerTitle: '',
-                    headerLeft: () => (
-                      <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: '100%' }}
-                      >
-                        <AppIcon icon={ChevronLeftIcon} size={24} color="#FFF" />
-                        <Text style={{ marginLeft: 8, color: '#FFF', fontSize: 17 }}>Список книг</Text>
-                      </TouchableOpacity>
-                    ),
-                  } : {}),
                 }
                 )}>
                   {(stack) => (
@@ -521,7 +515,9 @@ class RootApp extends React.Component {
                     </SafeAreaInsetsContext.Consumer>
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="subscription" options={{ title: 'ПРО-доступ' }}>
+                <Stack.Screen name="subscription" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Книги')
+                })}>
                   {() => (
                     <Subscription root={this} />
                   )}
@@ -529,21 +525,15 @@ class RootApp extends React.Component {
                 <Stack.Screen
                   name="dictionary_learning"
                   options={({ navigation }) => ({
-                    title: '',
-                    headerLeft: () => (
-                      <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
-                        <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-                        <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Словарь</Text>
-                      </TouchableOpacity>
-                    )
+                    ...backButtonOptions(navigation, 'Словарь')
                   })}>
                   {(stack) => (
                     <DictionaryLearning root={this} stack={stack} />
                   )}
                 </Stack.Screen>
-                <Stack.Screen name="article" options={{ title: 'Блог', headerBackTitle: 'Блог' }}>
+                <Stack.Screen name="article" options={({ navigation }) => ({
+                  ...backButtonOptions(navigation, 'Блог')
+                })}>
                   {(stack) => (
                     <BlogArticle stack={stack} />
                   )}

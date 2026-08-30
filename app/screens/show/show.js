@@ -136,13 +136,13 @@ const Show = observer(class Show extends React.Component {
             onPress={() => this.setState({ context_menu_visible: false })}
             style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 20 }}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ position: 'absolute', top: 8, right: 12, width: 220, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
-                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 16, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
+              <View style={{ position: 'absolute', top: 8, right: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: appThemeStore.colors.surface, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
+                <TouchableOpacity onPress={() => this.markAsRead()} style={{ minHeight: 34, paddingHorizontal: 16, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 14, color: appThemeStore.colors.text }}>Отметить прочитанной</Text>
                 </TouchableOpacity>
                 {this.state.have_file &&
-                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#eee' }}>
-                    <Text style={{ fontSize: 16, color: app_theme_colors.red }}>Удалить из памяти</Text>
+                  <TouchableOpacity onPress={() => this.confirmDeleteFromMemory()} style={{ minHeight: 34, paddingHorizontal: 16, justifyContent: 'center', borderTopWidth: 1, borderTopColor: appThemeStore.colors.border }}>
+                    <Text style={{ fontSize: 14, color: app_theme_colors.red }}>Удалить из памяти</Text>
                   </TouchableOpacity>
                 }
               </View>
