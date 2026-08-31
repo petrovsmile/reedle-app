@@ -1530,17 +1530,9 @@ class OAuthAuthorization {
   }
 
   async authorize(type) {
-    var platform = Platform.OS === 'web' ? 'pwa' : 'app';
-    var link = HOST + '/oauth_redirect/' + type + '/' + platform;
-
     this.open();
 
-    if (Platform.OS === 'web') {
-      await this.startWeb(type);
-      return;
-    }
-
-    await Linking.openURL(link);
+    await this.startWait(type);
   }
 
   open() {
@@ -1588,9 +1580,7 @@ class OAuthAuthorization {
     await this.setCurrentUser(user);
   }
 
-  async startWeb(type) {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-
+  async startWait(type) {
     var attempt = ++this.webAttempt;
     var oauthWindow = window.open('', '_blank');
     var oauthResponse = await new Request('/oauth_redirect/' + type + '/pwa', {}, {
