@@ -79,6 +79,7 @@ class Blog extends React.Component {
     return (
       <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
+          style={blogStyles.scrollContent}
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
@@ -149,7 +150,7 @@ class BlogArticle extends React.Component {
     var article = this.state.article;
     return (
       <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
-        <ScrollView contentContainerStyle={blogStyles.articleContent}>
+        <ScrollView style={blogStyles.scrollContent} contentContainerStyle={blogStyles.articleContent}>
           <View style={blogStyles.articleInfo}>
             <View style={blogStyles.look}>
               <BlogEye color="#aaa" />

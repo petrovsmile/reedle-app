@@ -53,6 +53,57 @@ const profileStyles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 30,
   },
+  memorySummary: {
+    minHeight: 58,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+  },
+  memoryTotal: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  memoryClear: {
+    color: app_theme_colors.red,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  memoryList: {
+    paddingHorizontal: 15,
+    paddingBottom: 30,
+  },
+  memoryRow: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+  },
+  memoryBookInfo: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
+  },
+  memoryBookName: {
+    fontSize: 15,
+  },
+  memoryBookSize: {
+    marginTop: 5,
+    fontSize: 13,
+  },
+  memoryDelete: {
+    color: app_theme_colors.red,
+    fontSize: 14,
+  },
+  memoryActionDisabled: {
+    opacity: 0.4,
+  },
+  memoryEmpty: {
+    paddingTop: 60,
+    textAlign: 'center',
+    fontSize: 16,
+  },
   section: {
     alignSelf: 'stretch',
     padding: 15,

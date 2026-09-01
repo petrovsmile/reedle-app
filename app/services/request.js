@@ -93,9 +93,7 @@ class Request {
       }
 
     } else {
-      if (this.options.do_not_show_error != true) {
-        appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
-      }
+      appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
       if (this.options.detailed_response == true) {
         return { ok: false, status: 0, data: null };
       }

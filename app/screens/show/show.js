@@ -116,10 +116,7 @@ const Show = observer(class Show extends React.Component {
 
   async deleteFromMemory() {
     var bookId = this.props.stack.route.params.book_id;
-    await new Storage().set('have_file_' + bookId, '');
-    var bookDirectory = file_root + '/books/' + bookId + '/';
-    if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
-    downloadStore.setCompleted(bookId, false);
+    await downloadStore.removeBooks([bookId]);
     this.setState({ have_file: false });
   }
 

@@ -92,10 +92,23 @@ var readerScreenStyles = StyleSheet.create({
   },
   adContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
+    alignItems: 'center',
     justifyContent: 'center',
-    height: 250,
+    height: 306,
     marginTop: 20,
+  },
+  disableAdsButton: {
+    width: 200,
+    height: 36,
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disableAdsButtonText: {
+    fontSize: 14,
   },
   readerContainer: {
     flex: 1,

@@ -14,14 +14,23 @@ class ProfileSettings extends React.Component {
   }
 
   async componentDidMount() {
+    this._mounted = true;
+    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.loadSettings());
+    await this.loadSettings();
+  }
+
+  componentWillUnmount() {
+    this._mounted = false;
+    if (this._unsubscribeFocus) this._unsubscribeFocus();
+  }
+
+  async loadSettings() {
     var value = await new Storage().get('themeReaderSettings');
     var settings = value ? JSON.parse(value) : {};
-    if (appThemeStore.mode == 'system') {
-      settings.backgroundColorTheme = appThemeStore.colors.background;
-      settings.textColorTheme = appThemeStore.colors.text;
-      settings.secondColorTheme = appThemeStore.colors.second;
-    }
-    this.setState(Object.assign({}, this.state, settings, { loaded: true }));
+    settings.backgroundColorTheme = appThemeStore.colors.background;
+    settings.textColorTheme = appThemeStore.colors.text;
+    settings.secondColorTheme = appThemeStore.colors.second;
+    if (this._mounted) this.setState(Object.assign({}, settings, { loaded: true }));
   }
 
   async saveSettings(changes) {

@@ -39,7 +39,6 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
-    this._webFullscreenAdRequested = false;
   }
 
   deepLinkFromWebLocation() {
@@ -76,6 +75,14 @@ class RootApp extends React.Component {
   }
 
   async componentDidMount() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      this._pwaUpdateHandler = () => this.showPwaUpdatePrompt();
+      window.addEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
+      if (window.reedlePwaUpdateRegistration && window.reedlePwaUpdateRegistration.waiting) {
+        this.showPwaUpdatePrompt();
+      }
+    }
+
     this.initAds();
 
     var current_user = await new Storage().get('current_user');
@@ -148,6 +155,9 @@ class RootApp extends React.Component {
 
   componentWillUnmount() {
     this.oauthAuthorization.cancel();
+    if (this._pwaUpdateHandler && typeof window !== 'undefined') {
+      window.removeEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
+    }
     if (this._unsubNet) {
       this._unsubNet();
     }
@@ -166,6 +176,25 @@ class RootApp extends React.Component {
     }
   }
 
+  showPwaUpdatePrompt() {
+    if (this._pwaUpdatePromptShown) return;
+    this._pwaUpdatePromptShown = true;
+
+    AppAlert.alert(
+      'Доступна новая версия',
+      'Обновите приложение, чтобы применить изменения.',
+      [
+        {
+          text: 'Обновить',
+          onPress: () => {
+            if (window.reedleApplyPwaUpdate) window.reedleApplyPwaUpdate();
+          }
+        },
+        { text: 'Позже', style: 'cancel' }
+      ]
+    );
+  }
+
   async initAds() {
     if (Platform.OS === 'ios') {
       try {
@@ -176,24 +205,6 @@ class RootApp extends React.Component {
     adSizeBig = await BannerAdSize.inlineSize(300, 250);
     adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
-  }
-
-  showWebFullscreenAd() {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    if (appStore.has_subscription || this._webFullscreenAdRequested) return;
-
-    this._webFullscreenAdRequested = true;
-    window.yaContextCb = window.yaContextCb || [];
-    window.yaContextCb.push(() => {
-      // Статус мог измениться, пока загружался рекламный скрипт.
-      if (appStore.has_subscription) return;
-      if (!window.Ya || !window.Ya.Context || !window.Ya.Context.AdvManager) return;
-
-      window.Ya.Context.AdvManager.render({
-        type: 'fullscreen',
-        blockId: 'R-A-19117521-1'
-      });
-    });
   }
 
   async check_location() {
@@ -358,7 +369,6 @@ class RootApp extends React.Component {
     this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
-    if (!has_subscription) this.showWebFullscreenAd();
 
     if (sync_with_server) {
       this.sync_subscription_with_server(

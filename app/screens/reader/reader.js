@@ -98,11 +98,9 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
-    if (appThemeStore.mode == 'system') {
-      settings['backgroundColorTheme'] = appThemeStore.colors.background;
-      settings['textColorTheme'] = appThemeStore.colors.text;
-      settings['secondColorTheme'] = appThemeStore.colors.second;
-    }
+    settings['backgroundColorTheme'] = appThemeStore.colors.background;
+    settings['textColorTheme'] = appThemeStore.colors.text;
+    settings['secondColorTheme'] = appThemeStore.colors.second;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -340,6 +338,8 @@ class Reader extends React.Component {
       } else {
         if (appStore.show_subsription == true) {
           this.showAdInfo();
+        } else if (Platform.OS === 'web') {
+          this.showWebAd();
         } else {
           this.showAd();
         }
@@ -435,6 +435,23 @@ class Reader extends React.Component {
         this.openPage(false);
       }
     }
+  }
+
+  async showWebAd() {
+    this.setState({
+      showAdInfo: false,
+      showAdOpacity: true,
+    });
+
+    var result = await advertisingConfig.showWebFullscreen(this.state.textColorTheme == '#ffffff');
+
+    if (result == 'closed') {
+      await new Storage().set('time_ad', moment().format());
+      AppMetrica.reportEvent('loader', { status: 'webFullscreenClosed' });
+    }
+
+    this.setState({ showAdOpacity: false });
+    this.openPage(false);
   }
 
   closeTraining() {
@@ -739,6 +756,12 @@ class Reader extends React.Component {
     });
   }
 
+  openSubscription() {
+    this.props.stack.navigation.navigate('subscription', {
+      backTitle: this.book_name || this.book_name_en || 'Книги'
+    });
+  }
+
   renderParagraphItem({ item }) {
     if (item._type === 'ad') {
       return (
@@ -749,6 +772,19 @@ class Reader extends React.Component {
               adRequest={{ adUnitId: AD_UNIT_BANNER }}
             />
           )}
+          <TouchableOpacity
+            onPress={() => this.openSubscription()}
+            style={[
+              readerScreenStyles.disableAdsButton,
+              {
+                backgroundColor: readerStore.backgroundColorTheme,
+                borderColor: readerStore.secondColorTheme
+              }
+            ]}>
+            <Text style={[readerScreenStyles.disableAdsButtonText, { color: readerStore.textColorTheme }]}>
+              Отключить рекламу
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -758,7 +794,7 @@ class Reader extends React.Component {
           data={item}
           openTranslateSentence={(value) => this.translateSentence(value)}
           openTranslateWord={(o, tr, ts) => this.openTranslateWord(o, tr, ts)}
-          openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
+          openSubscription={() => this.openSubscription()}
           openAuthModal={() => this.openAuthModal()}
           setBookmark={(value) => this.setBookmark(value)}
           current_user={this.props.root.state.current_user}
@@ -843,7 +879,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.openSubscription()} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -876,7 +912,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
+              openSubscription={() => this.openSubscription()}
             />
 
             <View style={readerScreenStyles.layout}>

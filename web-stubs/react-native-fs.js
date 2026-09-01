@@ -1,52 +1,114 @@
-const prefix = 'rnfs:';
+const DATABASE_NAME = 'reedle-files';
+const DATABASE_VERSION = 1;
+const FILES_STORE = 'files';
 const memoryStorage = new Map();
 
 export const DocumentDirectoryPath = '/documents';
 
-const getStorage = () => {
-  try {
-    return typeof window !== 'undefined' ? window.localStorage : null;
-  } catch (error) {
-    return null;
-  }
+let databasePromise = null;
+
+const openDatabase = () => {
+  if (databasePromise) return databasePromise;
+
+  databasePromise = new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve(null);
+      return;
+    }
+
+    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(FILES_STORE)) {
+        database.createObjectStore(FILES_STORE);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+
+  return databasePromise;
 };
 
-const keyForPath = path => `${prefix}${path}`;
+const getValue = (database, path) => new Promise((resolve, reject) => {
+  const transaction = database.transaction(FILES_STORE, 'readonly');
+  const request = transaction.objectStore(FILES_STORE).get(path);
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const hasPathPrefix = (database, path) => new Promise((resolve, reject) => {
+  const transaction = database.transaction(FILES_STORE, 'readonly');
+  const range = IDBKeyRange.bound(path, path + '\uffff');
+  const request = transaction.objectStore(FILES_STORE).openKeyCursor(range);
+  request.onsuccess = () => resolve(request.result !== null);
+  request.onerror = () => reject(request.error);
+});
+
+const putValue = (database, path, value) => new Promise((resolve, reject) => {
+  const transaction = database.transaction(FILES_STORE, 'readwrite');
+  transaction.objectStore(FILES_STORE).put(value, path);
+  transaction.oncomplete = () => resolve();
+  transaction.onerror = () => reject(transaction.error);
+  transaction.onabort = () => reject(transaction.error);
+});
+
+const deletePath = (database, path) => new Promise((resolve, reject) => {
+  const transaction = database.transaction(FILES_STORE, 'readwrite');
+  const store = transaction.objectStore(FILES_STORE);
+  const request = store.openCursor();
+
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+
+    const storedPath = String(cursor.key);
+    if (storedPath === path || storedPath.startsWith(path)) cursor.delete();
+    cursor.continue();
+  };
+  request.onerror = () => reject(request.error);
+  transaction.oncomplete = () => resolve();
+  transaction.onerror = () => reject(transaction.error);
+  transaction.onabort = () => reject(transaction.error);
+});
 
 export async function exists(path) {
-  const storage = getStorage();
-  return storage ? storage.getItem(keyForPath(path)) !== null : memoryStorage.has(path);
+  const database = await openDatabase();
+  if (!database) {
+    if (path.endsWith('/')) return [...memoryStorage.keys()].some(itemPath => itemPath.startsWith(path));
+    return memoryStorage.has(path);
+  }
+  if (path.endsWith('/')) return await hasPathPrefix(database, path);
+  return (await getValue(database, path)) !== undefined;
 }
 
 export async function readFile(path) {
-  const storage = getStorage();
-  const value = storage ? storage.getItem(keyForPath(path)) : memoryStorage.get(path);
-  if (value == null) throw new Error(`File not found: ${path}`);
+  const database = await openDatabase();
+  const value = database ? await getValue(database, path) : memoryStorage.get(path);
+  if (value === undefined) throw new Error(`File not found: ${path}`);
   return value;
 }
 
 export async function writeFile(path, data) {
   const value = String(data);
-  const storage = getStorage();
-  if (storage) storage.setItem(keyForPath(path), value);
+  const database = await openDatabase();
+  if (database) await putValue(database, path, value);
   else memoryStorage.set(path, value);
 }
 
 export async function unlink(path) {
-  const storage = getStorage();
-  if (storage) {
-    const key = keyForPath(path);
-    const keys = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const storageKey = storage.key(index);
-      if (storageKey === key || storageKey.startsWith(key)) keys.push(storageKey);
-    }
-    keys.forEach(storageKey => storage.removeItem(storageKey));
-  } else {
-    [...memoryStorage.keys()]
-      .filter(itemPath => itemPath === path || itemPath.startsWith(path))
-      .forEach(itemPath => memoryStorage.delete(itemPath));
+  const database = await openDatabase();
+  if (database) {
+    await deletePath(database, path);
+    return;
   }
+
+  [...memoryStorage.keys()]
+    .filter(itemPath => itemPath === path || itemPath.startsWith(path))
+    .forEach(itemPath => memoryStorage.delete(itemPath));
 }
 
 export async function mkdir() {}

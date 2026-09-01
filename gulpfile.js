@@ -3,6 +3,7 @@ var concat = require('gulp-concat');
 
 gulp.task('js', function () {
   return gulp.src([
+    './app/services/**/*.js',
     './app/main.js',
     './app/configs.js',
     './app/stylesheets/application.js',
@@ -12,7 +13,6 @@ gulp.task('js', function () {
     './app/stylesheets/dictionary/*.js',
     './app/stylesheets/profile/*.js',
     './app/stylesheets/reader/*.js',
-    './app/plugins/**/*.js',
     './app/screens/**/*.js',
     './app/render.js',
   ])

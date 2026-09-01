@@ -53,6 +53,10 @@ class Dictionary extends React.Component {
     }
   }
 
+  insufficientWordsMessage(count) {
+    return 'Для тестирования необходимо не менее 10 неизученных слов. Сейчас в словаре: ' + count + ' из 10.';
+  }
+
   openLearningFromHeader() {
     if (this.props.root.state.current_user == false) {
       this.setState({ auth_modal: true, auth_method: 'login' });
@@ -63,7 +67,7 @@ class Dictionary extends React.Component {
     if (source.length < 10) {
       AppAlert.alert(
         'Недостаточно слов',
-        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+        this.insufficientWordsMessage(source.length)
       );
       return;
     }
@@ -257,7 +261,7 @@ class Dictionary extends React.Component {
     if (words == undefined && source.length < 10) {
       AppAlert.alert(
         'Недостаточно слов',
-        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+        this.insufficientWordsMessage(source.length)
       );
       return;
     }

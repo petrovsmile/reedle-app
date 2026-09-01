@@ -57,6 +57,8 @@ const Home = observer(class Home extends React.Component {
   }
 
   async componentDidMount() {
+    this._unsubscribeDownloadCompleted = downloadStore.onCompleted(() => this.filter_books());
+
     var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
     if (sort_new_book_default_migrated != 'true') {
       await new Storage().set('sort_new_book', 'true');
@@ -77,6 +79,10 @@ const Home = observer(class Home extends React.Component {
     // this.props.stack.navigation.navigate('reader', {
     //   book_id: 1
     // });
+  }
+
+  componentWillUnmount() {
+    if (this._unsubscribeDownloadCompleted) this._unsubscribeDownloadCompleted();
   }
 
   async getBooks() {
@@ -102,9 +108,13 @@ const Home = observer(class Home extends React.Component {
           this.filter_books();
         } else {
           if (server_books.length != books.length) {
-            books = server_books;
-            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
-            appStore.setBooksOrder(server_books.map(book => book.id));
+            var localBooksById = {};
+            books.forEach((book) => { localBooksById[book.id] = book; });
+            books = server_books.map((book) => localBooksById[book.id] && localBooksById[book.id].downloaded_size
+              ? Object.assign({}, book, { downloaded_size: localBooksById[book.id].downloaded_size })
+              : book);
+            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(books), 'utf8');
+            appStore.setBooksOrder(books.map(book => book.id));
 
             this.setState({ books: books }, () => this.filter_books());
           } else {
@@ -361,7 +371,7 @@ const Home = observer(class Home extends React.Component {
 
         <View style={[homeStyles.level_selector, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <View style={homeStyles.level_selector_wrap}>
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color="#aaa" level="all" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color={appThemeStore.colors.background} level="all" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A1" color="#89c053" level="1" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A2" color="#5e9cea" level="2" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B1" color="#f5b945" level="3" current_level={this.state.level} />
@@ -479,7 +489,7 @@ class LevelSelectorPoint extends React.Component {
       <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={[homeStyles.level_selector_point, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
         <View style={this.props.current_level == this.props.level && [{ backgroundColor: this.props.color }, homeStyles.level_selector_point_active]}>
           <Text style={homeStyles.level_selector_point_text}>
-            <Text style={this.props.current_level == this.props.level ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
+            <Text style={this.props.current_level == this.props.level && this.props.level != 'all' ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
               {this.props.name}
             </Text>
           </Text>
@@ -510,16 +520,19 @@ function PreviewBooks() {
 function PreviewBook() {
   return (
     <React.Fragment>
-      <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
-          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
+      <View style={{ margin: 5 }}>
+        <View style={{ marginLeft: 10, marginRight: 10, paddingBottom: 15, paddingTop: 15, flexDirection: 'row' }}>
+          <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
+            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
+            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
+          </View>
         </View>
       </View>
+      <View style={{ height: 1, marginLeft: 15, marginRight: 15, backgroundColor: appThemeStore.colors.border }} />
     </React.Fragment>
   );
 }

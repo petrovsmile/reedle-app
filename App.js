@@ -1,123 +1,204 @@
-import 'react-native-gesture-handler';
+class AdvertisingConfig {
+  constructor(platform) {
+    this.platform = platform;
+    this.bannerUnitId = platform === 'ios' ? 'R-M-1281415-12' : 'R-M-1281416-12';
+    this.rewardedUnitId = platform === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416-13';
+    this.webFullscreenUnitIds = {
+      desktop: 'R-A-19117521-1',
+      touch: 'R-A-19117521-1'
+    };
+  }
 
-import React, { useState, useEffect } from 'react';
-import type { Node } from 'react';
-import {
-  SafeAreaView,
-  Text as NativeText,
-  View,
-  TouchableOpacity,
-  Platform,
-  ImageBackground,
-  ScrollView,
-  FlatList,
-  Dimensions,
-  Image,
-  ActivityIndicator,
-  TouchableWithoutFeedback,
-  TextInput as NativeTextInput,
-  StyleSheet,
-  Modal,
-  Button,
-  StatusBar,
-  RefreshControl,
-  Switch,
-  Vibration,
-  Linking,
-  Animated,
-  Appearance
-} from 'react-native';
+  showWebFullscreen(darkTheme) {
+    if (this.platform !== 'web' || typeof window === 'undefined') {
+      return Promise.resolve('unavailable');
+    }
 
-import { WebView } from 'react-native-webview';
+    return new Promise((resolve) => {
+      var finished = false;
+      var sdkTimeout = setTimeout(() => finish('timeout'), 10000);
+      var finish = (result) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(sdkTimeout);
+        resolve(result);
+      };
 
-import { SwipeListView } from 'react-native-swipe-list-view';
-import moment from 'moment';
+      window.yaContextCb = window.yaContextCb || [];
+      window.yaContextCb.push(() => {
+        try {
+          if (!window.Ya || !window.Ya.Context || !window.Ya.Context.AdvManager) {
+            finish('unavailable');
+            return;
+          }
 
-import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, SafeAreaInsetsContext } from 'react-native-safe-area-context';
+          var manager = window.Ya.Context.AdvManager;
+          var webPlatform = manager.getPlatform ? manager.getPlatform() : 'touch';
+          var blockId = this.webFullscreenUnitIds[webPlatform] || this.webFullscreenUnitIds.touch;
 
+          manager.render({
+            type: 'fullscreen',
+            blockId: blockId,
+            platform: webPlatform,
+            darkTheme: darkTheme === true,
+            onRender: () => clearTimeout(sdkTimeout),
+            onClose: () => finish('closed'),
+            onError: () => finish('error')
+          });
+        } catch (error) {
+          finish('error');
+        }
+      });
+    });
+  }
+}
 
-var RNFS = require('react-native-fs');
+class AppAlertService {
+  handler = null;
 
-var file_root = RNFS.DocumentDirectoryPath;
-//console.log(file_root);  
+  alert(title, message, buttons) {
+    if (this.handler) {
+      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
+      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: modalButtons
+      });
+    }
+  }
 
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
+      { text: 'Отмена', style: 'cancel' }
+    ]);
+  }
+}
 
-import Slider from '@react-native-community/slider';
-import NetInfo from "@react-native-community/netinfo";
+class AppAlertModal extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false, title: '', message: '', buttons: [] };
+  }
 
-import RNRestart from 'react-native-restart';
+  componentDidMount() {
+    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options));
+  }
 
-import { AnimatedCircularProgress } from 'react-native-circular-progress';
+  componentWillUnmount() {
+    AppAlert.handler = null;
+  }
 
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+  close(button) {
+    this.setState({ visible: false }, () => {
+      if (button && button.onPress) button.onPress();
+    });
+  }
 
-import { requestTrackingPermission } from 'react-native-tracking-transparency';
+  render() {
+    if (!this.state.visible) return null;
 
-import AppMetrica from '@appmetrica/react-native-analytics';
+    return (
+      <Modal
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        transparent={true}
+        visible={true}
+        statusBarTranslucent={true}
+        onRequestClose={() => this.close()}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => this.close()}
+          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
+              {this.state.title ? <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
+              {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: appThemeStore.colors.mutedText }}>{this.state.message}</Text> : null}
+              <View style={{ flexDirection: 'column', marginTop: 20 }}>
+                {this.state.buttons.map((button, index) => {
+                  var isCancel = button.style == 'cancel';
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => this.close(button)}
+                      style={{
+                        width: '100%',
+                        minHeight: 44,
+                        marginTop: index == 0 ? 0 : 8,
+                        borderWidth: isCancel ? 1 : 0,
+                        borderColor: appThemeStore.colors.border,
+                        borderRadius: 8,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : app_theme_colors.red
+                      }}>
+                      <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
+    );
+  }
+}
 
-AppMetrica.activate({
-  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
-  sessionTimeout: 120,
-  firstActivationAsUpdate: false,
-});
+function createAppIcon() {
+  return ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
+    <Icon strokeWidth={strokeWidth} {...props} />
+  );
+}
 
-var Sound = require('react-native-sound');
-Sound = Sound.default || Sound;
-Sound.setCategory('Playback');
+var activeAppSound = null;
 
-import * as StoreReview from 'react-native-store-review';
+class AppSound {
+  constructor(filename, basePath, onLoad, onInterrupted) {
+    AppSound.stopCurrent();
+    this.onInterrupted = onInterrupted;
+    this.released = false;
+    this.sound = new Sound(filename, basePath, (error) => {
+      if (onLoad) onLoad(error);
+    });
+    activeAppSound = this;
+  }
 
-import { makeAutoObservable, runInAction } from 'mobx';
-import { observer } from 'mobx-react';
+  static stopCurrent() {
+    if (activeAppSound) activeAppSound.interrupt();
+  }
 
-import {
-  AlignCenter as AlignCenterIcon,
-  AlignJustify as AlignJustifyIcon,
-  AlignLeft as AlignLeftIcon,
-  AlignRight as AlignRightIcon,
-  Book as BookIcon,
-  BookOpen as BookOpenIcon,
-  Bookmark as BookmarkIcon,
-  Check as CheckIcon,
-  CheckCircle as CheckCircleIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  CloudDownload as CloudDownloadIcon,
-  Download as DownloadIcon,
-  Eye as EyeIcon,
-  EyeOff as EyeOffIcon,
-  FileCheck as FileCheckIcon,
-  Menu as MenuIcon,
-  Minus as MinusIcon,
-  Newspaper as NewspaperIcon,
-  Play as PlayIcon,
-  Plus as PlusIcon,
-  RectangleHorizontal as AdvertisementIcon,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
-  SlidersHorizontal as SlidersIcon,
-  Trash2 as TrashIcon,
-  User as UserIcon,
-  Volume2 as VolumeIcon,
-  Wifi as WifiIcon,
-  WifiOff as WifiOffIcon,
-  X as CloseIcon,
-  ArrowDownToLine as ArrowDownToLineIcon,
-  BookA as BookAIcon,
-  Ellipsis as EllipsisIcon,
-  EllipsisVertical as EllipsisVerticalIcon,
-  MegaphoneOff as MegaphoneOffIcon
-} from 'lucide-react-native';
+  interrupt() {
+    if (this.released) return;
+    try {
+      this.sound.stop();
+    } catch (_) { }
+    this.release();
+    if (this.onInterrupted) this.onInterrupted();
+  }
 
-const AppIcon = ({ icon: Icon, strokeWidth = 1.7, ...props }) => (
-  <Icon strokeWidth={strokeWidth} {...props} />
-);
+  play(callback) {
+    this.sound.play(callback);
+  }
+
+  setVolume(volume) {
+    this.sound.setVolume(volume);
+  }
+
+  getDuration() {
+    return this.sound.getDuration();
+  }
+
+  release() {
+    if (this.released) return;
+    this.released = true;
+    try {
+      this.sound.release();
+    } catch (_) { }
+    if (activeAppSound === this) activeAppSound = null;
+  }
+}
 
 const APP_COLOR_THEMES = {
   light: { background: '#ffffff', surface: '#ffffff', backgroundLight: '#eeeeee', border: '#dddddd', text: '#000000', mutedText: '#777777', second: '#bbbbbb' },
@@ -191,16 +272,16 @@ class AppThemeStore {
 
   async setCustomTheme(themeName) {
     if (!APP_COLOR_THEMES[themeName]) return;
-    await AsyncStorage.setItem('app_color_theme_mode', 'custom');
-    await AsyncStorage.setItem('app_color_theme', themeName);
     runInAction(() => {
       this.mode = 'custom';
       this.customTheme = themeName;
     });
+    await Promise.all([
+      AsyncStorage.setItem('app_color_theme_mode', 'custom'),
+      AsyncStorage.setItem('app_color_theme', themeName)
+    ]);
   }
 }
-
-const appThemeStore = new AppThemeStore();
 
 function appThemeNameByBackground(backgroundColor) {
   return ({
@@ -212,219 +293,1090 @@ function appThemeNameByBackground(backgroundColor) {
   })[String(backgroundColor || '').toLowerCase()] || 'light';
 }
 
-const Text = observer(React.forwardRef(function ThemedText(props, ref) {
-  return <NativeText {...props} ref={ref} style={[{ color: appThemeStore.colors.text }, props.style]} />;
-}));
+function createThemedText() {
+  return observer(React.forwardRef(function ThemedText(props, ref) {
+    return <NativeText {...props} ref={ref} style={[{ color: appThemeStore.colors.text }, props.style]} />;
+  }));
+}
 
-const TextInput = observer(React.forwardRef(function ThemedTextInput(props, ref) {
-  return (
-    <NativeTextInput
-      {...props}
-      ref={ref}
-      placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
-      style={[
-        { color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface },
-        props.style,
-        {
-          borderColor: appThemeStore.colors.border,
-          ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
-        }
-      ]}
-    />
-  );
-}));
+function createThemedTextInput() {
+  return observer(React.forwardRef(function ThemedTextInput(props, ref) {
+    return (
+      <NativeTextInput
+        {...props}
+        ref={ref}
+        placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
+        style={[
+          { color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface },
+          props.style,
+          {
+            borderColor: appThemeStore.colors.border,
+            ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
+          }
+        ]}
+      />
+    );
+  }));
+}
 
-const AppAlert = {
-  handler: null,
-
-  alert(title, message, buttons) {
-    if (this.handler) {
-      this.handler({
-        title: title || '',
-        message: message || '',
-        buttons: buttons && buttons.length ? buttons : [{ text: 'Понятно' }]
-      });
-    }
-  },
-
-  confirm(title, message, onConfirm, confirmText) {
-    this.alert(title, message, [
-      { text: 'Отмена', style: 'cancel' },
-      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm }
-    ]);
-  }
-};
-
-class AppAlertModal extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { visible: false, title: '', message: '', buttons: [] };
+class OAuthAuthorization {
+  constructor(root) {
+    this.root = root;
+    this.webAttempt = 0;
   }
 
-  componentDidMount() {
-    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options));
+  async authorize(type) {
+    this.open();
+
+    await this.startWait(type);
   }
 
-  componentWillUnmount() {
-    AppAlert.handler = null;
-  }
-
-  close(button) {
-    this.setState({ visible: false }, () => {
-      if (button && button.onPress) button.onPress();
+  open() {
+    this.root.setState({
+      oauth_modal_show: true,
+      oauth_manual_token: '',
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
     });
   }
 
-  render() {
-    if (!this.state.visible) return null;
+  close() {
+    this.cancel();
+    this.root.setState({
+      oauth_modal_show: false,
+      oauth_manual_loading: false,
+      oauth_manual_error: false,
+    });
+  }
 
-    return (
-      <Modal
-        animationType="fade"
-        presentationStyle="overFullScreen"
-        transparent={true}
-        visible={true}
-        statusBarTranslucent={true}
-        onRequestClose={() => this.close()}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => this.close()}
-          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-        >
-          <TouchableWithoutFeedback onPress={() => {}}>
-          <View style={{ width: '100%', maxWidth: 420, padding: 20, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
-            {this.state.title ? <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
-            {this.state.message ? <Text style={{ marginTop: this.state.title ? 12 : 0, fontSize: 16, lineHeight: 23, textAlign: 'center', color: appThemeStore.colors.mutedText }}>{this.state.message}</Text> : null}
-            <View style={{ flexDirection: 'column', marginTop: 20 }}>
-              {this.state.buttons.map((button, index) => {
-                var isCancel = button.style == 'cancel';
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => this.close(button)}
-                    style={{
-                      flex: 1,
-                      minHeight: 44,
-                      marginTop: index == 0 ? 0 : 8,
-                      borderWidth: isCancel ? 1 : 0,
-                      borderColor: appThemeStore.colors.border,
-                      borderRadius: 8,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      backgroundColor: isCancel ? appThemeStore.colors.backgroundLight : app_theme_colors.red
-                    }}
-                  >
-                    <Text style={{ color: isCancel ? appThemeStore.colors.text : '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>{button.text || 'Понятно'}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
-      </Modal>
-    );
+  cancel() {
+    this.webAttempt += 1;
+  }
+
+  async authorizeByManualToken() {
+    var token = String(this.root.state.oauth_manual_token || '').trim();
+    if (!token || this.root.state.oauth_manual_loading) return;
+
+    this.root.setState({ oauth_manual_loading: true, oauth_manual_error: false });
+    var user = await new Request('/api/v1/users/by_oauth_token', {
+      token: token,
+    }, {
+      do_not_show_error: true,
+    }).get();
+
+    if (!user || user.error != undefined) {
+      this.root.setState({
+        oauth_manual_loading: false,
+        oauth_manual_error: 'Не удалось подтвердить токен. Проверьте его и попробуйте ещё раз.',
+      });
+      return;
+    }
+
+    this.cancel();
+    await this.setCurrentUser(user);
+  }
+
+  async startWait(type) {
+    var attempt = ++this.webAttempt;
+    var isWeb = Platform.OS === 'web';
+    var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    var platform = isWeb ? 'pwa' : 'app';
+    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, {}, {
+      do_not_show_error: true,
+    }).get();
+
+    if (attempt != this.webAttempt) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    if (!oauthResponse || oauthResponse.error != undefined || !oauthResponse.redirect_url || !oauthResponse.session_token) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    try {
+      if (isWeb) {
+        if (oauthWindow) {
+          oauthWindow.location.href = oauthResponse.redirect_url;
+        } else {
+          window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        await Linking.openURL(oauthResponse.redirect_url);
+      }
+    } catch (_) {
+      this.root.setState({ oauth_manual_error: 'Не удалось открыть страницу авторизации.' });
+      return;
+    }
+
+    var expiresAt = Date.now() + 5 * 60 * 1000;
+
+    while (attempt == this.webAttempt && Date.now() < expiresAt) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
+
+      var user = await new Request('/api/v1/users/by_oauth_token', {
+        token: oauthResponse.session_token,
+      }, {
+        do_not_show_error: true,
+      }).get();
+
+      if (!user || user.error != undefined) continue;
+
+      this.cancel();
+      await this.setCurrentUser(user);
+      return;
+    }
+  }
+
+  async handleURL(url) {
+    if (!url) return;
+
+    var token = '';
+    try {
+      token = new URL(url).searchParams.get('token') || '';
+    } catch (_) {
+      var tokenMatch = String(url).match(/[?&]token=([^&#/]*)/);
+      token = tokenMatch ? tokenMatch[1] : '';
+    }
+    try {
+      token = decodeURIComponent(token).trim();
+    } catch (_) {
+      token = String(token).trim();
+    }
+    if (!token) return;
+
+    var user = await new Request('/api/v1/users/by_oauth_token', {
+      token: token,
+    }).get();
+
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user);
+  }
+
+  async loadPwaUser() {
+    var user = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user, false);
+  }
+
+  async setCurrentUser(user, closeModal = true) {
+    appStore.setCurrentUser(user);
+    this.root.setState({
+      current_user: user,
+      ...(closeModal ? { oauth_modal_show: false, oauth_manual_loading: false } : {}),
+    });
+    await new Storage().set('current_user', JSON.stringify(user));
+    this.root.checkSubscription();
   }
 }
 
+class Request {
+  constructor(url, params, options) {
+    this.url = url;
+    this.params = params;
+    if (options == undefined) {
+      this.options = {};
+    } else {
+      this.options = options;
+    }
+  }
+
+  async get() {
+    return await this.makeRequest('get');
+  }
+
+  async post() {
+    return await this.makeRequest('post');
+  }
+
+  async put() {
+    return await this.makeRequest('put');
+  }
+
+  async delete() {
+    return await this.makeRequest('delete');
+  }
+
+  AbortSignal(timeoutMs) {
+    const abortController = new AbortController();
+    setTimeout(() => abortController.abort(), timeoutMs || 0);
+  
+    return abortController.signal;
+  }
+
+  async makeRequest(method) {
+    if (appStore.has_internet) {
+      let url = HOST + this.url;
+
+      try {
+        if (method == 'get') {
+          var response = await axios.get(url, { signal: this.AbortSignal(5000), params: this.params });
+        }
+
+        if (method == 'post') {
+          var response = await axios.post(url,
+            this.params,
+            {
+              signal: this.AbortSignal(5000),
+              headers: { Authorization: `Bearer ${API_TOKEN}` }
+            }
+          );
+        }
+
+        if (method == 'put') {
+          var response = await axios.put(url,
+            this.params,
+            {
+              signal: this.AbortSignal(5000),
+              headers: { Authorization: `Bearer ${API_TOKEN}` }
+            }
+          );
+        }
+
+        if (method == 'delete') {
+          var response = await axios.delete(url,
+            {
+              signal: this.AbortSignal(5000),
+              headers: { Authorization: `Bearer ${API_TOKEN}` },
+              data: this.params
+            },
+          );
+        }
+
+
+        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
+        if (this.options.detailed_response == true) {
+          return { ok: true, status: response.status, data: data };
+        }
+        return data;
+
+      } catch (e) {
+        if (this.options.do_not_show_error != true) {
+          appStore.showError('Ошибка подключения к серверу', this.options.desciption_error);
+        }
+        if (this.options.detailed_response == true) {
+          return {
+            ok: false,
+            status: e.response ? e.response.status : 0,
+            data: e.response && e.response.data ? e.response.data.response : null
+          };
+        }
+        return false;
+      }
+
+    } else {
+      appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
+      if (this.options.detailed_response == true) {
+        return { ok: false, status: 0, data: null };
+      }
+      return false;
+    }
+  }
+}
+
+class Select extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false, pendingValue: props.value };
+  }
+
+  selectedOption() {
+    return this.props.options.find(option => option.value == this.props.value) || this.props.options[0];
+  }
+
+  select(value) {
+    this.setState({ visible: false }, () => this.props.onValueChange(value));
+  }
+
+  renderWeb() {
+    var style = Object.assign({
+      width: '100%',
+      height: 24,
+      paddingLeft: 8,
+      paddingRight: 8,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: appThemeStore.colors.border,
+      borderRadius: 4,
+      backgroundColor: appThemeStore.colors.backgroundLight,
+      color: appThemeStore.colors.text,
+      fontSize: 12,
+      boxSizing: 'border-box'
+    }, StyleSheet.flatten(this.props.style));
+
+    return React.createElement(
+      'select',
+      {
+        value: this.props.value,
+        onChange: (event) => this.props.onValueChange(event.target.value),
+        style: style
+      },
+      this.props.options.map(option => React.createElement(
+        'option',
+        {
+          key: option.value,
+          value: option.value,
+          style: { backgroundColor: appThemeStore.colors.surface, color: appThemeStore.colors.text }
+        },
+        option.title
+      ))
+    );
+  }
+
+  renderTrigger() {
+    var selectedOption = this.selectedOption();
+    return (
+      <TouchableOpacity
+        onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
+        style={[{
+          height: 24,
+          paddingHorizontal: 8,
+          borderWidth: 1,
+          borderRadius: 4,
+          borderColor: appThemeStore.colors.border,
+          backgroundColor: appThemeStore.colors.backgroundLight,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }, this.props.style]}>
+        <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 12 }}>{selectedOption.title}</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 10, marginLeft: 8 }}>▼</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  renderItems() {
+    return this.props.options.map(option => (
+      <Picker.Item
+        key={option.value}
+        label={option.title}
+        value={option.value}
+        color={appThemeStore.colors.text}
+      />
+    ));
+  }
+
+  renderIos() {
+    return (
+      <React.Fragment>
+        {this.renderTrigger()}
+        <Modal
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          transparent={true}
+          visible={this.state.visible}
+          onRequestClose={() => this.setState({ visible: false })}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => this.setState({ visible: false })}
+            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+                <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
+                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => this.setState({ visible: false })}>
+                    <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
+                  </TouchableOpacity>
+                </View>
+                <Picker
+                  selectedValue={this.state.pendingValue}
+                  onValueChange={(value) => this.setState({ pendingValue: value })}
+                  itemStyle={{ color: appThemeStore.colors.text, fontSize: 20 }}>
+                  {this.renderItems()}
+                </Picker>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      </React.Fragment>
+    );
+  }
+
+  renderAndroid() {
+    return (
+      <View style={[{
+        height: 32,
+        borderWidth: 1,
+        borderRadius: 4,
+        borderColor: appThemeStore.colors.border,
+        backgroundColor: appThemeStore.colors.backgroundLight,
+        justifyContent: 'center',
+        overflow: 'hidden'
+      }, this.props.style]}>
+        <Picker
+          mode="dropdown"
+          selectedValue={this.props.value}
+          onValueChange={(value) => this.props.onValueChange(value)}
+          dropdownIconColor={appThemeStore.colors.mutedText}
+          style={{ width: '100%', height: 32, color: appThemeStore.colors.text }}>
+          {this.renderItems()}
+        </Picker>
+      </View>
+    );
+  }
+
+  render() {
+    if (Platform.OS == 'web') return this.renderWeb();
+    if (Platform.OS == 'ios') return this.renderIos();
+    return this.renderAndroid();
+  }
+}
+
+class Storage {
+  async get(key, default_value) {
+    var value = await AsyncStorage.getItem(key);
+    if (value == undefined || value == null || value === '') {
+      value = default_value;
+      if (default_value != undefined) {
+        this.set(key, default_value);
+      }
+    }
+    return value;
+  }
+
+  async set(key, value) {
+    if (value == undefined) {
+      value = '';
+    }
+
+    var value = await AsyncStorage.setItem(key, value.toString());
+    return value;
+  }
+
+  async remove(key) {
+    await AsyncStorage.removeItem(key);
+  }
+}
+
+// ==================== AppStore ====================
+class AppStore {
+  has_internet = true;
+  has_subscription = false;
+  subscription_info = {};
+  current_user = false;
+  confirm_conditions = true;
+  books_percents = {};
+  books_order = [];
+  error_show = false;
+  error_title = '';
+  error_description = '';
+  type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
+  show_subsription = false;
+
+  constructor() {
+    makeAutoObservable(this);
+    this._notification_timer = null;
+  }
+
+  setInternet(value) { this.has_internet = value; }
+  setSubscription(value) { this.has_subscription = value; }
+  setSubscriptionInfo(info) { this.subscription_info = info; }
+  setCurrentUser(user) { this.current_user = user; }
+  setConfirmConditions(value) { this.confirm_conditions = value; }
+  setBooksPercents(percents) { this.books_percents = percents; }
+  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
+  setTypePayment(value) { this.type_payment = value; }
+  setShowSubscription(value) { this.show_subsription = value; }
+
+  showError(title, description) {
+    this.error_show = true;
+    this.error_title = title;
+    this.error_description = description;
+    console.log(title + ' ' + description);
+    clearTimeout(this._notification_timer);
+    this._notification_timer = setTimeout(() => {
+      runInAction(() => { this.error_show = false; });
+    }, 3000);
+  }
+
+  closeError() {
+    this.error_show = false;
+  }
+
+  clearErrorTimer() {
+    clearTimeout(this._notification_timer);
+  }
+}
+
+// ==================== ReaderStore ====================
+class ReaderStore {
+  fontSize = 18;
+  fontFamily = 'LibreBaskerville-Regular';
+  textAlign = 'flex-start';
+  translate_icon_size = 24;
+  backgroundColorTheme = '#ffffff';
+  textColorTheme = '#000000';
+  secondColorTheme = '#bbb';
+  bookmark = false;
+  page = '';
+  list_words = null;
+  currentSpeaking = null;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setThemeSettings(settings) {
+    // Мерджим — обновляем только те поля, которые реально пришли.
+    // Иначе при вызове вида setThemeSettings({fontFamily: 'X'}) все
+    // остальные поля стали бы undefined (баг со сбросом шрифта/размеров).
+    if (settings.fontSize !== undefined) this.fontSize = settings.fontSize;
+    if (settings.fontFamily !== undefined) this.fontFamily = settings.fontFamily;
+    if (settings.textAlign !== undefined) this.textAlign = settings.textAlign;
+    if (settings.translate_icon_size !== undefined) this.translate_icon_size = settings.translate_icon_size;
+    if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
+    if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
+    if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
+  }
+
+  setBookmark(value) { this.bookmark = value; }
+  setPage(value) { this.page = value; }
+  setCurrentSpeaking(value) { this.currentSpeaking = value; }
+  setListWords(words) { this.list_words = words; }
+  clearListWords() { this.list_words = null; }
+}
+
+// ==================== DownloadStore ====================
+class DownloadStore {
+  downloads = {};
+  completed = {};
+  completionListeners = [];
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  get(bookId) {
+    return this.downloads[bookId] || null;
+  }
+
+  isCompleted(bookId) {
+    return this.completed[bookId] === true;
+  }
+
+  setCompleted(bookId, completed) {
+    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
+  }
+
+  setDownload(bookId, changes) {
+    this.downloads = Object.assign({}, this.downloads, {
+      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
+    });
+  }
+
+  onCompleted(listener) {
+    this.completionListeners.push(listener);
+    return () => {
+      this.completionListeners = this.completionListeners.filter(item => item !== listener);
+    };
+  }
+
+  notifyCompleted(bookId) {
+    this.completionListeners.slice().forEach(listener => listener(bookId));
+  }
+
+  byteLength(value) {
+    var size = 0;
+    for (var index = 0; index < value.length; index++) {
+      var code = value.charCodeAt(index);
+      if (code <= 0x7f) {
+        size += 1;
+      } else if (code <= 0x7ff) {
+        size += 2;
+      } else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+        var nextCode = value.charCodeAt(index + 1);
+        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
+          size += 4;
+          index += 1;
+        } else {
+          size += 3;
+        }
+      } else {
+        size += 3;
+      }
+    }
+    return size;
+  }
+
+  async updateBookSizes(sizes) {
+    var booksPath = file_root + '/' + BOOKS_FILENAME;
+    if (!(await RNFS.exists(booksPath))) return;
+
+    var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
+    books = books.map((book) => Object.prototype.hasOwnProperty.call(sizes, book.id)
+      ? Object.assign({}, book, { downloaded_size: sizes[book.id] })
+      : book);
+    await RNFS.writeFile(booksPath, JSON.stringify(books), 'utf8');
+  }
+
+  async calculateBookSize(bookId) {
+    var bookPath = file_root + '/books/' + bookId;
+    var words = await RNFS.readFile(bookPath + '/words.json', 'utf8');
+    var pagination = await RNFS.readFile(bookPath + '/pagination.json', 'utf8');
+    var paginationData = JSON.parse(pagination);
+    var paragraphIds = [];
+
+    Object.keys(paginationData).forEach((page) => {
+      (paginationData[page] || []).forEach((paragraphId) => {
+        if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+      });
+    });
+
+    var size = this.byteLength(words) + this.byteLength(pagination);
+    var batchSize = 25;
+    for (var index = 0; index < paragraphIds.length; index += batchSize) {
+      var batch = paragraphIds.slice(index, index + batchSize);
+      var contents = await Promise.all(batch.map((paragraphId) =>
+        RNFS.readFile(bookPath + '/paragraphs/' + paragraphId + '.json', 'utf8')));
+      contents.forEach((value) => { size += this.byteLength(value); });
+    }
+
+    return size;
+  }
+
+  async removeBooks(bookIds) {
+    var ids = (bookIds || []).map((bookId) => String(bookId));
+    await Promise.all(ids.map(async (bookId) => {
+      await AsyncStorage.setItem('have_file_' + bookId, '');
+      var bookDirectory = file_root + '/books/' + bookId + '/';
+      if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+      this.setCompleted(bookId, false);
+    }));
+
+    var sizes = {};
+    ids.forEach((bookId) => { sizes[bookId] = 0; });
+    await this.updateBookSizes(sizes);
+  }
+
+  async start(book) {
+    if (!book || this.completed[book.id]) return;
+    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
+    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
+
+    this.setDownload(book.id, {
+      bookId: book.id,
+      name: book.name,
+      nameEn: book.name_en,
+      color: book.color,
+      progress: 0,
+      status: 'preparing',
+    });
+
+    AppMetrica.reportEvent('loader', { status: 'start' });
+
+    try {
+      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
+      if (!files || files.length === 0) throw new Error('download_list is empty');
+
+      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
+      this.setDownload(book.id, { status: 'downloading', progress: 2 });
+      var downloadedSize = 0;
+
+      for (var index = 0; index < files.length; index++) {
+        var requestPath = files[index];
+        var response = await new Request(requestPath, {}).get();
+        if (response === false) throw new Error('Failed to download ' + requestPath);
+
+        var filePath = requestPath.replace('/result', '');
+        var fileContents = JSON.stringify(response);
+        await RNFS.writeFile(file_root + filePath, fileContents, 'utf8');
+        downloadedSize += this.byteLength(fileContents);
+
+        var progress = Math.max(2, ((index + 1) / files.length) * 100);
+        this.setDownload(book.id, { progress: progress, status: 'downloading' });
+      }
+
+      await this.updateBookSizes({ [book.id]: downloadedSize });
+      await AsyncStorage.setItem('have_file_' + book.id, 'true');
+      this.setCompleted(book.id, true);
+      this.notifyCompleted(book.id);
+      this.dismiss(book.id);
+      AppMetrica.reportEvent('loader', { status: 'finish' });
+      AppMetrica.reportEvent('loader', { progress: 100 });
+    } catch (error) {
+      this.setDownload(book.id, { status: 'error', error: error.message });
+      AppMetrica.reportEvent('loader', { status: 'error' });
+    }
+  }
+
+  dismiss(bookId) {
+    var downloads = Object.assign({}, this.downloads);
+    delete downloads[bookId];
+    this.downloads = downloads;
+  }
+}
+
+// ==================== HomeStore ====================
+class HomeStore {
+  open_property = false;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setOpenProperty(value) { this.open_property = value; }
+}
+
+class SyncManager {
+  static queue_key = 'sync_operations_v1';
+  static _flush_promise = null;
+
+  static operationId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  static entityKey(entity, payload) {
+    return entity == 'bookmark' ? payload.book_id.toString() : payload.original;
+  }
+
+  static async operations() {
+    var value = await new Storage().get(this.queue_key, '[]');
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static async enqueue(entity, action, payload, base_version) {
+    var operations = await this.operations();
+    var key = this.entityKey(entity, payload);
+    operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
+    operations.push({
+      operation_id: this.operationId(),
+      entity: entity,
+      entity_key: key,
+      action: action,
+      payload: payload,
+      base_version: base_version,
+      created_at: new Date().toISOString()
+    });
+    await new Storage().set(this.queue_key, JSON.stringify(operations));
+  }
+
+  static async pendingKeys(entity) {
+    var operations = await this.operations();
+    return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
+  }
+
+  static async flush(user_id) {
+    if (this._flush_promise != null) return this._flush_promise;
+    this._flush_promise = this._flush(user_id).finally(() => { this._flush_promise = null; });
+    return this._flush_promise;
+  }
+
+  static async _flush(user_id) {
+    var operations = await this.operations();
+    var startedOperationIds = operations.map(operation => operation.operation_id);
+    var remaining = [];
+
+    for (var operation of operations) {
+      var result = await this.send(operation, user_id);
+      if (!result.ok && result.status == 409 && result.data && result.data.item) {
+        operation.base_version = result.data.item.version;
+        operation.operation_id = this.operationId();
+        result = await this.send(operation, user_id);
+      }
+
+      if (result.ok) {
+        var currentOperations = await this.operations();
+        var hasNewerOperation = currentOperations.some(value =>
+          value.entity == operation.entity &&
+          value.entity_key == operation.entity_key &&
+          value.operation_id != operation.operation_id &&
+          startedOperationIds.indexOf(value.operation_id) == -1
+        );
+        if (!hasNewerOperation) await this.applyAcknowledgement(operation, result.data);
+      } else {
+        remaining.push(operation);
+        if (result.status == 0) {
+          var currentIndex = operations.indexOf(operation);
+          remaining = remaining.concat(operations.slice(currentIndex + 1));
+          break;
+        }
+      }
+    }
+
+    var currentOperations = await this.operations();
+    var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
+    remaining = remaining.concat(newlyQueued);
+    await new Storage().set(this.queue_key, JSON.stringify(remaining));
+    return remaining.length == 0;
+  }
+
+  static async send(operation, user_id) {
+    var url = operation.entity == 'bookmark' ? '/api/v1/bookmarks' : '/api/v1/dictionary/words';
+    var params = Object.assign({}, operation.payload, {
+      user_id: user_id,
+      operation_id: operation.operation_id
+    });
+    if (operation.base_version != undefined && operation.base_version != null) {
+      params.base_version = operation.base_version;
+    }
+    var request = new Request(url, params, { do_not_show_error: true, detailed_response: true });
+    return operation.action == 'delete' ? request.delete() : request.post();
+  }
+
+  static async applyAcknowledgement(operation, data) {
+    var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
+    if (operation.action == 'delete') {
+      await new Storage().remove(key);
+      return;
+    }
+    var stored = await new Storage().get(key, '{}');
+    stored = JSON.parse(stored);
+    stored.version = data.version;
+    stored.updated_at = data.updated_at;
+    stored.offline = false;
+    await new Storage().set(key, JSON.stringify(stored));
+  }
+
+  static async syncBookmarks(user_id) {
+    await this.migrateLegacyBookmarks();
+    await this.flush(user_id);
+    var response = await new Request('/api/v1/bookmarks', {
+      user_id: user_id,
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('bookmark');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.book.id.toString();
+      var storageKey = 'bookmark_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await new Storage().remove(storageKey);
+      } else {
+        await new Storage().set(storageKey, JSON.stringify({
+          book_id: item.book.id,
+          book_name: item.book.name,
+          page: item.page,
+          paragraph: item.paragraph,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'bookmark' && value.action == 'upsert')) {
+      keys.push('bookmark_' + operation.payload.book_id);
+    }
+    keys = Array.from(new Set(keys));
+    await new Storage().set('bookmarks_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async syncWords(user_id) {
+    await this.migrateLegacyWords();
+    await this.flush(user_id);
+    var response = await new Request('/api/v1/dictionary/words', {
+      user_id: user_id,
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('word');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.original;
+      var storageKey = 'word_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await new Storage().remove(storageKey);
+      } else {
+        var localWordValue = await new Storage().get(storageKey);
+        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
+        await new Storage().set(storageKey, JSON.stringify({
+          original: item.original,
+          transcription: item.transcription,
+          translate: item.translate,
+          studied: localWord.studied === true,
+          learning_shows: Number(localWord.learning_shows || 0),
+          study_prompted: localWord.study_prompted === true,
+          created_at: item.created_at,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'word' && value.action == 'upsert')) {
+      keys.push('word_' + operation.payload.original);
+    }
+    keys = Array.from(new Set(keys));
+    await new Storage().set('words_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async migrateLegacyBookmarks() {
+    var keys = JSON.parse(await new Storage().get('bookmarks_keys', '[]'));
+    var pending = await this.pendingKeys('bookmark');
+    for (var key of keys) {
+      var value = await new Storage().get(key);
+      if (!value) continue;
+      var bookmark = JSON.parse(value);
+      if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
+        await this.enqueue('bookmark', 'upsert', {
+          book_id: bookmark.book_id,
+          page: bookmark.page,
+          paragraph: bookmark.paragraph
+        }, bookmark.version);
+      }
+    }
+  }
+
+  static async migrateLegacyWords() {
+    var keys = JSON.parse(await new Storage().get('words_keys', '[]'));
+    var pending = await this.pendingKeys('word');
+    for (var key of keys) {
+      var value = await new Storage().get(key);
+      if (!value) continue;
+      var word = JSON.parse(value);
+      if (word.offline == true && pending.indexOf(word.original) == -1) {
+        await this.enqueue('word', 'upsert', {
+          original: word.original,
+          transcription: word.transcription,
+          translate: word.translate
+        }, word.version);
+      }
+    }
+  }
+}
+
+import 'react-native-gesture-handler';
+
+import React, { useState, useEffect } from 'react';
+import type { Node } from 'react';
+import {
+  SafeAreaView,
+  Text as NativeText,
+  View,
+  TouchableOpacity,
+  Platform,
+  ImageBackground,
+  ScrollView,
+  FlatList,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  TextInput as NativeTextInput,
+  StyleSheet,
+  Modal,
+  Button,
+  StatusBar,
+  RefreshControl,
+  Switch,
+  Vibration,
+  Linking,
+  Animated,
+  Appearance
+} from 'react-native';
+
+import { WebView } from 'react-native-webview';
+import { SwipeListView } from 'react-native-swipe-list-view';
+import moment from 'moment';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Slider from '@react-native-community/slider';
+import { Picker } from '@react-native-picker/picker';
+import NetInfo from '@react-native-community/netinfo';
+import RNRestart from 'react-native-restart';
+import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { requestTrackingPermission } from 'react-native-tracking-transparency';
+import AppMetrica from '@appmetrica/react-native-analytics';
+import * as StoreReview from 'react-native-store-review';
+import { makeAutoObservable, runInAction } from 'mobx';
+import { observer } from 'mobx-react';
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
+import {
+  AlignCenter as AlignCenterIcon,
+  AlignJustify as AlignJustifyIcon,
+  AlignLeft as AlignLeftIcon,
+  AlignRight as AlignRightIcon,
+  Book as BookIcon,
+  BookOpen as BookOpenIcon,
+  Bookmark as BookmarkIcon,
+  Check as CheckIcon,
+  CheckCircle as CheckCircleIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  CloudDownload as CloudDownloadIcon,
+  Download as DownloadIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  FileCheck as FileCheckIcon,
+  Menu as MenuIcon,
+  Minus as MinusIcon,
+  Newspaper as NewspaperIcon,
+  Play as PlayIcon,
+  Plus as PlusIcon,
+  RectangleHorizontal as AdvertisementIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  SlidersHorizontal as SlidersIcon,
+  Trash2 as TrashIcon,
+  User as UserIcon,
+  Volume2 as VolumeIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  X as CloseIcon,
+  ArrowDownToLine as ArrowDownToLineIcon,
+  BookA as BookAIcon,
+  Ellipsis as EllipsisIcon,
+  EllipsisVertical as EllipsisVerticalIcon,
+  MegaphoneOff as MegaphoneOffIcon
+} from 'lucide-react-native';
+
+var RNFS = require('react-native-fs');
+var file_root = RNFS.DocumentDirectoryPath;
+
+AppMetrica.activate({
+  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
+  sessionTimeout: 120,
+  firstActivationAsUpdate: false,
+});
+
+var Sound = require('react-native-sound');
+Sound = Sound.default || Sound;
+Sound.setCategory('Playback');
 
 if (Platform.OS === 'ios') {
   Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
   Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
 }
 
+const AppIcon = createAppIcon();
+const appThemeStore = new AppThemeStore();
+const Text = createThemedText();
+const TextInput = createThemedTextInput();
+const AppAlert = new AppAlertService();
+const appStore = new AppStore();
+const readerStore = new ReaderStore();
+const downloadStore = new DownloadStore();
+const homeStore = new HomeStore();
+
+const advertisingConfig = new AdvertisingConfig(Platform.OS);
 let adSizeBig = null;
 let adSizeMini = null;
-
-const AD_UNIT_BANNER = Platform.OS === 'ios' ? 'R-M-1281415-12' : 'R-M-1281416-12';
-const AD_UNIT_REWARDED = Platform.OS === 'ios' ? 'R-M-1281415-13' : 'R-M-1281416-13';
-
-// import {
-//   Appodeal,
-//   AppodealSdkEvent,
-//   AppodealAdType,
-//   AppodealRewardedEvent,
-//   AppodealInterstitialEvent,
-//   AppodealLogLevel,
-// } from 'react-native-appodeal';
-
-// const adTypes = AppodealAdType.INTERSTITIAL | AppodealAdType.REWARDED_VIDEO;
-// if (Platform.OS === 'ios') {
-//   Appodeal.initialize('789aac74edf2a69bbe79c2183ffde03ce5b23177b2ac3689', adTypes, true);
-// } else {
-//   Appodeal.initialize('f4edf7b5ae1c5a9b440881471997c45c6e28f2f31ac7bd54', adTypes, true);
-// }
-
-//Appodeal.setLogLevel(AppodealLogLevel.DEBUG);
-
-
-// Appodeal.addEventListener(AppodealSdkEvent.INITIALIZED, () => {
-//   //console.log("Appodeal SDK did initialize");
-// });
-
-
-// Appodeal.addEventListener(AppodealRewardedEvent.REWARD, (event: any) => {
-//   if (root_reader != undefined) {
-//     //AppMetrica.reportEvent('adEvent',{status: 'REWARD'});    
-//     if (root_reader.state.showAdOpacity == true) {
-//       root_reader.setState({
-//         showAdOpacity: false,
-//       });
-//       AsyncStorage.setItem('time_ad', moment().format());
-//       root_reader.openPage(false);
-//     }
-//   }
-// });
-
-// Appodeal.addEventListener(AppodealRewardedEvent.CLOSED, () => {
-//   if (root_reader != undefined) {
-//     if (root_reader.state.showAdOpacity == true) {
-//       root_reader.setState({
-//         showAdOpacity: false,
-//       });
-//       root_reader.openPage(false);
-//     }
-//   }
-// });
-
-// Appodeal.addEventListener(AppodealRewardedEvent.FAILED_TO_LOAD, () => {
-//   if (root_reader != undefined) {
-//     //AppMetrica.reportEvent('adEvent',{status: 'FAILED_TO_LOAD'});    
-//     if (root_reader.state.showAdOpacity == true) {
-//       root_reader.setState({
-//         showAdOpacity: false,
-//       });
-//       if (root_reader.state.showNoAd == false) {
-//         root_reader.setState({
-//           showNoAd: true,
-//         });
-//       }
-//       root_reader.openPage(false);
-//     }
-//   }
-// });
-// Appodeal.addEventListener(AppodealRewardedEvent.FAILED_TO_SHOW, () => {
-//   if (root_reader != undefined) {
-//     //AppMetrica.reportEvent('adEvent',{status: 'FAILED_TO_SHOW'});    
-//     if (root_reader.state.showAdOpacity == true) {
-//       root_reader.setState({
-//         showAdOpacity: false,
-//       });
-//       if (root_reader.state.showNoAd == false) {
-//         root_reader.setState({
-//           showNoAd: true,
-//         });
-//       }
-//       root_reader.openPage(false);
-//     }
-//   }
-// });
-
-// Appodeal.addEventListener(AppodealInterstitialEvent.SHOWN, () => {
-//   AsyncStorage.setItem('time_short_ad', moment().format());
-// });
+const AD_UNIT_BANNER = advertisingConfig.bannerUnitId;
+const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
 
 const CURRENT_IOS_VERSION = '2.0.0'
 const CURRENT_ANDROID_VERSION = '2.0.0'
@@ -709,7 +1661,8 @@ const bookmarksStyles = StyleSheet.create({
 });
 
 const blogStyles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#fff' },
+  screen: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#fff' },
+  scrollContent: { flex: 1, minHeight: 0 },
   content: { padding: 10, paddingBottom: 24 },
   title: { fontSize: 30, fontWeight: 'bold', margin: 5, marginBottom: 12 },
   row: { flex: 1, padding: 5 },
@@ -995,6 +1948,57 @@ const profileStyles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 30,
   },
+  memorySummary: {
+    minHeight: 58,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+  },
+  memoryTotal: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  memoryClear: {
+    color: app_theme_colors.red,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  memoryList: {
+    paddingHorizontal: 15,
+    paddingBottom: 30,
+  },
+  memoryRow: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+  },
+  memoryBookInfo: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
+  },
+  memoryBookName: {
+    fontSize: 15,
+  },
+  memoryBookSize: {
+    marginTop: 5,
+    fontSize: 13,
+  },
+  memoryDelete: {
+    color: app_theme_colors.red,
+    fontSize: 14,
+  },
+  memoryActionDisabled: {
+    opacity: 0.4,
+  },
+  memoryEmpty: {
+    paddingTop: 60,
+    textAlign: 'center',
+    fontSize: 16,
+  },
   section: {
     alignSelf: 'stretch',
     padding: 15,
@@ -1277,10 +2281,23 @@ var readerScreenStyles = StyleSheet.create({
   },
   adContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
+    alignItems: 'center',
     justifyContent: 'center',
-    height: 250,
+    height: 306,
     marginTop: 20,
+  },
+  disableAdsButton: {
+    width: 200,
+    height: 36,
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disableAdsButtonText: {
+    fontSize: 14,
   },
   readerContainer: {
     flex: 1,
@@ -1339,789 +2356,6 @@ var readerScreenStyles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-// ==================== AppStore ====================
-class AppStore {
-  has_internet = true;
-  has_subscription = false;
-  subscription_info = {};
-  current_user = false;
-  confirm_conditions = true;
-  books_percents = {};
-  books_order = [];
-  error_show = false;
-  error_title = '';
-  error_description = '';
-  type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
-  show_subsription = false;
-
-  constructor() {
-    makeAutoObservable(this);
-    this._notification_timer = null;
-  }
-
-  setInternet(value) { this.has_internet = value; }
-  setSubscription(value) { this.has_subscription = value; }
-  setSubscriptionInfo(info) { this.subscription_info = info; }
-  setCurrentUser(user) { this.current_user = user; }
-  setConfirmConditions(value) { this.confirm_conditions = value; }
-  setBooksPercents(percents) { this.books_percents = percents; }
-  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
-  setTypePayment(value) { this.type_payment = value; }
-  setShowSubscription(value) { this.show_subsription = value; }
-
-  showError(title, description) {
-    this.error_show = true;
-    this.error_title = title;
-    this.error_description = description;
-    console.log(title + ' ' + description);
-    clearTimeout(this._notification_timer);
-    this._notification_timer = setTimeout(() => {
-      runInAction(() => { this.error_show = false; });
-    }, 3000);
-  }
-
-  closeError() {
-    this.error_show = false;
-  }
-
-  clearErrorTimer() {
-    clearTimeout(this._notification_timer);
-  }
-}
-const appStore = new AppStore();
-
-// ==================== ReaderStore ====================
-class ReaderStore {
-  fontSize = 18;
-  fontFamily = 'LibreBaskerville-Regular';
-  textAlign = 'flex-start';
-  translate_icon_size = 24;
-  backgroundColorTheme = '#ffffff';
-  textColorTheme = '#000000';
-  secondColorTheme = '#bbb';
-  bookmark = false;
-  page = '';
-  list_words = null;
-  currentSpeaking = null;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setThemeSettings(settings) {
-    // Мерджим — обновляем только те поля, которые реально пришли.
-    // Иначе при вызове вида setThemeSettings({fontFamily: 'X'}) все
-    // остальные поля стали бы undefined (баг со сбросом шрифта/размеров).
-    if (settings.fontSize !== undefined) this.fontSize = settings.fontSize;
-    if (settings.fontFamily !== undefined) this.fontFamily = settings.fontFamily;
-    if (settings.textAlign !== undefined) this.textAlign = settings.textAlign;
-    if (settings.translate_icon_size !== undefined) this.translate_icon_size = settings.translate_icon_size;
-    if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
-    if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
-    if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
-  }
-
-  setBookmark(value) { this.bookmark = value; }
-  setPage(value) { this.page = value; }
-  setCurrentSpeaking(value) { this.currentSpeaking = value; }
-  setListWords(words) { this.list_words = words; }
-  clearListWords() { this.list_words = null; }
-}
-const readerStore = new ReaderStore();
-
-// ==================== DownloadStore ====================
-class DownloadStore {
-  downloads = {};
-  completed = {};
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  get(bookId) {
-    return this.downloads[bookId] || null;
-  }
-
-  isCompleted(bookId) {
-    return this.completed[bookId] === true;
-  }
-
-  setCompleted(bookId, completed) {
-    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
-  }
-
-  setDownload(bookId, changes) {
-    this.downloads = Object.assign({}, this.downloads, {
-      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
-    });
-  }
-
-  async start(book) {
-    if (!book || this.completed[book.id]) return;
-    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
-    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
-
-    this.setDownload(book.id, {
-      bookId: book.id,
-      name: book.name,
-      nameEn: book.name_en,
-      color: book.color,
-      progress: 0,
-      status: 'preparing',
-    });
-
-    AppMetrica.reportEvent('loader', { status: 'start' });
-
-    try {
-      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
-      if (!files || files.length === 0) throw new Error('download_list is empty');
-
-      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
-      this.setDownload(book.id, { status: 'downloading', progress: 2 });
-
-      for (var index = 0; index < files.length; index++) {
-        var requestPath = files[index];
-        var response = await new Request(requestPath, {}).get();
-        if (response === false) throw new Error('Failed to download ' + requestPath);
-
-        var filePath = requestPath.replace('/result', '');
-        await RNFS.writeFile(file_root + filePath, JSON.stringify(response), 'utf8');
-
-        var progress = Math.max(2, ((index + 1) / files.length) * 100);
-        this.setDownload(book.id, { progress: progress, status: 'downloading' });
-      }
-
-      await AsyncStorage.setItem('have_file_' + book.id, 'true');
-      this.setCompleted(book.id, true);
-      this.dismiss(book.id);
-      AppMetrica.reportEvent('loader', { status: 'finish' });
-      AppMetrica.reportEvent('loader', { progress: 100 });
-    } catch (error) {
-      this.setDownload(book.id, { status: 'error', error: error.message });
-      AppMetrica.reportEvent('loader', { status: 'error' });
-    }
-  }
-
-  dismiss(bookId) {
-    var downloads = Object.assign({}, this.downloads);
-    delete downloads[bookId];
-    this.downloads = downloads;
-  }
-}
-const downloadStore = new DownloadStore();
-
-// ==================== HomeStore ====================
-class HomeStore {
-  open_property = false;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setOpenProperty(value) { this.open_property = value; }
-}
-const homeStore = new HomeStore();
-
-class OAuthAuthorization {
-  constructor(root) {
-    this.root = root;
-    this.webAttempt = 0;
-  }
-
-  async authorize(type) {
-    this.open();
-
-    await this.startWait(type);
-  }
-
-  open() {
-    this.root.setState({
-      oauth_modal_show: true,
-      oauth_manual_token: '',
-      oauth_manual_loading: false,
-      oauth_manual_error: false,
-    });
-  }
-
-  close() {
-    this.cancel();
-    this.root.setState({
-      oauth_modal_show: false,
-      oauth_manual_loading: false,
-      oauth_manual_error: false,
-    });
-  }
-
-  cancel() {
-    this.webAttempt += 1;
-  }
-
-  async authorizeByManualToken() {
-    var token = String(this.root.state.oauth_manual_token || '').trim();
-    if (!token || this.root.state.oauth_manual_loading) return;
-
-    this.root.setState({ oauth_manual_loading: true, oauth_manual_error: false });
-    var user = await new Request('/api/v1/users/by_oauth_token', {
-      token: token,
-    }, {
-      do_not_show_error: true,
-    }).get();
-
-    if (!user || user.error != undefined) {
-      this.root.setState({
-        oauth_manual_loading: false,
-        oauth_manual_error: 'Не удалось подтвердить токен. Проверьте его и попробуйте ещё раз.',
-      });
-      return;
-    }
-
-    this.cancel();
-    await this.setCurrentUser(user);
-  }
-
-  async startWait(type) {
-    var attempt = ++this.webAttempt;
-    var oauthWindow = window.open('', '_blank');
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/pwa', {}, {
-      do_not_show_error: true,
-    }).get();
-
-    if (attempt != this.webAttempt) {
-      if (oauthWindow) oauthWindow.close();
-      return;
-    }
-
-    if (!oauthResponse || oauthResponse.error != undefined || !oauthResponse.redirect_url || !oauthResponse.session_token) {
-      if (oauthWindow) oauthWindow.close();
-      return;
-    }
-
-    if (oauthWindow) {
-      oauthWindow.location.href = oauthResponse.redirect_url;
-    } else {
-      window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
-    }
-
-    var expiresAt = Date.now() + 5 * 60 * 1000;
-
-    while (attempt == this.webAttempt && Date.now() < expiresAt) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
-
-      var user = await new Request('/api/v1/users/by_oauth_token', {
-        token: oauthResponse.session_token,
-      }, {
-        do_not_show_error: true,
-      }).get();
-
-      if (!user || user.error != undefined) continue;
-
-      this.cancel();
-      await this.setCurrentUser(user);
-      return;
-    }
-  }
-
-  async handleURL(url) {
-    if (!url || !url.includes('token=')) return;
-
-    var tokenPart = url.split('token=')[1];
-    if (!tokenPart) return;
-    var token = tokenPart.split('/')[0].split('&')[0];
-
-    var user = await new Request('/api/v1/users/by_oauth_token', {
-      token: token,
-    }).get();
-
-    if (!user || user.error != undefined) return;
-    await this.setCurrentUser(user);
-  }
-
-  async loadPwaUser() {
-    var user = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
-    if (!user || user.error != undefined) return;
-    await this.setCurrentUser(user, false);
-  }
-
-  async setCurrentUser(user, closeModal = true) {
-    appStore.setCurrentUser(user);
-    this.root.setState({
-      current_user: user,
-      ...(closeModal ? { oauth_modal_show: false, oauth_manual_loading: false } : {}),
-    });
-    await new Storage().set('current_user', JSON.stringify(user));
-    this.root.checkSubscription();
-  }
-}
-
-class Request {
-  constructor(url, params, options) {
-    this.url = url;
-    this.params = params;
-    if (options == undefined) {
-      this.options = {};
-    } else {
-      this.options = options;
-    }
-  }
-
-  async get() {
-    return await this.makeRequest('get');
-  }
-
-  async post() {
-    return await this.makeRequest('post');
-  }
-
-  async put() {
-    return await this.makeRequest('put');
-  }
-
-  async delete() {
-    return await this.makeRequest('delete');
-  }
-
-  AbortSignal(timeoutMs) {
-    const abortController = new AbortController();
-    setTimeout(() => abortController.abort(), timeoutMs || 0);
-  
-    return abortController.signal;
-  }
-
-  async makeRequest(method) {
-    if (appStore.has_internet) {
-      let url = HOST + this.url;
-
-      try {
-        if (method == 'get') {
-          var response = await axios.get(url, { signal: this.AbortSignal(5000), params: this.params });
-        }
-
-        if (method == 'post') {
-          var response = await axios.post(url,
-            this.params,
-            {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` }
-            }
-          );
-        }
-
-        if (method == 'put') {
-          var response = await axios.put(url,
-            this.params,
-            {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` }
-            }
-          );
-        }
-
-        if (method == 'delete') {
-          var response = await axios.delete(url,
-            {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` },
-              data: this.params
-            },
-          );
-        }
-
-
-        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
-        if (this.options.detailed_response == true) {
-          return { ok: true, status: response.status, data: data };
-        }
-        return data;
-
-      } catch (e) {
-        if (this.options.do_not_show_error != true) {
-          appStore.showError('Ошибка подключения к серверу', this.options.desciption_error);
-        }
-        if (this.options.detailed_response == true) {
-          return {
-            ok: false,
-            status: e.response ? e.response.status : 0,
-            data: e.response && e.response.data ? e.response.data.response : null
-          };
-        }
-        return false;
-      }
-
-    } else {
-      if (this.options.do_not_show_error != true) {
-        appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
-      }
-      if (this.options.detailed_response == true) {
-        return { ok: false, status: 0, data: null };
-      }
-      return false;
-    }
-  }
-}
-
-class Select extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { visible: false };
-  }
-
-  selectedOption() {
-    return this.props.options.find(option => option.value == this.props.value) || this.props.options[0];
-  }
-
-  select(value) {
-    this.setState({ visible: false }, () => this.props.onValueChange(value));
-  }
-
-  renderWeb() {
-    var style = Object.assign({
-      width: '100%',
-      height: 24,
-      paddingLeft: 8,
-      paddingRight: 8,
-      borderWidth: 1,
-      borderStyle: 'solid',
-      borderColor: appThemeStore.colors.border,
-      borderRadius: 4,
-      backgroundColor: appThemeStore.colors.backgroundLight,
-      color: appThemeStore.colors.text,
-      fontSize: 12,
-      boxSizing: 'border-box'
-    }, StyleSheet.flatten(this.props.style));
-
-    return React.createElement(
-      'select',
-      {
-        value: this.props.value,
-        onChange: (event) => this.props.onValueChange(event.target.value),
-        style: style
-      },
-      this.props.options.map(option => React.createElement(
-        'option',
-        {
-          key: option.value,
-          value: option.value,
-          style: { backgroundColor: appThemeStore.colors.surface, color: appThemeStore.colors.text }
-        },
-        option.title
-      ))
-    );
-  }
-
-  render() {
-    if (Platform.OS == 'web') return this.renderWeb();
-
-    var selectedOption = this.selectedOption();
-
-    return (
-      <React.Fragment>
-        <TouchableOpacity
-          onPress={() => this.setState({ visible: true })}
-          style={[{
-            height: 24,
-            paddingHorizontal: 8,
-            borderWidth: 1,
-            borderRadius: 4,
-            borderColor: appThemeStore.colors.border,
-            backgroundColor: appThemeStore.colors.backgroundLight,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }, this.props.style]}>
-          <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 12 }}>{selectedOption.title}</Text>
-          <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 10, marginLeft: 8 }}>▼</Text>
-        </TouchableOpacity>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={this.state.visible}
-          onRequestClose={() => this.setState({ visible: false })}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => this.setState({ visible: false })}
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ width: '100%', maxWidth: 320, padding: 8, borderRadius: 10, backgroundColor: appThemeStore.colors.surface }}>
-                {this.props.options.map(option => {
-                  var isSelected = option.value == this.props.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      onPress={() => this.select(option.value)}
-                      style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isSelected ? appThemeStore.colors.backgroundLight : 'transparent' }}>
-                      <Text style={{ color: appThemeStore.colors.text, fontSize: 15 }}>{option.title}</Text>
-                      {isSelected && <Text style={{ color: app_theme_colors.red, fontSize: 16 }}>✓</Text>}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
-        </Modal>
-      </React.Fragment>
-    );
-  }
-}
-
-class Storage {
-  async get(key, default_value) {
-    var value = await AsyncStorage.getItem(key);
-    if (value == undefined || value == null || value === '') {
-      value = default_value;
-      if (default_value != undefined) {
-        this.set(key, default_value);
-      }
-    }
-    return value;
-  }
-
-  async set(key, value) {
-    if (value == undefined) {
-      value = '';
-    }
-
-    var value = await AsyncStorage.setItem(key, value.toString());
-    return value;
-  }
-
-  async remove(key) {
-    await AsyncStorage.removeItem(key);
-  }
-}
-class SyncManager {
-  static queue_key = 'sync_operations_v1';
-  static _flush_promise = null;
-
-  static operationId() {
-    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
-  }
-
-  static entityKey(entity, payload) {
-    return entity == 'bookmark' ? payload.book_id.toString() : payload.original;
-  }
-
-  static async operations() {
-    var value = await new Storage().get(this.queue_key, '[]');
-    try {
-      return JSON.parse(value);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  static async enqueue(entity, action, payload, base_version) {
-    var operations = await this.operations();
-    var key = this.entityKey(entity, payload);
-    operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
-    operations.push({
-      operation_id: this.operationId(),
-      entity: entity,
-      entity_key: key,
-      action: action,
-      payload: payload,
-      base_version: base_version,
-      created_at: new Date().toISOString()
-    });
-    await new Storage().set(this.queue_key, JSON.stringify(operations));
-  }
-
-  static async pendingKeys(entity) {
-    var operations = await this.operations();
-    return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
-  }
-
-  static async flush(user_id) {
-    if (this._flush_promise != null) return this._flush_promise;
-    this._flush_promise = this._flush(user_id).finally(() => { this._flush_promise = null; });
-    return this._flush_promise;
-  }
-
-  static async _flush(user_id) {
-    var operations = await this.operations();
-    var startedOperationIds = operations.map(operation => operation.operation_id);
-    var remaining = [];
-
-    for (var operation of operations) {
-      var result = await this.send(operation, user_id);
-      if (!result.ok && result.status == 409 && result.data && result.data.item) {
-        operation.base_version = result.data.item.version;
-        operation.operation_id = this.operationId();
-        result = await this.send(operation, user_id);
-      }
-
-      if (result.ok) {
-        var currentOperations = await this.operations();
-        var hasNewerOperation = currentOperations.some(value =>
-          value.entity == operation.entity &&
-          value.entity_key == operation.entity_key &&
-          value.operation_id != operation.operation_id &&
-          startedOperationIds.indexOf(value.operation_id) == -1
-        );
-        if (!hasNewerOperation) await this.applyAcknowledgement(operation, result.data);
-      } else {
-        remaining.push(operation);
-        if (result.status == 0) {
-          var currentIndex = operations.indexOf(operation);
-          remaining = remaining.concat(operations.slice(currentIndex + 1));
-          break;
-        }
-      }
-    }
-
-    var currentOperations = await this.operations();
-    var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
-    remaining = remaining.concat(newlyQueued);
-    await new Storage().set(this.queue_key, JSON.stringify(remaining));
-    return remaining.length == 0;
-  }
-
-  static async send(operation, user_id) {
-    var url = operation.entity == 'bookmark' ? '/api/v1/bookmarks' : '/api/v1/dictionary/words';
-    var params = Object.assign({}, operation.payload, {
-      user_id: user_id,
-      operation_id: operation.operation_id
-    });
-    if (operation.base_version != undefined && operation.base_version != null) {
-      params.base_version = operation.base_version;
-    }
-    var request = new Request(url, params, { do_not_show_error: true, detailed_response: true });
-    return operation.action == 'delete' ? request.delete() : request.post();
-  }
-
-  static async applyAcknowledgement(operation, data) {
-    var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
-    if (operation.action == 'delete') {
-      await new Storage().remove(key);
-      return;
-    }
-    var stored = await new Storage().get(key, '{}');
-    stored = JSON.parse(stored);
-    stored.version = data.version;
-    stored.updated_at = data.updated_at;
-    stored.offline = false;
-    await new Storage().set(key, JSON.stringify(stored));
-  }
-
-  static async syncBookmarks(user_id) {
-    await this.migrateLegacyBookmarks();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/bookmarks', {
-      user_id: user_id,
-      include_deleted: true
-    }, { do_not_show_error: true, detailed_response: true }).get();
-    if (!response.ok) return null;
-
-    var pending = await this.pendingKeys('bookmark');
-    var keys = [];
-    for (var item of response.data) {
-      var entityKey = item.book.id.toString();
-      var storageKey = 'bookmark_' + entityKey;
-      if (pending.indexOf(entityKey) > -1) continue;
-      if (item.deleted_at) {
-        await new Storage().remove(storageKey);
-      } else {
-        await new Storage().set(storageKey, JSON.stringify({
-          book_id: item.book.id,
-          book_name: item.book.name,
-          page: item.page,
-          paragraph: item.paragraph,
-          version: item.version,
-          updated_at: item.updated_at,
-          offline: false
-        }));
-        keys.push(storageKey);
-      }
-    }
-    var pendingOperations = await this.operations();
-    for (var operation of pendingOperations.filter(value => value.entity == 'bookmark' && value.action == 'upsert')) {
-      keys.push('bookmark_' + operation.payload.book_id);
-    }
-    keys = Array.from(new Set(keys));
-    await new Storage().set('bookmarks_keys', JSON.stringify(keys));
-    return keys;
-  }
-
-  static async syncWords(user_id) {
-    await this.migrateLegacyWords();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/dictionary/words', {
-      user_id: user_id,
-      include_deleted: true
-    }, { do_not_show_error: true, detailed_response: true }).get();
-    if (!response.ok) return null;
-
-    var pending = await this.pendingKeys('word');
-    var keys = [];
-    for (var item of response.data) {
-      var entityKey = item.original;
-      var storageKey = 'word_' + entityKey;
-      if (pending.indexOf(entityKey) > -1) continue;
-      if (item.deleted_at) {
-        await new Storage().remove(storageKey);
-      } else {
-        var localWordValue = await new Storage().get(storageKey);
-        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
-        await new Storage().set(storageKey, JSON.stringify({
-          original: item.original,
-          transcription: item.transcription,
-          translate: item.translate,
-          studied: localWord.studied === true,
-          learning_shows: Number(localWord.learning_shows || 0),
-          study_prompted: localWord.study_prompted === true,
-          created_at: item.created_at,
-          version: item.version,
-          updated_at: item.updated_at,
-          offline: false
-        }));
-        keys.push(storageKey);
-      }
-    }
-    var pendingOperations = await this.operations();
-    for (var operation of pendingOperations.filter(value => value.entity == 'word' && value.action == 'upsert')) {
-      keys.push('word_' + operation.payload.original);
-    }
-    keys = Array.from(new Set(keys));
-    await new Storage().set('words_keys', JSON.stringify(keys));
-    return keys;
-  }
-
-  static async migrateLegacyBookmarks() {
-    var keys = JSON.parse(await new Storage().get('bookmarks_keys', '[]'));
-    var pending = await this.pendingKeys('bookmark');
-    for (var key of keys) {
-      var value = await new Storage().get(key);
-      if (!value) continue;
-      var bookmark = JSON.parse(value);
-      if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
-        await this.enqueue('bookmark', 'upsert', {
-          book_id: bookmark.book_id,
-          page: bookmark.page,
-          paragraph: bookmark.paragraph
-        }, bookmark.version);
-      }
-    }
-  }
-
-  static async migrateLegacyWords() {
-    var keys = JSON.parse(await new Storage().get('words_keys', '[]'));
-    var pending = await this.pendingKeys('word');
-    for (var key of keys) {
-      var value = await new Storage().get(key);
-      if (!value) continue;
-      var word = JSON.parse(value);
-      if (word.offline == true && pending.indexOf(word.original) == -1) {
-        await this.enqueue('word', 'upsert', {
-          original: word.original,
-          transcription: word.transcription,
-          translate: word.translate
-        }, word.version);
-      }
-    }
-  }
-}
 
 const App = observer(function App() {
   useEffect(() => { appThemeStore.initialize(); }, []);
@@ -2221,6 +2455,7 @@ class Blog extends React.Component {
     return (
       <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
+          style={blogStyles.scrollContent}
           data={this.state.articles}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
@@ -2291,7 +2526,7 @@ class BlogArticle extends React.Component {
     var article = this.state.article;
     return (
       <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
-        <ScrollView contentContainerStyle={blogStyles.articleContent}>
+        <ScrollView style={blogStyles.scrollContent} contentContainerStyle={blogStyles.articleContent}>
           <View style={blogStyles.articleInfo}>
             <View style={blogStyles.look}>
               <BlogEye color="#aaa" />
@@ -2632,6 +2867,10 @@ class Dictionary extends React.Component {
     }
   }
 
+  insufficientWordsMessage(count) {
+    return 'Для тестирования необходимо не менее 10 неизученных слов. Сейчас в словаре: ' + count + ' из 10.';
+  }
+
   openLearningFromHeader() {
     if (this.props.root.state.current_user == false) {
       this.setState({ auth_modal: true, auth_method: 'login' });
@@ -2642,7 +2881,7 @@ class Dictionary extends React.Component {
     if (source.length < 10) {
       AppAlert.alert(
         'Недостаточно слов',
-        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+        this.insufficientWordsMessage(source.length)
       );
       return;
     }
@@ -2836,7 +3075,7 @@ class Dictionary extends React.Component {
     if (words == undefined && source.length < 10) {
       AppAlert.alert(
         'Недостаточно слов',
-        'Для тестирования должно быть добавлено в словарь не менее 10 неизученных слов.'
+        this.insufficientWordsMessage(source.length)
       );
       return;
     }
@@ -3316,6 +3555,8 @@ const Home = observer(class Home extends React.Component {
   }
 
   async componentDidMount() {
+    this._unsubscribeDownloadCompleted = downloadStore.onCompleted(() => this.filter_books());
+
     var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
     if (sort_new_book_default_migrated != 'true') {
       await new Storage().set('sort_new_book', 'true');
@@ -3336,6 +3577,10 @@ const Home = observer(class Home extends React.Component {
     // this.props.stack.navigation.navigate('reader', {
     //   book_id: 1
     // });
+  }
+
+  componentWillUnmount() {
+    if (this._unsubscribeDownloadCompleted) this._unsubscribeDownloadCompleted();
   }
 
   async getBooks() {
@@ -3361,9 +3606,13 @@ const Home = observer(class Home extends React.Component {
           this.filter_books();
         } else {
           if (server_books.length != books.length) {
-            books = server_books;
-            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(server_books), 'utf8');
-            appStore.setBooksOrder(server_books.map(book => book.id));
+            var localBooksById = {};
+            books.forEach((book) => { localBooksById[book.id] = book; });
+            books = server_books.map((book) => localBooksById[book.id] && localBooksById[book.id].downloaded_size
+              ? Object.assign({}, book, { downloaded_size: localBooksById[book.id].downloaded_size })
+              : book);
+            await RNFS.writeFile(file_root + '/' + BOOKS_FILENAME, JSON.stringify(books), 'utf8');
+            appStore.setBooksOrder(books.map(book => book.id));
 
             this.setState({ books: books }, () => this.filter_books());
           } else {
@@ -3620,7 +3869,7 @@ const Home = observer(class Home extends React.Component {
 
         <View style={[homeStyles.level_selector, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
           <View style={homeStyles.level_selector_wrap}>
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color="#aaa" level="all" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color={appThemeStore.colors.background} level="all" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A1" color="#89c053" level="1" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A2" color="#5e9cea" level="2" current_level={this.state.level} />
             <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B1" color="#f5b945" level="3" current_level={this.state.level} />
@@ -3738,7 +3987,7 @@ class LevelSelectorPoint extends React.Component {
       <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={[homeStyles.level_selector_point, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
         <View style={this.props.current_level == this.props.level && [{ backgroundColor: this.props.color }, homeStyles.level_selector_point_active]}>
           <Text style={homeStyles.level_selector_point_text}>
-            <Text style={this.props.current_level == this.props.level ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
+            <Text style={this.props.current_level == this.props.level && this.props.level != 'all' ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
               {this.props.name}
             </Text>
           </Text>
@@ -3769,16 +4018,19 @@ function PreviewBooks() {
 function PreviewBook() {
   return (
     <React.Fragment>
-      <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
-          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
-          <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
+      <View style={{ margin: 5 }}>
+        <View style={{ marginLeft: 10, marginRight: 10, paddingBottom: 15, paddingTop: 15, flexDirection: 'row' }}>
+          <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+            <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
+            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
+            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
+          </View>
         </View>
       </View>
+      <View style={{ height: 1, marginLeft: 15, marginRight: 15, backgroundColor: appThemeStore.colors.border }} />
     </React.Fragment>
   );
 }
@@ -4381,8 +4633,151 @@ class Profile extends React.Component {
               {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
+              {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
+              {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
             </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    );
+  }
+}
+
+class ProfileMemory extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { books: [], loading: true, deleting: false };
+  }
+
+  componentDidMount() {
+    this.loadBooks();
+    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.loadBooks());
+  }
+
+  componentWillUnmount() {
+    if (this._unsubscribeFocus) this._unsubscribeFocus();
+  }
+
+  async loadBooks() {
+    if (this._loadBooksPromise) return this._loadBooksPromise;
+    this._loadBooksPromise = this._loadBooks().finally(() => { this._loadBooksPromise = null; });
+    return this._loadBooksPromise;
+  }
+
+  async _loadBooks() {
+    try {
+      var booksPath = file_root + '/' + BOOKS_FILENAME;
+      if (!(await RNFS.exists(booksPath))) {
+        this.setState({ books: [], loading: false });
+        return;
+      }
+
+      var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
+      var downloaded = await Promise.all(books.map(async (book) => {
+        var haveFile = await AsyncStorage.getItem('have_file_' + book.id);
+        return haveFile == 'true' ? book : null;
+      }));
+      downloaded = downloaded.filter(Boolean);
+
+      var calculatedSizes = {};
+      for (var index = 0; index < downloaded.length; index++) {
+        var book = downloaded[index];
+        if (book.downloaded_size != null) continue;
+
+        try {
+          var size = await downloadStore.calculateBookSize(book.id);
+          book = Object.assign({}, book, { downloaded_size: size });
+          downloaded[index] = book;
+          calculatedSizes[book.id] = size;
+        } catch (_) {
+          // Если старая загрузка повреждена, оставляем размер неизвестным.
+        }
+      }
+
+      if (Object.keys(calculatedSizes).length > 0) {
+        await downloadStore.updateBookSizes(calculatedSizes);
+      }
+      this.setState({ books: downloaded, loading: false });
+    } catch (_) {
+      this.setState({ books: [], loading: false });
+    }
+  }
+
+  formatSize(size) {
+    var bytes = Number(size || 0);
+    if (bytes < 1024) return bytes + ' Б';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
+    return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
+  }
+
+  totalSize() {
+    return this.state.books.reduce((total, book) => total + Number(book.downloaded_size || 0), 0);
+  }
+
+  confirmDelete(book) {
+    AppAlert.confirm(
+      'Удалить книгу?',
+      '«' + (book.name_en || book.name) + '» будет удалена с устройства.',
+      () => this.deleteBooks([book.id]),
+      'Удалить'
+    );
+  }
+
+  confirmClear() {
+    if (this.state.books.length == 0) return;
+    AppAlert.confirm(
+      'Очистить память?',
+      'Все скачанные книги будут удалены с устройства.',
+      () => this.deleteBooks(this.state.books.map((book) => book.id)),
+      'Очистить'
+    );
+  }
+
+  async deleteBooks(bookIds) {
+    if (this.state.deleting) return;
+    this.setState({ deleting: true });
+    try {
+      await downloadStore.removeBooks(bookIds);
+      await this.loadBooks();
+    } catch (_) {
+      AppAlert.alert('Ошибка', 'Не удалось удалить скачанные книги.');
+    } finally {
+      this.setState({ deleting: false });
+    }
+  }
+
+  render() {
+    return (
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+        <View style={[profileStyles.memorySummary, { borderBottomColor: appThemeStore.colors.border }]}>
+          <Text style={[profileStyles.memoryTotal, { color: appThemeStore.colors.text }]}>
+            {'Занято: ' + this.formatSize(this.totalSize())}
+          </Text>
+          <TouchableOpacity
+            disabled={this.state.books.length == 0 || this.state.deleting}
+            onPress={() => this.confirmClear()}>
+            <Text style={[profileStyles.memoryClear, (this.state.books.length == 0 || this.state.deleting) && profileStyles.memoryActionDisabled]}>Очистить</Text>
+          </TouchableOpacity>
+        </View>
+
+        {this.state.loading ? (
+          <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />
+        ) : (
+          <ScrollView contentContainerStyle={profileStyles.memoryList}>
+            {this.state.books.length == 0 && (
+              <Text style={[profileStyles.memoryEmpty, { color: appThemeStore.colors.mutedText }]}>Скачанных книг нет</Text>
+            )}
+            {this.state.books.map((book) => (
+              <View key={book.id} style={[profileStyles.memoryRow, { borderBottomColor: appThemeStore.colors.border }]}>
+                <View style={profileStyles.memoryBookInfo}>
+                  <Text numberOfLines={1} style={[profileStyles.memoryBookName, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
+                  <Text style={[profileStyles.memoryBookSize, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
+                </View>
+                <TouchableOpacity disabled={this.state.deleting} onPress={() => this.confirmDelete(book)}>
+                  <Text style={[profileStyles.memoryDelete, this.state.deleting && profileStyles.memoryActionDisabled]}>Удалить</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -4531,8 +4926,11 @@ class ProfileStack extends React.Component {
         <RootStack.Screen name="profile_password" options={({ navigation }) => childScreenOptions(navigation)}>
           {() => <ProfilePassword root={this.props.root} />}
         </RootStack.Screen>
+        <RootStack.Screen name="profile_memory" options={({ navigation }) => childScreenOptions(navigation)}>
+          {(stack) => <ProfileMemory root={this.props.root} stack={stack} />}
+        </RootStack.Screen>
         <RootStack.Screen name="profile_settings" options={({ navigation }) => childScreenOptions(navigation)}>
-          {() => <ProfileSettings root={this.props.root} />}
+          {(stack) => <ProfileSettings root={this.props.root} stack={stack} />}
         </RootStack.Screen>
       </RootStack.Navigator>
     );
@@ -4555,14 +4953,23 @@ class ProfileSettings extends React.Component {
   }
 
   async componentDidMount() {
+    this._mounted = true;
+    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.loadSettings());
+    await this.loadSettings();
+  }
+
+  componentWillUnmount() {
+    this._mounted = false;
+    if (this._unsubscribeFocus) this._unsubscribeFocus();
+  }
+
+  async loadSettings() {
     var value = await new Storage().get('themeReaderSettings');
     var settings = value ? JSON.parse(value) : {};
-    if (appThemeStore.mode == 'system') {
-      settings.backgroundColorTheme = appThemeStore.colors.background;
-      settings.textColorTheme = appThemeStore.colors.text;
-      settings.secondColorTheme = appThemeStore.colors.second;
-    }
-    this.setState(Object.assign({}, this.state, settings, { loaded: true }));
+    settings.backgroundColorTheme = appThemeStore.colors.background;
+    settings.textColorTheme = appThemeStore.colors.text;
+    settings.secondColorTheme = appThemeStore.colors.second;
+    if (this._mounted) this.setState(Object.assign({}, settings, { loaded: true }));
   }
 
   async saveSettings(changes) {
@@ -4945,7 +5352,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         this.voiceoverSound = null;
       }
 
-      var sound = new Sound(url, '', error => {
+      var sound = new AppSound(url, '', error => {
         if (this.voiceoverSound !== sound) {
           sound.release();
           return;
@@ -4953,6 +5360,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
         if (error) {
           appStore.showError('Ошибка воспроизвездения');
+          sound.release();
+          this.voiceoverSound = null;
           this.setState({
             voiceover_playing: false
           });
@@ -5009,6 +5418,13 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             sound.release();
           }
         });
+      }, () => {
+        if (this.voiceoverSound === sound) {
+          this.voiceoverSound = null;
+          this.setState({ voiceover_playing: false });
+          this.stopPulseAnimation();
+          this.voiceover_playing_lock = false;
+        }
       })
       this.voiceoverSound = sound;
     }
@@ -5335,7 +5751,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     this.startPulseAnimation();
 
     var url = HOST + '/voiceover_books/' + this.props.book_id + '/' + this.props.data['name'] + '/' + sentenceIndex + '.mp3';
-    var sound = new Sound(url, '', error => {
+    var sound = new AppSound(url, '', error => {
       if (currentSentenceSound !== sound) {
         sound.release();
         return;
@@ -5366,6 +5782,14 @@ const Paragraph = observer(class Paragraph extends React.Component {
           sound.release();
         }
       });
+    }, () => {
+      if (currentSentenceSound === sound) {
+        currentSentenceSound = null;
+        currentSentenceSoundKey = null;
+        currentSentenceSoundOwner = null;
+        readerStore.setCurrentSpeaking(null);
+        this.stopPulseAnimation();
+      }
     });
 
     currentSentenceSound = sound;
@@ -5787,11 +6211,9 @@ class Reader extends React.Component {
       settings = JSON.parse(settings);
     }
 
-    if (appThemeStore.mode == 'system') {
-      settings['backgroundColorTheme'] = appThemeStore.colors.background;
-      settings['textColorTheme'] = appThemeStore.colors.text;
-      settings['secondColorTheme'] = appThemeStore.colors.second;
-    }
+    settings['backgroundColorTheme'] = appThemeStore.colors.background;
+    settings['textColorTheme'] = appThemeStore.colors.text;
+    settings['secondColorTheme'] = appThemeStore.colors.second;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -6029,6 +6451,8 @@ class Reader extends React.Component {
       } else {
         if (appStore.show_subsription == true) {
           this.showAdInfo();
+        } else if (Platform.OS === 'web') {
+          this.showWebAd();
         } else {
           this.showAd();
         }
@@ -6124,6 +6548,23 @@ class Reader extends React.Component {
         this.openPage(false);
       }
     }
+  }
+
+  async showWebAd() {
+    this.setState({
+      showAdInfo: false,
+      showAdOpacity: true,
+    });
+
+    var result = await advertisingConfig.showWebFullscreen(this.state.textColorTheme == '#ffffff');
+
+    if (result == 'closed') {
+      await new Storage().set('time_ad', moment().format());
+      AppMetrica.reportEvent('loader', { status: 'webFullscreenClosed' });
+    }
+
+    this.setState({ showAdOpacity: false });
+    this.openPage(false);
   }
 
   closeTraining() {
@@ -6428,6 +6869,12 @@ class Reader extends React.Component {
     });
   }
 
+  openSubscription() {
+    this.props.stack.navigation.navigate('subscription', {
+      backTitle: this.book_name || this.book_name_en || 'Книги'
+    });
+  }
+
   renderParagraphItem({ item }) {
     if (item._type === 'ad') {
       return (
@@ -6438,6 +6885,19 @@ class Reader extends React.Component {
               adRequest={{ adUnitId: AD_UNIT_BANNER }}
             />
           )}
+          <TouchableOpacity
+            onPress={() => this.openSubscription()}
+            style={[
+              readerScreenStyles.disableAdsButton,
+              {
+                backgroundColor: readerStore.backgroundColorTheme,
+                borderColor: readerStore.secondColorTheme
+              }
+            ]}>
+            <Text style={[readerScreenStyles.disableAdsButtonText, { color: readerStore.textColorTheme }]}>
+              Отключить рекламу
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -6447,7 +6907,7 @@ class Reader extends React.Component {
           data={item}
           openTranslateSentence={(value) => this.translateSentence(value)}
           openTranslateWord={(o, tr, ts) => this.openTranslateWord(o, tr, ts)}
-          openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
+          openSubscription={() => this.openSubscription()}
           openAuthModal={() => this.openAuthModal()}
           setBookmark={(value) => this.setBookmark(value)}
           current_user={this.props.root.state.current_user}
@@ -6532,7 +6992,7 @@ class Reader extends React.Component {
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => this.openSubscription()} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
                         <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
@@ -6565,7 +7025,7 @@ class Reader extends React.Component {
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
-              openSubscription={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Чтение' })}
+              openSubscription={() => this.openSubscription()}
             />
 
             <View style={readerScreenStyles.layout}>
@@ -6935,7 +7395,6 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
-    this._webFullscreenAdRequested = false;
   }
 
   deepLinkFromWebLocation() {
@@ -6972,6 +7431,14 @@ class RootApp extends React.Component {
   }
 
   async componentDidMount() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      this._pwaUpdateHandler = () => this.showPwaUpdatePrompt();
+      window.addEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
+      if (window.reedlePwaUpdateRegistration && window.reedlePwaUpdateRegistration.waiting) {
+        this.showPwaUpdatePrompt();
+      }
+    }
+
     this.initAds();
 
     var current_user = await new Storage().get('current_user');
@@ -7044,6 +7511,9 @@ class RootApp extends React.Component {
 
   componentWillUnmount() {
     this.oauthAuthorization.cancel();
+    if (this._pwaUpdateHandler && typeof window !== 'undefined') {
+      window.removeEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
+    }
     if (this._unsubNet) {
       this._unsubNet();
     }
@@ -7062,6 +7532,25 @@ class RootApp extends React.Component {
     }
   }
 
+  showPwaUpdatePrompt() {
+    if (this._pwaUpdatePromptShown) return;
+    this._pwaUpdatePromptShown = true;
+
+    AppAlert.alert(
+      'Доступна новая версия',
+      'Обновите приложение, чтобы применить изменения.',
+      [
+        {
+          text: 'Обновить',
+          onPress: () => {
+            if (window.reedleApplyPwaUpdate) window.reedleApplyPwaUpdate();
+          }
+        },
+        { text: 'Позже', style: 'cancel' }
+      ]
+    );
+  }
+
   async initAds() {
     if (Platform.OS === 'ios') {
       try {
@@ -7072,24 +7561,6 @@ class RootApp extends React.Component {
     adSizeBig = await BannerAdSize.inlineSize(300, 250);
     adSizeMini = await BannerAdSize.inlineSize(300, 50);
     this.forceUpdate();
-  }
-
-  showWebFullscreenAd() {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    if (appStore.has_subscription || this._webFullscreenAdRequested) return;
-
-    this._webFullscreenAdRequested = true;
-    window.yaContextCb = window.yaContextCb || [];
-    window.yaContextCb.push(() => {
-      // Статус мог измениться, пока загружался рекламный скрипт.
-      if (appStore.has_subscription) return;
-      if (!window.Ya || !window.Ya.Context || !window.Ya.Context.AdvManager) return;
-
-      window.Ya.Context.AdvManager.render({
-        type: 'fullscreen',
-        blockId: 'R-A-19117521-1'
-      });
-    });
   }
 
   async check_location() {
@@ -7254,7 +7725,6 @@ class RootApp extends React.Component {
     this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
-    if (!has_subscription) this.showWebFullscreenAd();
 
     if (sync_with_server) {
       this.sync_subscription_with_server(
@@ -7834,10 +8304,7 @@ const Show = observer(class Show extends React.Component {
 
   async deleteFromMemory() {
     var bookId = this.props.stack.route.params.book_id;
-    await new Storage().set('have_file_' + bookId, '');
-    var bookDirectory = file_root + '/books/' + bookId + '/';
-    if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
-    downloadStore.setCompleted(bookId, false);
+    await downloadStore.removeBooks([bookId]);
     this.setState({ have_file: false });
   }
 

@@ -1,5 +1,6 @@
 const blogStyles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#fff' },
+  screen: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#fff' },
+  scrollContent: { flex: 1, minHeight: 0 },
   content: { padding: 10, paddingBottom: 24 },
   title: { fontSize: 30, fontWeight: 'bold', margin: 5, marginBottom: 12 },
   row: { flex: 1, padding: 5 },

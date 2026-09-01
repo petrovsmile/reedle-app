@@ -26,8 +26,11 @@ class ProfileStack extends React.Component {
         <RootStack.Screen name="profile_password" options={({ navigation }) => childScreenOptions(navigation)}>
           {() => <ProfilePassword root={this.props.root} />}
         </RootStack.Screen>
+        <RootStack.Screen name="profile_memory" options={({ navigation }) => childScreenOptions(navigation)}>
+          {(stack) => <ProfileMemory root={this.props.root} stack={stack} />}
+        </RootStack.Screen>
         <RootStack.Screen name="profile_settings" options={({ navigation }) => childScreenOptions(navigation)}>
-          {() => <ProfileSettings root={this.props.root} />}
+          {(stack) => <ProfileSettings root={this.props.root} stack={stack} />}
         </RootStack.Screen>
       </RootStack.Navigator>
     );

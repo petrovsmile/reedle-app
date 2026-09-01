@@ -47,7 +47,6 @@ class AppStore {
     clearTimeout(this._notification_timer);
   }
 }
-const appStore = new AppStore();
 
 // ==================== ReaderStore ====================
 class ReaderStore {
@@ -86,12 +85,12 @@ class ReaderStore {
   setListWords(words) { this.list_words = words; }
   clearListWords() { this.list_words = null; }
 }
-const readerStore = new ReaderStore();
 
 // ==================== DownloadStore ====================
 class DownloadStore {
   downloads = {};
   completed = {};
+  completionListeners = [];
 
   constructor() {
     makeAutoObservable(this);
@@ -113,6 +112,90 @@ class DownloadStore {
     this.downloads = Object.assign({}, this.downloads, {
       [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
     });
+  }
+
+  onCompleted(listener) {
+    this.completionListeners.push(listener);
+    return () => {
+      this.completionListeners = this.completionListeners.filter(item => item !== listener);
+    };
+  }
+
+  notifyCompleted(bookId) {
+    this.completionListeners.slice().forEach(listener => listener(bookId));
+  }
+
+  byteLength(value) {
+    var size = 0;
+    for (var index = 0; index < value.length; index++) {
+      var code = value.charCodeAt(index);
+      if (code <= 0x7f) {
+        size += 1;
+      } else if (code <= 0x7ff) {
+        size += 2;
+      } else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+        var nextCode = value.charCodeAt(index + 1);
+        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
+          size += 4;
+          index += 1;
+        } else {
+          size += 3;
+        }
+      } else {
+        size += 3;
+      }
+    }
+    return size;
+  }
+
+  async updateBookSizes(sizes) {
+    var booksPath = file_root + '/' + BOOKS_FILENAME;
+    if (!(await RNFS.exists(booksPath))) return;
+
+    var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
+    books = books.map((book) => Object.prototype.hasOwnProperty.call(sizes, book.id)
+      ? Object.assign({}, book, { downloaded_size: sizes[book.id] })
+      : book);
+    await RNFS.writeFile(booksPath, JSON.stringify(books), 'utf8');
+  }
+
+  async calculateBookSize(bookId) {
+    var bookPath = file_root + '/books/' + bookId;
+    var words = await RNFS.readFile(bookPath + '/words.json', 'utf8');
+    var pagination = await RNFS.readFile(bookPath + '/pagination.json', 'utf8');
+    var paginationData = JSON.parse(pagination);
+    var paragraphIds = [];
+
+    Object.keys(paginationData).forEach((page) => {
+      (paginationData[page] || []).forEach((paragraphId) => {
+        if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+      });
+    });
+
+    var size = this.byteLength(words) + this.byteLength(pagination);
+    var batchSize = 25;
+    for (var index = 0; index < paragraphIds.length; index += batchSize) {
+      var batch = paragraphIds.slice(index, index + batchSize);
+      var contents = await Promise.all(batch.map((paragraphId) =>
+        RNFS.readFile(bookPath + '/paragraphs/' + paragraphId + '.json', 'utf8')));
+      contents.forEach((value) => { size += this.byteLength(value); });
+    }
+
+    return size;
+  }
+
+  async removeBooks(bookIds) {
+    var ids = (bookIds || []).map((bookId) => String(bookId));
+    await Promise.all(ids.map(async (bookId) => {
+      await AsyncStorage.setItem('have_file_' + bookId, '');
+      var bookDirectory = file_root + '/books/' + bookId + '/';
+      if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+      this.setCompleted(bookId, false);
+    }));
+
+    var sizes = {};
+    ids.forEach((bookId) => { sizes[bookId] = 0; });
+    await this.updateBookSizes(sizes);
   }
 
   async start(book) {
@@ -137,6 +220,7 @@ class DownloadStore {
 
       await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
       this.setDownload(book.id, { status: 'downloading', progress: 2 });
+      var downloadedSize = 0;
 
       for (var index = 0; index < files.length; index++) {
         var requestPath = files[index];
@@ -144,14 +228,18 @@ class DownloadStore {
         if (response === false) throw new Error('Failed to download ' + requestPath);
 
         var filePath = requestPath.replace('/result', '');
-        await RNFS.writeFile(file_root + filePath, JSON.stringify(response), 'utf8');
+        var fileContents = JSON.stringify(response);
+        await RNFS.writeFile(file_root + filePath, fileContents, 'utf8');
+        downloadedSize += this.byteLength(fileContents);
 
         var progress = Math.max(2, ((index + 1) / files.length) * 100);
         this.setDownload(book.id, { progress: progress, status: 'downloading' });
       }
 
+      await this.updateBookSizes({ [book.id]: downloadedSize });
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
       this.setCompleted(book.id, true);
+      this.notifyCompleted(book.id);
       this.dismiss(book.id);
       AppMetrica.reportEvent('loader', { status: 'finish' });
       AppMetrica.reportEvent('loader', { progress: 100 });
@@ -167,7 +255,6 @@ class DownloadStore {
     this.downloads = downloads;
   }
 }
-const downloadStore = new DownloadStore();
 
 // ==================== HomeStore ====================
 class HomeStore {
@@ -179,4 +266,3 @@ class HomeStore {
 
   setOpenProperty(value) { this.open_property = value; }
 }
-const homeStore = new HomeStore();

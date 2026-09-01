@@ -2780,6 +2780,34 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNCPicker (2.11.4):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNFS (2.20.0):
     - React-Core
   - RNGestureHandler (2.31.1):
@@ -2965,34 +2993,6 @@ PODS:
     - SocketRocket
     - Yoga
   - RNSound (0.13.0):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - SocketRocket
-    - Yoga
-  - RNSpeech (1.4.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3327,13 +3327,13 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCPicker (from `../node_modules/@react-native-picker/picker`)"
   - RNFS (from `../node_modules/react-native-fs`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNPurchases (from `../node_modules/react-native-purchases`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSound (from `../node_modules/react-native-sound`)
-  - "RNSpeech (from `../node_modules/@mhpdev/react-native-speech`)"
   - RNStoreReview (from `../node_modules/react-native-store-review`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
@@ -3551,6 +3551,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNCPicker:
+    :path: "../node_modules/@react-native-picker/picker"
   RNFS:
     :path: "../node_modules/react-native-fs"
   RNGestureHandler:
@@ -3563,8 +3565,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNSound:
     :path: "../node_modules/react-native-sound"
-  RNSpeech:
-    :path: "../node_modules/@mhpdev/react-native-speech"
   RNStoreReview:
     :path: "../node_modules/react-native-store-review"
   RNSVG:
@@ -3692,13 +3692,13 @@ SPEC CHECKSUMS:
   ReactCommon: b14cde0b383d6545c886c6afdda7abff466988f7
   RevenueCat: 7e1d0768fb287c9983173c9b28e39ccbeeb828a9
   RNCAsyncStorage: 6161dbb167973ab36a7800c5deb506ed854f2c33
+  RNCPicker: bf95ec4b2483e2ab256047130bc536b437cd916c
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNGestureHandler: f0d7f370292ab1ff422eac5a6cbae6feef14bb98
   RNPurchases: 6070b60f5d8f525a58905df50773f7a3252f0cfa
   RNReanimated: 0ad888f0a8626a83888a408561c4ae5e50b6e59f
   RNScreens: 7f643ee0fd1407dc5085c7795460bd93da113b8f
   RNSound: d5dd3ca86d9978e1c2736dfa943ba619fc9fc504
-  RNSpeech: 61d0faca92c8acfe41c646e0f6bc4f295f358fc7
   RNStoreReview: c0fc631d5608ed9396cd4a120a29d3f703e69b71
   RNSVG: c9d7c940ad9655eba72c5b9ca7b017c95bb58083
   RNWorklets: f6d67d172af08a2df7506091faadae58848c49e2

@@ -81,8 +81,151 @@ class Profile extends React.Component {
               {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('Настройки', () => this.props.stack.navigation.navigate('profile_settings'), true)}
+              {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
+              {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
             </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    );
+  }
+}
+
+class ProfileMemory extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { books: [], loading: true, deleting: false };
+  }
+
+  componentDidMount() {
+    this.loadBooks();
+    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.loadBooks());
+  }
+
+  componentWillUnmount() {
+    if (this._unsubscribeFocus) this._unsubscribeFocus();
+  }
+
+  async loadBooks() {
+    if (this._loadBooksPromise) return this._loadBooksPromise;
+    this._loadBooksPromise = this._loadBooks().finally(() => { this._loadBooksPromise = null; });
+    return this._loadBooksPromise;
+  }
+
+  async _loadBooks() {
+    try {
+      var booksPath = file_root + '/' + BOOKS_FILENAME;
+      if (!(await RNFS.exists(booksPath))) {
+        this.setState({ books: [], loading: false });
+        return;
+      }
+
+      var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
+      var downloaded = await Promise.all(books.map(async (book) => {
+        var haveFile = await AsyncStorage.getItem('have_file_' + book.id);
+        return haveFile == 'true' ? book : null;
+      }));
+      downloaded = downloaded.filter(Boolean);
+
+      var calculatedSizes = {};
+      for (var index = 0; index < downloaded.length; index++) {
+        var book = downloaded[index];
+        if (book.downloaded_size != null) continue;
+
+        try {
+          var size = await downloadStore.calculateBookSize(book.id);
+          book = Object.assign({}, book, { downloaded_size: size });
+          downloaded[index] = book;
+          calculatedSizes[book.id] = size;
+        } catch (_) {
+          // Если старая загрузка повреждена, оставляем размер неизвестным.
+        }
+      }
+
+      if (Object.keys(calculatedSizes).length > 0) {
+        await downloadStore.updateBookSizes(calculatedSizes);
+      }
+      this.setState({ books: downloaded, loading: false });
+    } catch (_) {
+      this.setState({ books: [], loading: false });
+    }
+  }
+
+  formatSize(size) {
+    var bytes = Number(size || 0);
+    if (bytes < 1024) return bytes + ' Б';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
+    return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
+  }
+
+  totalSize() {
+    return this.state.books.reduce((total, book) => total + Number(book.downloaded_size || 0), 0);
+  }
+
+  confirmDelete(book) {
+    AppAlert.confirm(
+      'Удалить книгу?',
+      '«' + (book.name_en || book.name) + '» будет удалена с устройства.',
+      () => this.deleteBooks([book.id]),
+      'Удалить'
+    );
+  }
+
+  confirmClear() {
+    if (this.state.books.length == 0) return;
+    AppAlert.confirm(
+      'Очистить память?',
+      'Все скачанные книги будут удалены с устройства.',
+      () => this.deleteBooks(this.state.books.map((book) => book.id)),
+      'Очистить'
+    );
+  }
+
+  async deleteBooks(bookIds) {
+    if (this.state.deleting) return;
+    this.setState({ deleting: true });
+    try {
+      await downloadStore.removeBooks(bookIds);
+      await this.loadBooks();
+    } catch (_) {
+      AppAlert.alert('Ошибка', 'Не удалось удалить скачанные книги.');
+    } finally {
+      this.setState({ deleting: false });
+    }
+  }
+
+  render() {
+    return (
+      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+        <View style={[profileStyles.memorySummary, { borderBottomColor: appThemeStore.colors.border }]}>
+          <Text style={[profileStyles.memoryTotal, { color: appThemeStore.colors.text }]}>
+            {'Занято: ' + this.formatSize(this.totalSize())}
+          </Text>
+          <TouchableOpacity
+            disabled={this.state.books.length == 0 || this.state.deleting}
+            onPress={() => this.confirmClear()}>
+            <Text style={[profileStyles.memoryClear, (this.state.books.length == 0 || this.state.deleting) && profileStyles.memoryActionDisabled]}>Очистить</Text>
+          </TouchableOpacity>
+        </View>
+
+        {this.state.loading ? (
+          <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />
+        ) : (
+          <ScrollView contentContainerStyle={profileStyles.memoryList}>
+            {this.state.books.length == 0 && (
+              <Text style={[profileStyles.memoryEmpty, { color: appThemeStore.colors.mutedText }]}>Скачанных книг нет</Text>
+            )}
+            {this.state.books.map((book) => (
+              <View key={book.id} style={[profileStyles.memoryRow, { borderBottomColor: appThemeStore.colors.border }]}>
+                <View style={profileStyles.memoryBookInfo}>
+                  <Text numberOfLines={1} style={[profileStyles.memoryBookName, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
+                  <Text style={[profileStyles.memoryBookSize, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
+                </View>
+                <TouchableOpacity disabled={this.state.deleting} onPress={() => this.confirmDelete(book)}>
+                  <Text style={[profileStyles.memoryDelete, this.state.deleting && profileStyles.memoryActionDisabled]}>Удалить</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </ScrollView>
         )}
       </SafeAreaView>

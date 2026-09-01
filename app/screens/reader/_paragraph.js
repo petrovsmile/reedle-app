@@ -80,7 +80,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
     this.startPulseAnimation();
 
     var url = HOST + '/voiceover_books/' + this.props.book_id + '/' + this.props.data['name'] + '/' + sentenceIndex + '.mp3';
-    var sound = new Sound(url, '', error => {
+    var sound = new AppSound(url, '', error => {
       if (currentSentenceSound !== sound) {
         sound.release();
         return;
@@ -111,6 +111,14 @@ const Paragraph = observer(class Paragraph extends React.Component {
           sound.release();
         }
       });
+    }, () => {
+      if (currentSentenceSound === sound) {
+        currentSentenceSound = null;
+        currentSentenceSoundKey = null;
+        currentSentenceSoundOwner = null;
+        readerStore.setCurrentSpeaking(null);
+        this.stopPulseAnimation();
+      }
     });
 
     currentSentenceSound = sound;

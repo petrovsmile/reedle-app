@@ -131,7 +131,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         this.voiceoverSound = null;
       }
 
-      var sound = new Sound(url, '', error => {
+      var sound = new AppSound(url, '', error => {
         if (this.voiceoverSound !== sound) {
           sound.release();
           return;
@@ -139,6 +139,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
         if (error) {
           appStore.showError('Ошибка воспроизвездения');
+          sound.release();
+          this.voiceoverSound = null;
           this.setState({
             voiceover_playing: false
           });
@@ -195,6 +197,13 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             sound.release();
           }
         });
+      }, () => {
+        if (this.voiceoverSound === sound) {
+          this.voiceoverSound = null;
+          this.setState({ voiceover_playing: false });
+          this.stopPulseAnimation();
+          this.voiceover_playing_lock = false;
+        }
       })
       this.voiceoverSound = sound;
     }

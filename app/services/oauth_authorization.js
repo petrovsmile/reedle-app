@@ -57,8 +57,10 @@ class OAuthAuthorization {
 
   async startWait(type) {
     var attempt = ++this.webAttempt;
-    var oauthWindow = window.open('', '_blank');
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/pwa', {}, {
+    var isWeb = Platform.OS === 'web';
+    var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    var platform = isWeb ? 'pwa' : 'app';
+    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, {}, {
       do_not_show_error: true,
     }).get();
 
@@ -72,10 +74,19 @@ class OAuthAuthorization {
       return;
     }
 
-    if (oauthWindow) {
-      oauthWindow.location.href = oauthResponse.redirect_url;
-    } else {
-      window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
+    try {
+      if (isWeb) {
+        if (oauthWindow) {
+          oauthWindow.location.href = oauthResponse.redirect_url;
+        } else {
+          window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        await Linking.openURL(oauthResponse.redirect_url);
+      }
+    } catch (_) {
+      this.root.setState({ oauth_manual_error: 'Не удалось открыть страницу авторизации.' });
+      return;
     }
 
     var expiresAt = Date.now() + 5 * 60 * 1000;
@@ -99,11 +110,21 @@ class OAuthAuthorization {
   }
 
   async handleURL(url) {
-    if (!url || !url.includes('token=')) return;
+    if (!url) return;
 
-    var tokenPart = url.split('token=')[1];
-    if (!tokenPart) return;
-    var token = tokenPart.split('/')[0].split('&')[0];
+    var token = '';
+    try {
+      token = new URL(url).searchParams.get('token') || '';
+    } catch (_) {
+      var tokenMatch = String(url).match(/[?&]token=([^&#/]*)/);
+      token = tokenMatch ? tokenMatch[1] : '';
+    }
+    try {
+      token = decodeURIComponent(token).trim();
+    } catch (_) {
+      token = String(token).trim();
+    }
+    if (!token) return;
 
     var user = await new Request('/api/v1/users/by_oauth_token', {
       token: token,
