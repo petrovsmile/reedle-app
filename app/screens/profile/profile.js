@@ -221,8 +221,8 @@ class ProfileMemory extends React.Component {
                   <Text numberOfLines={1} style={[profileStyles.memoryBookName, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
                   <Text style={[profileStyles.memoryBookSize, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
                 </View>
-                <TouchableOpacity disabled={this.state.deleting} onPress={() => this.confirmDelete(book)}>
-                  <Text style={[profileStyles.memoryDelete, this.state.deleting && profileStyles.memoryActionDisabled]}>Удалить</Text>
+                <TouchableOpacity accessibilityLabel="Удалить книгу" disabled={this.state.deleting} onPress={() => this.confirmDelete(book)} style={this.state.deleting && profileStyles.memoryActionDisabled}>
+                  <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
                 </TouchableOpacity>
               </View>
             ))}

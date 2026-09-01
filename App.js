@@ -4773,8 +4773,8 @@ class ProfileMemory extends React.Component {
                   <Text numberOfLines={1} style={[profileStyles.memoryBookName, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
                   <Text style={[profileStyles.memoryBookSize, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
                 </View>
-                <TouchableOpacity disabled={this.state.deleting} onPress={() => this.confirmDelete(book)}>
-                  <Text style={[profileStyles.memoryDelete, this.state.deleting && profileStyles.memoryActionDisabled]}>Удалить</Text>
+                <TouchableOpacity accessibilityLabel="Удалить книгу" disabled={this.state.deleting} onPress={() => this.confirmDelete(book)} style={this.state.deleting && profileStyles.memoryActionDisabled}>
+                  <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -6030,8 +6030,8 @@ class ReaderSettingsPanel extends React.Component {
     return (
       <TouchableOpacity
         onPress={() => this.props.chanageFontFamily(fontFamily)}
-        style={{ paddingVertical: 8, paddingHorizontal: 10, marginBottom: 4, borderRadius: 6, borderWidth: selected ? 1 : 0, borderColor: this.props.secondColorTheme, backgroundColor: appThemeStore.colors.backgroundLight }}>
-        <Text style={{ fontSize: 16, fontFamily: fontFamily, color: appThemeStore.colors.text }}>{title}</Text>
+        style={{ paddingVertical: 8, paddingHorizontal: 10, marginBottom: 4, borderRadius: 6, borderWidth: 1, borderColor: selected ? appThemeStore.colors.border : 'transparent', boxSizing: 'border-box', backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <Text style={{ fontSize: 16, fontFamily: fontFamily, color: selected ? app_theme_colors.red : appThemeStore.colors.text }}>{title}</Text>
       </TouchableOpacity>
     );
   }
@@ -6055,15 +6055,15 @@ class ReaderSettingsPanel extends React.Component {
               style={{ flex: 1, opacity: this.props.fontSize >= 24 ? 0.3 : 1, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
               <AppIcon icon={PlusIcon} size={20} color={appThemeStore.colors.text} />
             </TouchableOpacity>
-            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: 12.5, marginLeft: -15, width: 30, height: 25, zIndex: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 5, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: this.props.backgroundColorTheme }}>
-              <Text style={{ fontSize: 13, lineHeight: 23, textAlign: 'center', color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
+            <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: 12.5, marginLeft: -15, width: 30, height: 25, zIndex: 2, elevation: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 5, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: this.props.backgroundColorTheme }}>
+              <Text style={{ width: 28, fontSize: 13, lineHeight: 23, textAlign: 'center', color: this.props.textColorTheme }}>{this.props.fontSize}</Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => this.props.textAlignChange()} style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: appThemeStore.colors.backgroundLight }}>
-            {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} color={appThemeStore.colors.text} />}
-            {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} color={appThemeStore.colors.text} />}
-            {this.props.textAlign == 'center' && <AppIcon icon={AlignCenterIcon} size={20} color={appThemeStore.colors.text} />}
-            {this.props.textAlign == 'space-evenly' && <AppIcon icon={AlignJustifyIcon} size={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'flex-start' && <AppIcon icon={AlignLeftIcon} size={20} width={20} height={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'flex-end' && <AppIcon icon={AlignRightIcon} size={20} width={20} height={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'center' && <AppIcon icon={AlignCenterIcon} size={20} width={20} height={20} color={appThemeStore.colors.text} />}
+            {this.props.textAlign == 'space-evenly' && <AppIcon icon={AlignJustifyIcon} size={20} width={20} height={20} color={appThemeStore.colors.text} />}
           </TouchableOpacity>
         </View>
 
