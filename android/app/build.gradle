@@ -82,7 +82,7 @@ android {
         applicationId "com.read_en"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 92
+        versionCode 93
         versionName "2.0.0"
         missingDimensionStrategy "store", "play"
         resConfigs "ru", "en"
@@ -132,3 +132,4 @@ dependencies {
         implementation jscFlavor
     }
 }
+

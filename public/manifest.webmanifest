@@ -1,6 +1,6 @@
 {
-  "name": "Reedle",
-  "short_name": "Reedle",
+  "name": "ReedleWeb",
+  "short_name": "ReedleWeb",
   "description": "Читайте книги на английском языке с Reedle",
   "lang": "ru",
   "start_url": "/app/",
