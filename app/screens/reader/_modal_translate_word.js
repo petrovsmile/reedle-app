@@ -304,6 +304,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         presentationStyle={'overFullScreen'}
         transparent={true}
         visible={this.props.visible}
+        onDismiss={this.props.onDismiss}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>

@@ -184,7 +184,8 @@ const Home = observer(class Home extends React.Component {
               check = book['have_file'];
             }
 
-            var percent = await new Storage().get('percent_' + book.id, 0);
+            var percent = Number(await new Storage().get('percent_' + book.id, 0));
+            if (!Number.isFinite(percent)) percent = 0;
             book['percent'] = percent;
 
             if (percent == 100) {
@@ -380,12 +381,12 @@ const Home = observer(class Home extends React.Component {
 
 
             <TouchableOpacity onPress={() => this.openProperty()}>
-              <View style={{ backgroundColor: appThemeStore.colors.border, borderRadius: 7, marginLeft: 3 }}>
+              <View style={[homeStyles.settings_button, { backgroundColor: appThemeStore.colors.border }]}>
                 {this.state.open_property == false &&
-                  <AppIcon icon={SlidersIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={SlidersIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <AppIcon icon={CloseIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>

@@ -5,7 +5,8 @@ const Book = observer(class Book extends React.Component {
 
   render() {
     var book = this.props.book.item;
-    var percent = this.props.books_percents[book.id];
+    var percent = Number(this.props.books_percents[book.id]);
+    if (!Number.isFinite(percent)) percent = 0;
  
     return (
       <View style={{ flex: 1, borderRadius: 10, margin: 5 }}>
@@ -72,8 +73,14 @@ const Book = observer(class Book extends React.Component {
 
               <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: appThemeStore.colors.text }}>{book.pages} стр.</Text>
 
-
-              {downloadStore.isCompleted(book.id) && <AppIcon icon={FileCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
+              <View style={homeStyles.bookStatusIcons}>
+                {book.voiceover &&
+                  <BookStatusIcon icon={VolumeIcon} title="Озвучка предложений" color="#777" alignRight />
+                }
+                {downloadStore.isCompleted(book.id) &&
+                  <BookStatusIcon icon={FileCheckIcon} title="Книга скачана" color="#0fa90f" alignRight />
+                }
+              </View>
             </View>
           </View>
 
@@ -82,3 +89,64 @@ const Book = observer(class Book extends React.Component {
     )
   }
 });
+
+class BookStatusIcon extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { showTitle: false };
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.hideTitleTimer);
+    if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  hideTitle() {
+    clearTimeout(this.hideTitleTimer);
+    this.setState({ showTitle: false });
+    if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  toggleTitle() {
+    clearTimeout(this.hideTitleTimer);
+    var showTitle = !this.state.showTitle;
+
+    if (showTitle && BookStatusIcon.activeTooltip && BookStatusIcon.activeTooltip !== this) {
+      BookStatusIcon.activeTooltip.hideTitle();
+    }
+
+    this.setState({ showTitle: showTitle });
+    if (showTitle) {
+      BookStatusIcon.activeTooltip = this;
+      this.hideTitleTimer = setTimeout(() => this.hideTitle(), 2500);
+    } else if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  render() {
+    return (
+      <TouchableOpacity
+        onPress={() => this.toggleTitle()}
+        style={homeStyles.bookStatusIcon}
+        accessibilityRole="button"
+        accessibilityLabel={this.props.title}
+      >
+        {this.state.showTitle &&
+          <View style={[
+            homeStyles.bookStatusTooltip,
+            { backgroundColor: '#333' },
+            this.props.alignRight ? { right: 0 } : { left: 0 }
+          ]}>
+            <Text numberOfLines={1} style={homeStyles.bookStatusTooltipText}>{this.props.title}</Text>
+          </View>
+        }
+        <AppIcon icon={this.props.icon} size={18} color={this.props.color} />
+      </TouchableOpacity>
+    );
+  }
+}

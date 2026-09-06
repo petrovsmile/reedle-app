@@ -19,6 +19,22 @@ const profileStyles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
   },
+  login_button: {
+    minHeight: 48,
+    marginBottom: 28,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: app_theme_colors.red,
+    borderRadius: 8,
+  },
+  login_button_text: {
+    marginLeft: 9,
+    color: app_theme_colors.inverseText,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   email: {
     marginTop: 12,
     marginBottom: 28,

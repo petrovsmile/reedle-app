@@ -109,8 +109,15 @@ const homeStyles = StyleSheet.create({
   },
   settings_image: {
     width: 20,
-    height: 20,
-    margin: 5
+    height: 20
+  },
+  settings_button: {
+    width: 30,
+    height: 30,
+    marginLeft: 3,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   downloadsPanel: {
     marginLeft: 15,
@@ -166,5 +173,36 @@ const homeStyles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 26,
     color: '#999',
+  },
+  bookStatusIcons: {
+    flexDirection: 'row',
+    marginLeft: 8,
+    overflow: 'visible',
+    zIndex: 2
+  },
+  bookStatusIcon: {
+    position: 'relative',
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible'
+  },
+  bookStatusTooltip: {
+    position: 'absolute',
+    bottom: 25,
+    minWidth: 130,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 7,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 5,
+    zIndex: 10
+  },
+  bookStatusTooltipText: {
+    color: '#fff',
+    fontSize: 12,
+    textAlign: 'center'
   },
 });

@@ -275,17 +275,17 @@ const Paragraph = observer(class Paragraph extends React.Component {
             <View style={readerScreenStyles.sentenceIndent}></View>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {appStore.has_internet ? (
+                {this.props.voiceover && appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
-                ) : (
+                ) : this.props.voiceover ? (
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
-                )}
+                ) : null}
                 {sentence['b'].map((block, index) => {
 
                   var past_value = "";

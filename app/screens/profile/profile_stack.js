@@ -10,7 +10,7 @@ class ProfileStack extends React.Component {
           onPress={() => navigation.goBack()}
           style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
           <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Аккаунт</Text>
+          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Профиль</Text>
         </TouchableOpacity>
       )
     });

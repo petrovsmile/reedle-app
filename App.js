@@ -675,11 +675,11 @@ class Select extends React.Component {
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
                 <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
-                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.setState({ visible: false })}>
                     <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
+                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
                   </TouchableOpacity>
                 </View>
                 <Picker
@@ -1380,11 +1380,11 @@ const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
 
 const CURRENT_IOS_VERSION = '2.0.0'
 const CURRENT_ANDROID_VERSION = '2.0.0'
-const BOOKS_FILENAME = 'books_v1.json'
+const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
-const HOST="https://stage.reedle.ru"
-//const HOST="http://localhost:3000"
+//const HOST="https://stage.reedle.ru"
+const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
 const app_theme_colors = {
@@ -1567,8 +1567,15 @@ const homeStyles = StyleSheet.create({
   },
   settings_image: {
     width: 20,
-    height: 20,
-    margin: 5
+    height: 20
+  },
+  settings_button: {
+    width: 30,
+    height: 30,
+    marginLeft: 3,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   downloadsPanel: {
     marginLeft: 15,
@@ -1624,6 +1631,37 @@ const homeStyles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 26,
     color: '#999',
+  },
+  bookStatusIcons: {
+    flexDirection: 'row',
+    marginLeft: 8,
+    overflow: 'visible',
+    zIndex: 2
+  },
+  bookStatusIcon: {
+    position: 'relative',
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible'
+  },
+  bookStatusTooltip: {
+    position: 'absolute',
+    bottom: 25,
+    minWidth: 130,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 7,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 5,
+    zIndex: 10
+  },
+  bookStatusTooltipText: {
+    color: '#fff',
+    fontSize: 12,
+    textAlign: 'center'
   },
 });
 
@@ -1913,6 +1951,22 @@ const profileStyles = StyleSheet.create({
     color: app_theme_colors.inverseText,
     fontSize: 32,
     fontWeight: 'bold',
+  },
+  login_button: {
+    minHeight: 48,
+    marginBottom: 28,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: app_theme_colors.red,
+    borderRadius: 8,
+  },
+  login_button_text: {
+    marginLeft: 9,
+    color: app_theme_colors.inverseText,
+    fontSize: 16,
+    fontWeight: '600',
   },
   email: {
     marginTop: 12,
@@ -3418,7 +3472,8 @@ const Book = observer(class Book extends React.Component {
 
   render() {
     var book = this.props.book.item;
-    var percent = this.props.books_percents[book.id];
+    var percent = Number(this.props.books_percents[book.id]);
+    if (!Number.isFinite(percent)) percent = 0;
  
     return (
       <View style={{ flex: 1, borderRadius: 10, margin: 5 }}>
@@ -3485,8 +3540,14 @@ const Book = observer(class Book extends React.Component {
 
               <Text style={{ lineHeight: 20, fontSize: 12, marginLeft: 10, color: appThemeStore.colors.text }}>{book.pages} стр.</Text>
 
-
-              {downloadStore.isCompleted(book.id) && <AppIcon icon={FileCheckIcon} size={18} color="#0fa90f" style={{ marginLeft: 8 }} />}
+              <View style={homeStyles.bookStatusIcons}>
+                {book.voiceover &&
+                  <BookStatusIcon icon={VolumeIcon} title="Озвучка предложений" color="#777" alignRight />
+                }
+                {downloadStore.isCompleted(book.id) &&
+                  <BookStatusIcon icon={FileCheckIcon} title="Книга скачана" color="#0fa90f" alignRight />
+                }
+              </View>
             </View>
           </View>
 
@@ -3495,6 +3556,67 @@ const Book = observer(class Book extends React.Component {
     )
   }
 });
+
+class BookStatusIcon extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { showTitle: false };
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.hideTitleTimer);
+    if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  hideTitle() {
+    clearTimeout(this.hideTitleTimer);
+    this.setState({ showTitle: false });
+    if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  toggleTitle() {
+    clearTimeout(this.hideTitleTimer);
+    var showTitle = !this.state.showTitle;
+
+    if (showTitle && BookStatusIcon.activeTooltip && BookStatusIcon.activeTooltip !== this) {
+      BookStatusIcon.activeTooltip.hideTitle();
+    }
+
+    this.setState({ showTitle: showTitle });
+    if (showTitle) {
+      BookStatusIcon.activeTooltip = this;
+      this.hideTitleTimer = setTimeout(() => this.hideTitle(), 2500);
+    } else if (BookStatusIcon.activeTooltip === this) {
+      BookStatusIcon.activeTooltip = null;
+    }
+  }
+
+  render() {
+    return (
+      <TouchableOpacity
+        onPress={() => this.toggleTitle()}
+        style={homeStyles.bookStatusIcon}
+        accessibilityRole="button"
+        accessibilityLabel={this.props.title}
+      >
+        {this.state.showTitle &&
+          <View style={[
+            homeStyles.bookStatusTooltip,
+            { backgroundColor: '#333' },
+            this.props.alignRight ? { right: 0 } : { left: 0 }
+          ]}>
+            <Text numberOfLines={1} style={homeStyles.bookStatusTooltipText}>{this.props.title}</Text>
+          </View>
+        }
+        <AppIcon icon={this.props.icon} size={18} color={this.props.color} />
+      </TouchableOpacity>
+    );
+  }
+}
 
 const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   var downloads = Object.values(downloadStore.downloads);
@@ -3682,7 +3804,8 @@ const Home = observer(class Home extends React.Component {
               check = book['have_file'];
             }
 
-            var percent = await new Storage().get('percent_' + book.id, 0);
+            var percent = Number(await new Storage().get('percent_' + book.id, 0));
+            if (!Number.isFinite(percent)) percent = 0;
             book['percent'] = percent;
 
             if (percent == 100) {
@@ -3878,12 +4001,12 @@ const Home = observer(class Home extends React.Component {
 
 
             <TouchableOpacity onPress={() => this.openProperty()}>
-              <View style={{ backgroundColor: appThemeStore.colors.border, borderRadius: 7, marginLeft: 3 }}>
+              <View style={[homeStyles.settings_button, { backgroundColor: appThemeStore.colors.border }]}>
                 {this.state.open_property == false &&
-                  <AppIcon icon={SlidersIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={SlidersIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <AppIcon icon={CloseIcon} size={22} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>
@@ -4556,6 +4679,7 @@ class Profile extends React.Component {
 
     this.state = {
       book_colors: [],
+      auth_modal: false,
     };
   }
 
@@ -4620,24 +4744,45 @@ class Profile extends React.Component {
 
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        {current_user == false ? (
-          <Auth />
-        ) : (
-          <ScrollView contentContainerStyle={profileStyles.page}>
+        <Modal
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          visible={this.state.auth_modal && current_user == false}
+          onRequestClose={() => this.setState({ auth_modal: false })}>
+          <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
+        </Modal>
+
+        <ScrollView contentContainerStyle={profileStyles.page}>
+          {current_user == false ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Войти в аккаунт"
+              onPress={() => this.setState({ auth_modal: true })}
+              style={profileStyles.login_button}>
+              <AppIcon icon={UserIcon} size={20} color={app_theme_colors.inverseText} />
+              <Text style={profileStyles.login_button_text}>Войти в аккаунт</Text>
+            </TouchableOpacity>
+          ) : (
+            <React.Fragment>
             <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
               <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
             </View>
             <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
+            </React.Fragment>
+          )}
 
-            <View style={profileStyles.menu}>
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
+          <View style={profileStyles.menu}>
+            {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Профиль' }))}
+            {current_user != false &&
+              <React.Fragment>
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
-              {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
-            </View>
-          </ScrollView>
-        )}
+              </React.Fragment>
+            }
+            {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
+            {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -4910,7 +5055,7 @@ class ProfileStack extends React.Component {
           onPress={() => navigation.goBack()}
           style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
           <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Аккаунт</Text>
+          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Профиль</Text>
         </TouchableOpacity>
       )
     });
@@ -5525,6 +5670,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         presentationStyle={'overFullScreen'}
         transparent={true}
         visible={this.props.visible}
+        onDismiss={this.props.onDismiss}
       >
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
@@ -5946,17 +6092,17 @@ const Paragraph = observer(class Paragraph extends React.Component {
             <View style={readerScreenStyles.sentenceIndent}></View>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {appStore.has_internet ? (
+                {this.props.voiceover && appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
-                ) : (
+                ) : this.props.voiceover ? (
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
-                )}
+                ) : null}
                 {sentence['b'].map((block, index) => {
 
                   var past_value = "";
@@ -6161,9 +6307,11 @@ class Reader extends React.Component {
     this.modalTranslateWordTranslate = null;
 
     this.modalTranslateSentence = "";
+    this.pendingAuthModal = false;
 
     this.book_name;
     this.book_name_en;
+    this.book_voiceover = false;
   }
 
 
@@ -6177,6 +6325,7 @@ class Reader extends React.Component {
       if (book.id == this.props.stack.route.params.book_id) {
         this.book_name = book.name;
         this.book_name_en = book.name_en;
+        this.book_voiceover = book.voiceover === true;
       }
     });
 
@@ -6308,6 +6457,7 @@ class Reader extends React.Component {
     readerStore.clearListWords();
     clearTimeout(this._scrollRestoreTimer);
     clearTimeout(this._scrollPercentSaveTimer);
+    clearTimeout(this._authModalTimer);
   }
 
   async openPage(first_load) {
@@ -6643,6 +6793,7 @@ class Reader extends React.Component {
 
     var percent = ((parseFloat(this.state.page - 1) / pages) * 100) +
       ((100 / pages) * (scroll_percent / 100));
+    if (!Number.isFinite(percent)) return 0;
     percent = parseInt(percent.toFixed(0));
 
     return percent > 98 ? 100 : percent;
@@ -6657,10 +6808,25 @@ class Reader extends React.Component {
   }
 
   openAuthModal() {
+    if (this.state.showTranslateWord) {
+      this.pendingAuthModal = true;
+      this.setState({ showTranslateWord: false });
+      clearTimeout(this._authModalTimer);
+      this._authModalTimer = setTimeout(() => this.showPendingAuthModal(), 350);
+      return;
+    }
+
     this.setState({
-      showTranslateWord: false,
       auth_modal: true,
     });
+  }
+
+  showPendingAuthModal() {
+    if (!this.pendingAuthModal) return;
+
+    this.pendingAuthModal = false;
+    clearTimeout(this._authModalTimer);
+    this.setState({ auth_modal: true });
   }
 
   async openTranslateWord(original, translate, transcription) {
@@ -6914,6 +7080,7 @@ class Reader extends React.Component {
           page={this.state.page}
           book_name={this.book_name}
           book_name_en={this.book_name_en}
+          voiceover={this.book_voiceover}
           book_id={this.props.stack.route.params.book_id}
           percent={this.state.percent}
           has_internet={this.props.root.state.has_internet}
@@ -6956,7 +7123,9 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+              visible={this.state.auth_modal && this.props.root.state.current_user == false}
+              onRequestClose={() => this.setState({ auth_modal: false })}
+              onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth
                 method={this.state.auth_method}
                 modal={true}
@@ -7021,6 +7190,7 @@ class Reader extends React.Component {
               translate={this.modalTranslateWordTranslate}
               word_in_dictionary={this.state.word_in_dictionary}
               visible={this.state.showTranslateWord}
+              onDismiss={() => this.showPendingAuthModal()}
               has_internet={this.props.root.state.has_internet}
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
@@ -8094,7 +8264,7 @@ class TabStack extends React.Component {
           }}
           options={({ route }) => ({
             tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
-            title: 'Аккаунт',
+            title: 'Профиль',
             headerShown: (getFocusedRouteNameFromRoute(route) || 'profile_home') == 'profile_home',
           })}>
           {() => (

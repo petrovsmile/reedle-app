@@ -97,11 +97,11 @@ class Select extends React.Component {
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
                 <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
-                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => this.setState({ visible: false })}>
                     <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
+                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
                   </TouchableOpacity>
                 </View>
                 <Picker

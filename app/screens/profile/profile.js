@@ -4,6 +4,7 @@ class Profile extends React.Component {
 
     this.state = {
       book_colors: [],
+      auth_modal: false,
     };
   }
 
@@ -68,24 +69,45 @@ class Profile extends React.Component {
 
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        {current_user == false ? (
-          <Auth />
-        ) : (
-          <ScrollView contentContainerStyle={profileStyles.page}>
+        <Modal
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          visible={this.state.auth_modal && current_user == false}
+          onRequestClose={() => this.setState({ auth_modal: false })}>
+          <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
+        </Modal>
+
+        <ScrollView contentContainerStyle={profileStyles.page}>
+          {current_user == false ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Войти в аккаунт"
+              onPress={() => this.setState({ auth_modal: true })}
+              style={profileStyles.login_button}>
+              <AppIcon icon={UserIcon} size={20} color={app_theme_colors.inverseText} />
+              <Text style={profileStyles.login_button_text}>Войти в аккаунт</Text>
+            </TouchableOpacity>
+          ) : (
+            <React.Fragment>
             <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
               <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
             </View>
             <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
+            </React.Fragment>
+          )}
 
-            <View style={profileStyles.menu}>
-              {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Аккаунт' }))}
+          <View style={profileStyles.menu}>
+            {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Профиль' }))}
+            {current_user != false &&
+              <React.Fragment>
               {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
               {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
-              {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
-              {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
-            </View>
-          </ScrollView>
-        )}
+              </React.Fragment>
+            }
+            {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
+            {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }

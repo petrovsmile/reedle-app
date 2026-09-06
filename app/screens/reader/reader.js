@@ -48,9 +48,11 @@ class Reader extends React.Component {
     this.modalTranslateWordTranslate = null;
 
     this.modalTranslateSentence = "";
+    this.pendingAuthModal = false;
 
     this.book_name;
     this.book_name_en;
+    this.book_voiceover = false;
   }
 
 
@@ -64,6 +66,7 @@ class Reader extends React.Component {
       if (book.id == this.props.stack.route.params.book_id) {
         this.book_name = book.name;
         this.book_name_en = book.name_en;
+        this.book_voiceover = book.voiceover === true;
       }
     });
 
@@ -195,6 +198,7 @@ class Reader extends React.Component {
     readerStore.clearListWords();
     clearTimeout(this._scrollRestoreTimer);
     clearTimeout(this._scrollPercentSaveTimer);
+    clearTimeout(this._authModalTimer);
   }
 
   async openPage(first_load) {
@@ -530,6 +534,7 @@ class Reader extends React.Component {
 
     var percent = ((parseFloat(this.state.page - 1) / pages) * 100) +
       ((100 / pages) * (scroll_percent / 100));
+    if (!Number.isFinite(percent)) return 0;
     percent = parseInt(percent.toFixed(0));
 
     return percent > 98 ? 100 : percent;
@@ -544,10 +549,25 @@ class Reader extends React.Component {
   }
 
   openAuthModal() {
+    if (this.state.showTranslateWord) {
+      this.pendingAuthModal = true;
+      this.setState({ showTranslateWord: false });
+      clearTimeout(this._authModalTimer);
+      this._authModalTimer = setTimeout(() => this.showPendingAuthModal(), 350);
+      return;
+    }
+
     this.setState({
-      showTranslateWord: false,
       auth_modal: true,
     });
+  }
+
+  showPendingAuthModal() {
+    if (!this.pendingAuthModal) return;
+
+    this.pendingAuthModal = false;
+    clearTimeout(this._authModalTimer);
+    this.setState({ auth_modal: true });
   }
 
   async openTranslateWord(original, translate, transcription) {
@@ -801,6 +821,7 @@ class Reader extends React.Component {
           page={this.state.page}
           book_name={this.book_name}
           book_name_en={this.book_name_en}
+          voiceover={this.book_voiceover}
           book_id={this.props.stack.route.params.book_id}
           percent={this.state.percent}
           has_internet={this.props.root.state.has_internet}
@@ -843,7 +864,9 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+              visible={this.state.auth_modal && this.props.root.state.current_user == false}
+              onRequestClose={() => this.setState({ auth_modal: false })}
+              onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth
                 method={this.state.auth_method}
                 modal={true}
@@ -908,6 +931,7 @@ class Reader extends React.Component {
               translate={this.modalTranslateWordTranslate}
               word_in_dictionary={this.state.word_in_dictionary}
               visible={this.state.showTranslateWord}
+              onDismiss={() => this.showPendingAuthModal()}
               has_internet={this.props.root.state.has_internet}
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
