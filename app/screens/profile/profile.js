@@ -273,14 +273,19 @@ class ProfileDetails extends React.Component {
     if (this.state.social_loader) return;
 
     this.setState({ social_loader: type });
-    var response = await new Request('/api/v1/users/social/' + type, {}).delete();
-    this.setState({ social_loader: false });
+    try {
+      var response = await new Request('/api/v1/users/social/' + type, {
+        user_id: this.props.root.state.current_user.id,
+      }).delete();
 
-    if (response == false || response.error != undefined) return;
+      if (response == false || response.error != undefined) return;
 
-    appStore.setCurrentUser(response);
-    this.props.root.setState({ current_user: response });
-    await new Storage().set('current_user', JSON.stringify(response));
+      appStore.setCurrentUser(response);
+      this.props.root.setState({ current_user: response });
+      await new Storage().set('current_user', JSON.stringify(response));
+    } finally {
+      this.setState({ social_loader: false });
+    }
   }
 
   socialAction(type, connected) {
