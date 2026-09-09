@@ -864,7 +864,7 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false}
+              visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
               onRequestClose={() => this.setState({ auth_modal: false })}
               onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth

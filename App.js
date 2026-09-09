@@ -325,10 +325,22 @@ class OAuthAuthorization {
     this.webAttempt = 0;
   }
 
-  async authorize(type) {
+  async authorize(type, user_id) {
+    this.rememberWebLocation();
     this.open();
 
-    await this.startWait(type);
+    await this.startWait(type, user_id);
+  }
+
+  rememberWebLocation() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    try {
+      window.localStorage.setItem(
+        'oauth_return_location',
+        window.location.pathname + window.location.search + window.location.hash
+      );
+    } catch (_) { }
   }
 
   open() {
@@ -376,13 +388,14 @@ class OAuthAuthorization {
     await this.setCurrentUser(user);
   }
 
-  async startWait(type) {
+  async startWait(type, user_id) {
     var attempt = ++this.webAttempt;
     var isWeb = Platform.OS === 'web';
     var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     var platform = isWeb ? 'pwa' : 'app';
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, {}, {
-      do_not_show_error: true,
+    var params = user_id == undefined ? {} : { user_id: user_id };
+    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, params, {
+      do_not_show_error: false,
     }).get();
 
     if (attempt != this.webAttempt) {
@@ -1383,7 +1396,7 @@ const CURRENT_ANDROID_VERSION = '2.0.0'
 const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
 //const HOST="https://reedle.ru"
-const HOST="https://stage.reedle.ru"
+const HOST="https://stage.reedle.ru" 
 //const HOST="http://localhost:3000"
 const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
 
@@ -2774,7 +2787,7 @@ class Bookmarks extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
           <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
 
@@ -3277,7 +3290,7 @@ class Dictionary extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
           <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
 
@@ -4747,7 +4760,7 @@ class Profile extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
-          visible={this.state.auth_modal && current_user == false}
+          visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}>
           <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
@@ -4956,7 +4969,7 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.props.root.oauthAuthorization.authorize(type);
+      this.props.root.oauthAuthorization.authorize(type, this.props.root.state.current_user.id);
     }
   }
 
@@ -7123,7 +7136,7 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false}
+              visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
               onRequestClose={() => this.setState({ auth_modal: false })}
               onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth
@@ -7543,6 +7556,8 @@ class RootApp extends React.Component {
     root_app = this;
     this.oauthAuthorization = new OAuthAuthorization(this);
     this.navigationRef = React.createRef();
+    this.pwaOAuthCallback = false;
+    this.restoreWebLocationAfterOAuth();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
     this.state = {
@@ -7565,6 +7580,24 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
+  }
+
+  restoreWebLocationAfterOAuth() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    var oauthParams = new URLSearchParams(window.location.search);
+    if (oauthParams.get('oauth') != 'pwa') return;
+    this.pwaOAuthCallback = true;
+
+    try {
+      var returnLocation = window.localStorage.getItem('oauth_return_location');
+      window.localStorage.removeItem('oauth_return_location');
+      if (!returnLocation) return;
+
+      var returnUrl = new URL(returnLocation, window.location.origin);
+      if (returnUrl.origin != window.location.origin || !returnUrl.pathname.startsWith('/app')) return;
+      window.history.replaceState({}, document.title, returnUrl.pathname + returnUrl.search + returnUrl.hash);
+    } catch (_) { }
   }
 
   deepLinkFromWebLocation() {
@@ -7623,9 +7656,13 @@ class RootApp extends React.Component {
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       var oauthParams = new URLSearchParams(window.location.search);
-      if (oauthParams.get('oauth') == 'pwa') {
+      if (this.pwaOAuthCallback || oauthParams.get('oauth') == 'pwa') {
         await this.oauthAuthorization.loadPwaUser();
-        window.history.replaceState({}, document.title, window.location.pathname);
+        if (oauthParams.get('oauth') == 'pwa') {
+          var cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('oauth');
+          window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        }
       }
     }
 
@@ -8184,7 +8221,17 @@ class TabStack extends React.Component {
     return (
       <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
-          tabBarActiveTintColor: appThemeStore.colors.text
+          tabBarActiveTintColor: appThemeStore.colors.text,
+          ...(Platform.OS === 'web' ? {
+            tabBarStyle: {
+              height: 58,
+              paddingTop: 6,
+              paddingBottom: 6,
+            },
+            tabBarLabelStyle: {
+              lineHeight: 16,
+            },
+          } : {}),
         })}>
         <Tab.Screen name="books"
           listeners={{
@@ -8825,7 +8872,7 @@ const Subscription = observer(class Subscription extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
           <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
 

@@ -36,7 +36,7 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
-  if (req.url.startsWith('/api') || req.url.startsWith('/books')) {
+  if (req.url.startsWith('/api') || req.url.startsWith('/books') || req.url.startsWith('/oauth_redirect')) {
     return proxy(req, res, (err) => {
       if (err) { res.writeHead(500); res.end(String(err)); }
     });
@@ -57,5 +57,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Web preview: http://localhost:${PORT}`);
-  console.log(`API proxy:   /api, /books → http://localhost:3000`);
+  console.log(`API proxy:   /api, /books, /oauth_redirect → http://localhost:3000`);
 });

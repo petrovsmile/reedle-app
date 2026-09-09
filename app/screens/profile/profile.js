@@ -72,7 +72,7 @@ class Profile extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
-          visible={this.state.auth_modal && current_user == false}
+          visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}>
           <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
@@ -281,7 +281,7 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.props.root.oauthAuthorization.authorize(type);
+      this.props.root.oauthAuthorization.authorize(type, this.props.root.state.current_user.id);
     }
   }
 

@@ -203,7 +203,7 @@ module.exports = {
         },
         proxy: [
             {
-                context: ['/api', '/books'],
+                context: ['/api', '/books', '/oauth_redirect'],
                 target: apiProxyTarget,
                 changeOrigin: true,
                 secure: false,

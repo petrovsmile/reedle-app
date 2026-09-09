@@ -17,6 +17,8 @@ class RootApp extends React.Component {
     root_app = this;
     this.oauthAuthorization = new OAuthAuthorization(this);
     this.navigationRef = React.createRef();
+    this.pwaOAuthCallback = false;
+    this.restoreWebLocationAfterOAuth();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
     this.state = {
@@ -39,6 +41,24 @@ class RootApp extends React.Component {
 
     this.notification_timer;
     this._checkingSubscription = false;
+  }
+
+  restoreWebLocationAfterOAuth() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    var oauthParams = new URLSearchParams(window.location.search);
+    if (oauthParams.get('oauth') != 'pwa') return;
+    this.pwaOAuthCallback = true;
+
+    try {
+      var returnLocation = window.localStorage.getItem('oauth_return_location');
+      window.localStorage.removeItem('oauth_return_location');
+      if (!returnLocation) return;
+
+      var returnUrl = new URL(returnLocation, window.location.origin);
+      if (returnUrl.origin != window.location.origin || !returnUrl.pathname.startsWith('/app')) return;
+      window.history.replaceState({}, document.title, returnUrl.pathname + returnUrl.search + returnUrl.hash);
+    } catch (_) { }
   }
 
   deepLinkFromWebLocation() {
@@ -97,9 +117,13 @@ class RootApp extends React.Component {
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       var oauthParams = new URLSearchParams(window.location.search);
-      if (oauthParams.get('oauth') == 'pwa') {
+      if (this.pwaOAuthCallback || oauthParams.get('oauth') == 'pwa') {
         await this.oauthAuthorization.loadPwaUser();
-        window.history.replaceState({}, document.title, window.location.pathname);
+        if (oauthParams.get('oauth') == 'pwa') {
+          var cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('oauth');
+          window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        }
       }
     }
 

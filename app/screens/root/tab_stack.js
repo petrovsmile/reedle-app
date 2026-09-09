@@ -16,7 +16,17 @@ class TabStack extends React.Component {
     return (
       <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
-          tabBarActiveTintColor: appThemeStore.colors.text
+          tabBarActiveTintColor: appThemeStore.colors.text,
+          ...(Platform.OS === 'web' ? {
+            tabBarStyle: {
+              height: 58,
+              paddingTop: 6,
+              paddingBottom: 6,
+            },
+            tabBarLabelStyle: {
+              lineHeight: 16,
+            },
+          } : {}),
         })}>
         <Tab.Screen name="books"
           listeners={{

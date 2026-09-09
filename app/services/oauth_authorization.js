@@ -4,10 +4,22 @@ class OAuthAuthorization {
     this.webAttempt = 0;
   }
 
-  async authorize(type) {
+  async authorize(type, user_id) {
+    this.rememberWebLocation();
     this.open();
 
-    await this.startWait(type);
+    await this.startWait(type, user_id);
+  }
+
+  rememberWebLocation() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    try {
+      window.localStorage.setItem(
+        'oauth_return_location',
+        window.location.pathname + window.location.search + window.location.hash
+      );
+    } catch (_) { }
   }
 
   open() {
@@ -55,13 +67,14 @@ class OAuthAuthorization {
     await this.setCurrentUser(user);
   }
 
-  async startWait(type) {
+  async startWait(type, user_id) {
     var attempt = ++this.webAttempt;
     var isWeb = Platform.OS === 'web';
     var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     var platform = isWeb ? 'pwa' : 'app';
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, {}, {
-      do_not_show_error: true,
+    var params = user_id == undefined ? {} : { user_id: user_id };
+    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, params, {
+      do_not_show_error: false,
     }).get();
 
     if (attempt != this.webAttempt) {

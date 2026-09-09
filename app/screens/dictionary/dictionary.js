@@ -409,7 +409,7 @@ class Dictionary extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false}>
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
           <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
         </Modal>
 
