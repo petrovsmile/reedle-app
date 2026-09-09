@@ -73,8 +73,14 @@ class Profile extends React.Component {
           animationType="slide"
           presentationStyle="overFullScreen"
           visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
-          onRequestClose={() => this.setState({ auth_modal: false })}>
-          <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth
+            method="login"
+            modal={true}
+            close={() => this.setState({ auth_modal: false })}
+            onSuccess={() => this.setState({ auth_modal: false })}
+          />
         </Modal>
 
         <ScrollView contentContainerStyle={profileStyles.page}>

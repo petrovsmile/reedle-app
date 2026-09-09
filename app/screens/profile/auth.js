@@ -81,7 +81,8 @@ class Auth extends React.Component {
 
         await new Storage().set('current_user', JSON.stringify(response));
 
-        root_app.checkSubscription();
+        await root_app.checkSubscription();
+        if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
 
@@ -116,6 +117,9 @@ class Auth extends React.Component {
         });
 
         await new Storage().set('current_user', JSON.stringify(response));
+
+        await root_app.checkSubscription();
+        if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
   }

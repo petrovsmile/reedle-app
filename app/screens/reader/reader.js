@@ -872,6 +872,7 @@ class Reader extends React.Component {
                 modal={true}
                 bookmark_info={true}
                 close={() => this.setState({ auth_modal: false })}
+                onSuccess={() => this.setState({ auth_modal: false })}
               />
             </Modal>
 

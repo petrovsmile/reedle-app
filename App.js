@@ -2787,8 +2787,15 @@ class Bookmarks extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
-          <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth
+            method={this.state.auth_method}
+            modal={true}
+            close={() => this.setState({ auth_modal: false })}
+            onSuccess={() => this.setState({ auth_modal: false })}
+          />
         </Modal>
 
         {this.props.root.state.current_user == false ? (
@@ -3290,8 +3297,15 @@ class Dictionary extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
-          <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth
+            method={this.state.auth_method}
+            modal={true}
+            close={() => this.setState({ auth_modal: false })}
+            onSuccess={() => this.setState({ auth_modal: false })}
+          />
         </Modal>
 
         {this.props.root.state.current_user == false ? (
@@ -4458,7 +4472,8 @@ class Auth extends React.Component {
 
         await new Storage().set('current_user', JSON.stringify(response));
 
-        root_app.checkSubscription();
+        await root_app.checkSubscription();
+        if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
 
@@ -4493,6 +4508,9 @@ class Auth extends React.Component {
         });
 
         await new Storage().set('current_user', JSON.stringify(response));
+
+        await root_app.checkSubscription();
+        if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
   }
@@ -4761,8 +4779,14 @@ class Profile extends React.Component {
           animationType="slide"
           presentationStyle="overFullScreen"
           visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
-          onRequestClose={() => this.setState({ auth_modal: false })}>
-          <Auth method="login" modal={true} close={() => this.setState({ auth_modal: false })} />
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth
+            method="login"
+            modal={true}
+            close={() => this.setState({ auth_modal: false })}
+            onSuccess={() => this.setState({ auth_modal: false })}
+          />
         </Modal>
 
         <ScrollView contentContainerStyle={profileStyles.page}>
@@ -7144,6 +7168,7 @@ class Reader extends React.Component {
                 modal={true}
                 bookmark_info={true}
                 close={() => this.setState({ auth_modal: false })}
+                onSuccess={() => this.setState({ auth_modal: false })}
               />
             </Modal>
 
@@ -8222,11 +8247,12 @@ class TabStack extends React.Component {
       <Tab.Navigator initialRouteName="books"
         screenOptions={({ route }) => ({
           tabBarActiveTintColor: appThemeStore.colors.text,
+          tabBarLabelPosition: 'below-icon',
           ...(Platform.OS === 'web' ? {
             tabBarStyle: {
-              height: 58,
-              paddingTop: 6,
-              paddingBottom: 6,
+              height: 56,
+              paddingTop: 0,
+              paddingBottom: 0,
             },
             tabBarLabelStyle: {
               lineHeight: 16,
@@ -8872,8 +8898,15 @@ const Subscription = observer(class Subscription extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}>
-          <Auth method={this.state.auth_method} modal={true} close={() => this.setState({ auth_modal: false })} />
+          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth
+            method={this.state.auth_method}
+            modal={true}
+            close={() => this.setState({ auth_modal: false })}
+            onSuccess={() => this.setState({ auth_modal: false })}
+          />
         </Modal>
 
         <Modal
