@@ -11,6 +11,15 @@ if (typeof document !== 'undefined') {
   AppRegistry.runApplication(appName, {
     rootTag: document.getElementById('root')
   });
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const splash = document.getElementById('pwa-splash');
+      if (!splash) return;
+      splash.classList.add('pwa-splash-hidden');
+      window.setTimeout(() => splash.remove(), 200);
+    });
+  });
 }
 
 if (

@@ -64,6 +64,10 @@ class Profile extends React.Component {
     );
   }
 
+  appVersion() {
+    return Platform.OS == 'android' ? CURRENT_ANDROID_VERSION : CURRENT_IOS_VERSION;
+  }
+
   render() {
     var current_user = this.props.root.state.current_user;
 
@@ -112,6 +116,16 @@ class Profile extends React.Component {
             }
             {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
             {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
+          </View>
+
+          <View style={profileStyles.app_info}>
+            <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Техническая поддержка:{' '}
+              <Text
+                accessibilityRole="link"
+                onPress={() => Linking.openURL('mailto:info@reedle.ru')}
+                style={profileStyles.app_info_link}>info@reedle.ru</Text>
+            </Text>
+            <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {this.appVersion()}</Text>
           </View>
         </ScrollView>
       </SafeAreaView>

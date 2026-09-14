@@ -52,6 +52,29 @@
       min-height: 0;
     }
 
+    #pwa-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      opacity: 1;
+      transition: opacity 180ms ease-out;
+    }
+
+    #pwa-splash.pwa-splash-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #pwa-splash img {
+      width: 144px;
+      height: 144px;
+      object-fit: contain;
+    }
+
     .reedle-web-slider {
       -webkit-appearance: none;
       appearance: none;
@@ -140,6 +163,9 @@
 </head>
 
 <body>
+  <div id="pwa-splash" aria-label="Reedle загружается">
+    <img src="icons/icon-192.png" alt="Reedle" />
+  </div>
   <main id="root"></main>
   <script>
     if ('serviceWorker' in navigator) {

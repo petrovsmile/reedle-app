@@ -69,6 +69,20 @@ const profileStyles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 30,
   },
+  app_info: {
+    alignSelf: 'stretch',
+    paddingHorizontal: 15,
+    paddingTop: 6,
+  },
+  app_info_text: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  app_info_link: {
+    color: app_theme_colors.red,
+    textDecorationLine: 'underline',
+  },
   memorySummary: {
     minHeight: 58,
     paddingHorizontal: 15,
