@@ -580,7 +580,9 @@ class Request {
       }
 
     } else {
-      appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
+      if (this.options.do_not_show_error != true) {
+        appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
+      }
       if (this.options.detailed_response == true) {
         return { ok: false, status: 0, data: null };
       }
@@ -796,6 +798,11 @@ class AppStore {
   setShowSubscription(value) { this.show_subsription = value; }
 
   showError(title, description) {
+    if (typeof root_app !== 'undefined' && root_app) {
+      root_app.showError(title, description);
+      return;
+    }
+
     this.error_show = true;
     this.error_title = title;
     this.error_description = description;
@@ -951,6 +958,38 @@ class DownloadStore {
     return size;
   }
 
+  async hasBookFiles(bookId) {
+    try {
+      var bookPath = file_root + '/books/' + bookId;
+      if (!await RNFS.exists(bookPath + '/words.json')) return false;
+      if (!await RNFS.exists(bookPath + '/pagination.json')) return false;
+
+      var pagination = JSON.parse(await RNFS.readFile(bookPath + '/pagination.json', 'utf8'));
+      var paragraphIds = [];
+      Object.keys(pagination).forEach((page) => {
+        (pagination[page] || []).forEach((paragraphId) => {
+          if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+        });
+      });
+
+      var existingParagraphs = await Promise.all(paragraphIds.map((paragraphId) =>
+        RNFS.exists(bookPath + '/paragraphs/' + paragraphId + '.json')));
+      return existingParagraphs.every(Boolean);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async validateCompleted(bookId) {
+    var completed = await AsyncStorage.getItem('have_file_' + bookId) == 'true';
+    if (!completed) return false;
+    if (await this.hasBookFiles(bookId)) return true;
+
+    await AsyncStorage.setItem('have_file_' + bookId, '');
+    this.setCompleted(bookId, false);
+    return false;
+  }
+
   async removeBooks(bookIds) {
     var ids = (bookIds || []).map((bookId) => String(bookId));
     await Promise.all(ids.map(async (bookId) => {
@@ -1002,6 +1041,8 @@ class DownloadStore {
         var progress = Math.max(2, ((index + 1) / files.length) * 100);
         this.setDownload(book.id, { progress: progress, status: 'downloading' });
       }
+
+      if (!await this.hasBookFiles(book.id)) throw new Error('Downloaded book files are incomplete');
 
       await this.updateBookSizes({ [book.id]: downloadedSize });
       await AsyncStorage.setItem('have_file_' + book.id, 'true');
@@ -1444,15 +1485,15 @@ const applicationStyles = StyleSheet.create({
   error_request: {
     position: 'absolute',
     backgroundColor: app_theme_colors.red,
-    width: Dimensions.get('window').width - 30,
-    top: 40, 
-    left: 15,
+    maxWidth: Math.min(Dimensions.get('window').width - 30, 570),
+    top: 8,
+    alignSelf: 'center',
     zIndex: 100000000,
     flexDirection: 'row',
     borderRadius: 10,
   },
   error_request_texts: {
-    flex: 1,
+    flexShrink: 1,
     padding: 10,
   },
   error_request_text: {
@@ -1469,6 +1510,7 @@ const applicationStyles = StyleSheet.create({
     height: 20
   }
 });
+
 const homeStyles = StyleSheet.create({
   safe_area_view: {
     flex: 1,
@@ -3824,8 +3866,8 @@ const Home = observer(class Home extends React.Component {
 
           //Скачана книга
           if (check == true) {
-            var have_file = await new Storage().get('have_file_' + book.id, 'false');
-            book['have_file'] = have_file == 'true';
+            var have_file = await downloadStore.validateCompleted(book.id);
+            book['have_file'] = have_file;
             downloadStore.setCompleted(book.id, book['have_file']);
             if (this.state.show_only_loaded == true) {
               check = book['have_file'];
@@ -5508,6 +5550,12 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     if (this.voiceover_playing_lock) {
       return;
     }
+
+    if (!appStore.has_internet) {
+      appStore.showError('Отсутствует подключение к интернету');
+      return;
+    }
+
     this.voiceover_playing_lock = true;
 
     AppMetrica.reportEvent('Voiceover', {
@@ -5522,7 +5570,9 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
     if (!pesponse || !pesponse.url) {
-      AppAlert.alert('Озвучка не найдена');
+      appStore.showError(
+        appStore.has_internet ? 'Озвучка не найдена' : 'Отсутствует подключение к интернету'
+      );
       this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
       this.voiceover_playing_lock = false;
@@ -5755,7 +5805,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     </React.Fragment>
                   </React.Fragment>
                 ) : (
-                  <TouchableWithoutFeedback onPress={() => AppAlert.alert('Нет подключения к интернету!')}>
+                  <TouchableWithoutFeedback onPress={() => appStore.showError('Отсутствует подключение к интернету')}>
                     <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                       <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>
@@ -6358,7 +6408,7 @@ class Reader extends React.Component {
 
 
   async componentDidMount() {
-    this.have_file = await new Storage().get('have_file_' + this.props.stack.route.params.book_id, '') == 'true';
+    this.have_file = await downloadStore.validateCompleted(this.props.stack.route.params.book_id);
 
     var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
     books = JSON.parse(books);
@@ -8364,9 +8414,9 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
   }
 
   async componentDidMount() {
-    var have_file = await AsyncStorage.getItem('have_file_' + this.props.book_id);
+    var have_file = await downloadStore.validateCompleted(this.props.book_id);
     this.setState({
-      have_file: have_file == 'true',
+      have_file: have_file,
       button_loader: false,
     });
   }
@@ -8482,8 +8532,8 @@ const Show = observer(class Show extends React.Component {
     await Promise.all(
       books.map(async (book) => {
         if (book.id == this.props.stack.route.params.book_id) {
-          var have_file = await new Storage().get('have_file_' + book.id, 'false');
-          downloadStore.setCompleted(book.id, have_file == 'true');
+          var have_file = await downloadStore.validateCompleted(book.id);
+          downloadStore.setCompleted(book.id, have_file);
 
           AppMetrica.reportEvent('openDetail', {
             book_name: book.name
@@ -8491,7 +8541,7 @@ const Show = observer(class Show extends React.Component {
           
           this.setState({
             book: book,
-            have_file: have_file == 'true'
+            have_file: have_file
           });
           this.props.stack.navigation.setOptions({
             headerTitle: '',
@@ -8528,6 +8578,20 @@ const Show = observer(class Show extends React.Component {
     this.setState({
       have_file: true
     });
+  }
+
+  requestDownload() {
+    AppAlert.alert(
+      'Скачивание доступно с PRO',
+      'Оформите PRO-доступ, чтобы скачивать книги и читать их без интернета.',
+      [
+        {
+          text: 'Купить PRO-доступ',
+          onPress: () => this.props.stack.navigation.navigate('subscription', { backTitle: this.state.book.name_en })
+        },
+        { text: 'Отмена', style: 'cancel' }
+      ]
+    );
   }
 
   async markAsRead() {
@@ -8616,24 +8680,22 @@ const Show = observer(class Show extends React.Component {
                   )}
                 </View>
 
-                {(this.props.root.state.has_subscription) && this.state.have_file == false &&
+                {this.state.have_file == false &&
                   <View style={{ marginRight: 15 }}>
                     {this.props.root.state.has_subscription == true ? (
-                      <React.Fragment>
-                        {this.props.root.state.has_internet == true &&
-                          <ButtonRead
-                            set_have_file={() => this.set_have_file()}
-                            book_id={this.state.book.id} color={this.state.book.color}
-                            book_name={this.state.book.name}
-                            book_name_en={this.state.book.name_en}
-                            navigation={this.props.stack.navigation}
-                          />
-                        }
-                      </React.Fragment>
+                      <ButtonRead
+                        set_have_file={() => this.set_have_file()}
+                        book_id={this.state.book.id} color={this.state.book.color}
+                        book_name={this.state.book.name}
+                        book_name_en={this.state.book.name_en}
+                        navigation={this.props.stack.navigation}
+                      />
                     ) : (
-                      <View style={{ opacity: 0.3, height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
-                        <AppIcon icon={DownloadIcon} size={28} color={app_theme_colors.red} style={{ margin: 16 }} />
-                      </View>
+                      <TouchableOpacity
+                        onPress={() => this.requestDownload()}
+                        style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
+                        <AppIcon icon={ArrowDownToLineIcon} size={28} color="#000" style={{ margin: 16 }} />
+                      </TouchableOpacity>
                     )}
                   </View>
                 }
@@ -8641,20 +8703,6 @@ const Show = observer(class Show extends React.Component {
 
 
             </View>
-
-            {this.state.have_file == false && this.props.root.state.has_internet == true &&
-              <View style={{ padding: 15 }}>
-                <Text style={{ color: '#FFF', textAlign: 'center' }}>
-                  Вы можете скачать книгу,{"\n"} чтобы читать ее без интернета
-                </Text>
-
-                {this.props.root.state.has_subscription == false &&
-                  <Text style={{ marginTop: 15, color: '#FFF', textAlign: 'center' }}>
-                    Функция скачивания доступна{"\n"} только при наличии подписки
-                  </Text>
-                }
-              </View>
-            }
 
             {this.state.have_file == true &&
               <View style={{ padding: 15 }}>

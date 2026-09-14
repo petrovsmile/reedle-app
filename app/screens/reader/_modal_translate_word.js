@@ -100,6 +100,12 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     if (this.voiceover_playing_lock) {
       return;
     }
+
+    if (!appStore.has_internet) {
+      appStore.showError('Отсутствует подключение к интернету');
+      return;
+    }
+
     this.voiceover_playing_lock = true;
 
     AppMetrica.reportEvent('Voiceover', {
@@ -114,7 +120,9 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
 
     if (!pesponse || !pesponse.url) {
-      AppAlert.alert('Озвучка не найдена');
+      appStore.showError(
+        appStore.has_internet ? 'Озвучка не найдена' : 'Отсутствует подключение к интернету'
+      );
       this.setState({ voiceover_playing: false });
       this.stopPulseAnimation();
       this.voiceover_playing_lock = false;
@@ -347,7 +355,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     </React.Fragment>
                   </React.Fragment>
                 ) : (
-                  <TouchableWithoutFeedback onPress={() => AppAlert.alert('Нет подключения к интернету!')}>
+                  <TouchableWithoutFeedback onPress={() => appStore.showError('Отсутствует подключение к интернету')}>
                     <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
                       <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>

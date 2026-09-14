@@ -29,6 +29,11 @@ class AppStore {
   setShowSubscription(value) { this.show_subsription = value; }
 
   showError(title, description) {
+    if (typeof root_app !== 'undefined' && root_app) {
+      root_app.showError(title, description);
+      return;
+    }
+
     this.error_show = true;
     this.error_title = title;
     this.error_description = description;
@@ -184,6 +189,38 @@ class DownloadStore {
     return size;
   }
 
+  async hasBookFiles(bookId) {
+    try {
+      var bookPath = file_root + '/books/' + bookId;
+      if (!await RNFS.exists(bookPath + '/words.json')) return false;
+      if (!await RNFS.exists(bookPath + '/pagination.json')) return false;
+
+      var pagination = JSON.parse(await RNFS.readFile(bookPath + '/pagination.json', 'utf8'));
+      var paragraphIds = [];
+      Object.keys(pagination).forEach((page) => {
+        (pagination[page] || []).forEach((paragraphId) => {
+          if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+        });
+      });
+
+      var existingParagraphs = await Promise.all(paragraphIds.map((paragraphId) =>
+        RNFS.exists(bookPath + '/paragraphs/' + paragraphId + '.json')));
+      return existingParagraphs.every(Boolean);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async validateCompleted(bookId) {
+    var completed = await AsyncStorage.getItem('have_file_' + bookId) == 'true';
+    if (!completed) return false;
+    if (await this.hasBookFiles(bookId)) return true;
+
+    await AsyncStorage.setItem('have_file_' + bookId, '');
+    this.setCompleted(bookId, false);
+    return false;
+  }
+
   async removeBooks(bookIds) {
     var ids = (bookIds || []).map((bookId) => String(bookId));
     await Promise.all(ids.map(async (bookId) => {
@@ -235,6 +272,8 @@ class DownloadStore {
         var progress = Math.max(2, ((index + 1) / files.length) * 100);
         this.setDownload(book.id, { progress: progress, status: 'downloading' });
       }
+
+      if (!await this.hasBookFiles(book.id)) throw new Error('Downloaded book files are incomplete');
 
       await this.updateBookSizes({ [book.id]: downloadedSize });
       await AsyncStorage.setItem('have_file_' + book.id, 'true');

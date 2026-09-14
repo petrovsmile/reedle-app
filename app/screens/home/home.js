@@ -177,8 +177,8 @@ const Home = observer(class Home extends React.Component {
 
           //Скачана книга
           if (check == true) {
-            var have_file = await new Storage().get('have_file_' + book.id, 'false');
-            book['have_file'] = have_file == 'true';
+            var have_file = await downloadStore.validateCompleted(book.id);
+            book['have_file'] = have_file;
             downloadStore.setCompleted(book.id, book['have_file']);
             if (this.state.show_only_loaded == true) {
               check = book['have_file'];

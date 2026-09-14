@@ -8,9 +8,9 @@ const ButtonRead = observer(class ButtonRead extends React.Component {
   }
 
   async componentDidMount() {
-    var have_file = await AsyncStorage.getItem('have_file_' + this.props.book_id);
+    var have_file = await downloadStore.validateCompleted(this.props.book_id);
     this.setState({
-      have_file: have_file == 'true',
+      have_file: have_file,
       button_loader: false,
     });
   }

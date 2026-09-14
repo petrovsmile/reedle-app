@@ -57,7 +57,7 @@ class Reader extends React.Component {
 
 
   async componentDidMount() {
-    this.have_file = await new Storage().get('have_file_' + this.props.stack.route.params.book_id, '') == 'true';
+    this.have_file = await downloadStore.validateCompleted(this.props.stack.route.params.book_id);
 
     var books = await RNFS.readFile(file_root + '/' + BOOKS_FILENAME, 'utf8');
     books = JSON.parse(books);

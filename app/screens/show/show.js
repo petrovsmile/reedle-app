@@ -46,8 +46,8 @@ const Show = observer(class Show extends React.Component {
     await Promise.all(
       books.map(async (book) => {
         if (book.id == this.props.stack.route.params.book_id) {
-          var have_file = await new Storage().get('have_file_' + book.id, 'false');
-          downloadStore.setCompleted(book.id, have_file == 'true');
+          var have_file = await downloadStore.validateCompleted(book.id);
+          downloadStore.setCompleted(book.id, have_file);
 
           AppMetrica.reportEvent('openDetail', {
             book_name: book.name
@@ -55,7 +55,7 @@ const Show = observer(class Show extends React.Component {
           
           this.setState({
             book: book,
-            have_file: have_file == 'true'
+            have_file: have_file
           });
           this.props.stack.navigation.setOptions({
             headerTitle: '',
@@ -92,6 +92,20 @@ const Show = observer(class Show extends React.Component {
     this.setState({
       have_file: true
     });
+  }
+
+  requestDownload() {
+    AppAlert.alert(
+      'Скачивание доступно с PRO',
+      'Оформите PRO-доступ, чтобы скачивать книги и читать их без интернета.',
+      [
+        {
+          text: 'Купить PRO-доступ',
+          onPress: () => this.props.stack.navigation.navigate('subscription', { backTitle: this.state.book.name_en })
+        },
+        { text: 'Отмена', style: 'cancel' }
+      ]
+    );
   }
 
   async markAsRead() {
@@ -180,24 +194,22 @@ const Show = observer(class Show extends React.Component {
                   )}
                 </View>
 
-                {(this.props.root.state.has_subscription) && this.state.have_file == false &&
+                {this.state.have_file == false &&
                   <View style={{ marginRight: 15 }}>
                     {this.props.root.state.has_subscription == true ? (
-                      <React.Fragment>
-                        {this.props.root.state.has_internet == true &&
-                          <ButtonRead
-                            set_have_file={() => this.set_have_file()}
-                            book_id={this.state.book.id} color={this.state.book.color}
-                            book_name={this.state.book.name}
-                            book_name_en={this.state.book.name_en}
-                            navigation={this.props.stack.navigation}
-                          />
-                        }
-                      </React.Fragment>
+                      <ButtonRead
+                        set_have_file={() => this.set_have_file()}
+                        book_id={this.state.book.id} color={this.state.book.color}
+                        book_name={this.state.book.name}
+                        book_name_en={this.state.book.name_en}
+                        navigation={this.props.stack.navigation}
+                      />
                     ) : (
-                      <View style={{ opacity: 0.3, height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
-                        <AppIcon icon={DownloadIcon} size={28} color={app_theme_colors.red} style={{ margin: 16 }} />
-                      </View>
+                      <TouchableOpacity
+                        onPress={() => this.requestDownload()}
+                        style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden' }}>
+                        <AppIcon icon={ArrowDownToLineIcon} size={28} color="#000" style={{ margin: 16 }} />
+                      </TouchableOpacity>
                     )}
                   </View>
                 }
@@ -205,20 +217,6 @@ const Show = observer(class Show extends React.Component {
 
 
             </View>
-
-            {this.state.have_file == false && this.props.root.state.has_internet == true &&
-              <View style={{ padding: 15 }}>
-                <Text style={{ color: '#FFF', textAlign: 'center' }}>
-                  Вы можете скачать книгу,{"\n"} чтобы читать ее без интернета
-                </Text>
-
-                {this.props.root.state.has_subscription == false &&
-                  <Text style={{ marginTop: 15, color: '#FFF', textAlign: 'center' }}>
-                    Функция скачивания доступна{"\n"} только при наличии подписки
-                  </Text>
-                }
-              </View>
-            }
 
             {this.state.have_file == true &&
               <View style={{ padding: 15 }}>

@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev": "npm run web:local",
     "android": "node scripts/run-android.js",
     "ios": "react-native run-ios",
     "lint": "eslint .",

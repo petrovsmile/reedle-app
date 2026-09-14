@@ -42,15 +42,15 @@ const applicationStyles = StyleSheet.create({
   error_request: {
     position: 'absolute',
     backgroundColor: app_theme_colors.red,
-    width: Dimensions.get('window').width - 30,
-    top: 40, 
-    left: 15,
+    maxWidth: Math.min(Dimensions.get('window').width - 30, 570),
+    top: 8,
+    alignSelf: 'center',
     zIndex: 100000000,
     flexDirection: 'row',
     borderRadius: 10,
   },
   error_request_texts: {
-    flex: 1,
+    flexShrink: 1,
     padding: 10,
   },
   error_request_text: {

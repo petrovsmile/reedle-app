@@ -1,13 +1,15 @@
 const CACHE_NAME = 'reedle-pwa-__BUILD_HASH__';
+const BASE_PATH = '__PUBLIC_PATH__';
 const APP_SHELL = [
-  '/app/',
-  '/app/index.html',
-  '/app/manifest.webmanifest',
-  '/app/icons/icon-192.png',
-  '/app/icons/icon-512.png',
-  '/app/fonts/fonts.css',
-  '/app/fonts/libre-baskerville-400-latin.woff2',
-  '/app/fonts/libre-baskerville-400-latin-ext.woff2',
+  BASE_PATH,
+  BASE_PATH + 'index.html',
+  BASE_PATH + 'manifest.webmanifest',
+  BASE_PATH + 'icons/icon-192.png',
+  BASE_PATH + 'icons/icon-512.png',
+  BASE_PATH + 'fonts/fonts.css',
+  BASE_PATH + 'fonts/libre-baskerville-400-latin.woff2',
+  BASE_PATH + 'fonts/libre-baskerville-400-latin-ext.woff2',
+  __APP_SHELL_ASSETS__
 ];
 
 self.addEventListener('install', (event) => {
@@ -45,10 +47,10 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/app/', copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put(BASE_PATH, copy));
           return response;
         })
-        .catch(() => caches.match('/app/'))
+        .catch(() => caches.match(BASE_PATH))
     );
     return;
   }
@@ -61,7 +63,7 @@ self.addEventListener('fetch', (event) => {
         if (
           response.ok &&
           requestUrl.origin === self.location.origin &&
-          requestUrl.pathname.startsWith('/app/')
+          requestUrl.pathname.startsWith(BASE_PATH)
         ) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));

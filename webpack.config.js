@@ -32,9 +32,16 @@ class EmitPwaAssetsPlugin {
                     Object.entries(assets).forEach(([outputPath, sourcePath]) => {
                         let source = compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath));
                         if (outputPath === 'sw.js') {
+                            const entryAssets = Array.from(compilation.entrypoints.values())
+                                .flatMap((entrypoint) => entrypoint.getFiles())
+                                .filter((fileName) => /\.(js|css)$/.test(fileName))
+                                .map((fileName) => `'${compilation.outputOptions.publicPath}${fileName}'`)
+                                .join(',\n  ');
                             source = source
                                 .toString()
-                                .replace('__BUILD_HASH__', compilation.fullHash.slice(0, 12));
+                                .replace('__BUILD_HASH__', compilation.fullHash.slice(0, 12))
+                                .replaceAll('__PUBLIC_PATH__', compilation.outputOptions.publicPath)
+                                .replace('__APP_SHELL_ASSETS__', entryAssets);
                         }
                         compilation.emitAsset(
                             outputPath,
