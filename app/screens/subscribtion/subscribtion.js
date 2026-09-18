@@ -218,9 +218,9 @@ const Subscription = observer(class Subscription extends React.Component {
     const subscriptionTextColor = (lightColor) => isDarkTheme ? '#FFF' : lightColor;
     const pageHorizontalMargin = isCompact ? 16 : 30;
     const planPadding = isCompact ? 11 : 15;
-    const planTitleFontSize = isCompact ? 19 : 22;
+    const planTitleFontSize = isCompact ? 16 : 18;
     const planPriceFontSize = isCompact ? 16 : 18;
-    const badgeFontSize = isCompact ? 9 : 11;
+    const badgeFontSize = 12;
     const selectedPlanStyle = isCompact
       ? { borderColor: appThemeStore.colors.border, borderWidth: 2, zIndex: 2 }
       : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
@@ -249,12 +249,10 @@ const Subscription = observer(class Subscription extends React.Component {
           visible={this.state.modal_yoo_kassa}
         >
           <View activeOpacity={1} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 10 }}>
-              <View style={{
-                height: 55, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1
-              }}>
-                <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
-                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
+            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 8 }}>
+              <View style={{ height: 56, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1 }}>
+                <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, margin: 8 }}>
+                  <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} style={{ margin: 8 }} />
                 </TouchableOpacity>
 
               </View>
@@ -279,7 +277,7 @@ const Subscription = observer(class Subscription extends React.Component {
                 {this.state.payment_webview_loading &&
                   <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: appThemeStore.colors.surface, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="large" color={appThemeStore.colors.mutedText} />
-                    <Text style={{ marginTop: 12, color: subscriptionTextColor('#777'), fontSize: 14 }}>Загрузка страницы оплаты...</Text>
+                    <Text style={{ marginTop: 16, color: subscriptionTextColor('#777'), fontSize: 14 }}>Загрузка страницы оплаты...</Text>
                   </View>
                 }
               </View>
@@ -293,7 +291,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {appStore.has_subscription == true &&
               <React.Fragment>
-                <View style={{ marginTop: 16, borderRadius: 10, backgroundColor: appThemeStore.colors.backgroundLight, padding: 10 }}>
+                <View style={{ marginTop: 16, borderRadius: 8, backgroundColor: appThemeStore.colors.backgroundLight, padding: 8 }}>
                   {appStore.subscription_info.subscription_id == 4 ? (
                     <React.Fragment>
                       <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
@@ -308,8 +306,8 @@ const Subscription = observer(class Subscription extends React.Component {
                       <Text style={{ textAlign: 'center', fontSize: 18, color: appThemeStore.colors.text }}>
                         Ваш PRO-доступ активен до:
                       </Text>
-                      <View style={{ marginTop: 5 }}>
-                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 5, fontWeight: 'bold', color: appThemeStore.colors.text }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={{ textAlign: 'center', fontSize: 18, marginTop: 8, fontWeight: 'bold', color: appThemeStore.colors.text }}> {moment(appStore.subscription_info.end_date).format('DD.MM.YYYY')}</Text>
                       </View>
                     </React.Fragment>
                   )}
@@ -317,14 +315,14 @@ const Subscription = observer(class Subscription extends React.Component {
 
                 {appStore.type_payment == 'by_store' &&
                   <React.Fragment>
-                    <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 5 }}>
+                    <TouchableOpacity onPress={() => this.sync_subscription()} style={{ marginTop: 16, backgroundColor: app_theme_colors.red, height: 48, borderRadius: 8 }}>
                       {this.state.load_sync_button == true ? (
                         <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
                       ) : (
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Синхронизировать с сайтом</Text>
+                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 48, fontSize: 16 }}>Синхронизировать с сайтом</Text>
                       )}
                     </TouchableOpacity>
-                    <Text style={{ marginTop: 10 }}>
+                    <Text style={{ marginTop: 8 }}>
                       Если вы оплатили подписку через AppStore, но на сайте ваша подписка не отображается, синхронизуруйте данные.
                     </Text>
                   </React.Fragment>
@@ -336,14 +334,14 @@ const Subscription = observer(class Subscription extends React.Component {
               <React.Fragment>
                 <View style={{ marginTop: 16, flexDirection: 'column', justifyContent: 'center' }}>
                   {appStore.has_subscription == true &&
-                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Продлить доступ</Text>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Продлить доступ</Text>
                   }
                 </View>
 
                 <View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={MegaphoneOffIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
+                      <AppIcon icon={MegaphoneOffIcon} size={32} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Выключить рекламу</Text>
@@ -351,7 +349,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   </View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={WifiIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
+                      <AppIcon icon={WifiIcon} size={32} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Чтение без интернета</Text>
@@ -360,7 +358,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={BookAIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
+                      <AppIcon icon={BookAIcon} size={32} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Словарь без лимитов</Text>
@@ -368,7 +366,7 @@ const Subscription = observer(class Subscription extends React.Component {
                   </View>
                   <View style={{ flexDirection: 'row', flex: 1 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                      <AppIcon icon={VolumeIcon} size={28} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
+                      <AppIcon icon={VolumeIcon} size={32} color={subscriptionTextColor('#000')} style={{ marginBottom: 16 }} />
                     </View>
                     <View style={{ flexDirection: 'column', height: 32, justifyContent: 'center', marginLeft: 8 }}>
                       <Text style={{ fontSize: 16, ineHeight: 32 }}>Озвучка слов без лимитов</Text>
@@ -380,17 +378,14 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {this.can_show_pricing() &&
               <React.Fragment>
-                <View style={{ marginTop: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 10, overflow: isCompact ? 'hidden' : 'visible' }}>
+                <View style={{ marginTop: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 8, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(1)}>
-                    <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
-                      flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 1 && selectedPlanStyle]}>
+                    <View style={[{ borderRadius: 8, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 88, flexDirection: 'row', justifyContent: 'space-between' }, this.state.active_subscription == 1 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
                         <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 1 && { color: app_theme_colors.red }]}>1 месяц</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
+                        <Text style={{ fontSize: 16, marginTop: 8 }}>{this.getPrice('read_1_month', this.read_1_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_month', this.read_1_month, 1)}</Text>
@@ -402,17 +397,14 @@ const Subscription = observer(class Subscription extends React.Component {
 
                   {/* 6 месяцев */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(2)}>
-                    <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
-                      flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 2 && selectedPlanStyle]}>
+                    <View style={[{ borderRadius: 8, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 88, flexDirection: 'row', justifyContent: 'space-between' }, this.state.active_subscription == 2 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
                         <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 2 && { color: app_theme_colors.red }]}>6 месяцев</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
+                        <Text style={{ fontSize: 16, marginTop: 8 }}>{this.getPrice('read_6_month', this.read_6_month)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ fontSize: badgeFontSize, fontWeight: 'bold' }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
+                        <View style={{ borderColor: appThemeStore.colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 }}>
+                          <Text numberOfLines={1} style={{ fontSize: badgeFontSize }}>Экономия {this.getDiscountPercent('read_6_month', this.read_6_month, 6)}%</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_6_month', this.read_6_month, 6)}</Text>
                       </View>
@@ -423,17 +415,14 @@ const Subscription = observer(class Subscription extends React.Component {
 
                   {/* 1 год */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(3)}>
-                    <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
-                      flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 3 && selectedPlanStyle]}>
+                    <View style={[{ borderRadius: 8, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 88, flexDirection: 'row', justifyContent: 'space-between' }, this.state.active_subscription == 3 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
                         <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 3 && { color: app_theme_colors.red }]}>1 год</Text>
-                        <Text style={{ fontSize: 16, marginTop: 5 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
+                        <Text style={{ fontSize: 16, marginTop: 8 }}>{this.getPrice('read_1_year', this.read_1_year)}</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#f05458', borderRadius: 4, paddingHorizontal: isCompact ? 5 : 8, paddingVertical: 3, marginBottom: 5 }}>
-                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize, fontWeight: 'bold' }}>Лучшее предложение</Text>
+                        <View style={{ backgroundColor: app_theme_colors.red, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 }}>
+                          <Text numberOfLines={1} style={{ color: '#FFF', fontSize: badgeFontSize }}>Лучшее предложение</Text>
                         </View>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPerMonthLabel('read_1_year', this.read_1_year, 12)}</Text>
                       </View>
@@ -444,13 +433,10 @@ const Subscription = observer(class Subscription extends React.Component {
 
                   {/* Навсегда */}
                   <TouchableWithoutFeedback onPress={() => this.setActiveSubscription(4)}>
-                    <View style={[{
-                      borderRadius: 10, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 85,
-                      flexDirection: 'row', justifyContent: 'space-between',
-                    }, this.state.active_subscription == 4 && selectedPlanStyle]}>
+                    <View style={[{ borderRadius: 8, zIndex: 1, backgroundColor: appThemeStore.colors.background, padding: planPadding, height: 88, flexDirection: 'row', justifyContent: 'space-between' }, this.state.active_subscription == 4 && selectedPlanStyle]}>
                       <View style={{ flexShrink: 1, minWidth: 0 }}>
                         <Text style={[{ fontSize: planTitleFontSize, fontWeight: 'bold', color: subscriptionTextColor('#000') }, this.state.active_subscription == 4 && { color: app_theme_colors.red }]}>Навсегда</Text>
-                        <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 5 }}>Единоразовый платёж</Text>
+                        <Text numberOfLines={1} style={{ fontSize: isCompact ? 14 : 16, marginTop: 8 }}>Единоразовый платёж</Text>
                       </View>
                       <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                         <Text style={{ fontSize: planPriceFontSize, textAlign: 'right' }}>{this.getPrice('read_forever', this.read_forever)}</Text>
@@ -461,21 +447,21 @@ const Subscription = observer(class Subscription extends React.Component {
                 </View>
 
                 {this.state.active_subscription == 4 &&
-                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 13 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
+                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 12 }}>Доступ оплачивается один раз — продлевать не нужно.</Text>
                 }
                 {appStore.type_payment == 'by_yoo_kassa' && this.state.active_subscription != 4 &&
-                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 13 }}>По окончании периода подписка не продлевается автоматически.</Text>
+                  <Text style={{ marginTop: 16, color: subscriptionTextColor('#888'), fontSize: 12 }}>По окончании периода подписка не продлевается автоматически.</Text>
                 }
 
-                <Text style={{ marginTop: 8, color: subscriptionTextColor('#888'), fontSize: 13 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: subscriptionTextColor(app_theme_colors.red) }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
+                <Text style={{ marginTop: 8, color: subscriptionTextColor('#888'), fontSize: 12 }}>PRO-доступ распространяется на сайт <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: subscriptionTextColor(app_theme_colors.red) }}>reedle.ru</Text> и другие устройства, авторизованные под вашим аккаунтом.</Text>
 
                 <TouchableOpacity
                   onPress={() => this.state.active_subscription == 4 ? this.initForeverPayment() : this.initSubscriptionPayment()}
-                  style={{ marginTop: 15, backgroundColor: '#f05458', height: 50, borderRadius: 8 }}>
+                  style={{ marginTop: 16, backgroundColor: app_theme_colors.red, height: 48, borderRadius: 8 }}>
                   {this.state.load_payment_button == true ? (
                     <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
                   ) : (
-                    <Text numberOfLines={1} adjustsFontSizeToFit={true} style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16, fontWeight: 'bold', paddingHorizontal: 10 }}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit={true} style={{ color: '#FFF', textAlign: 'center', lineHeight: 48, fontSize: 16, fontWeight: 'bold', paddingHorizontal: 8 }}>
                       {appStore.has_subscription ? 'Продлить' : this.getButtonLabel()}
                     </Text>
                   )}
@@ -487,19 +473,19 @@ const Subscription = observer(class Subscription extends React.Component {
                     await this.props.root.checkSubscription();
                     this.setState({ load_restore_button: false });
                   }}
-                  style={{ marginTop: 12, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
+                  style={{ marginTop: 16, height: 48, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' }}>
                   {this.state.load_restore_button ? (
                     <ActivityIndicator size="small" color={subscriptionTextColor('#888')} />
                   ) : (
-                    <Text style={{ color: subscriptionTextColor('#555'), textAlign: 'center', fontSize: 15 }}>Восстановить покупки</Text>
+                    <Text style={{ color: subscriptionTextColor('#555'), textAlign: 'center', fontSize: 16 }}>Восстановить покупки</Text>
                   )}
                 </TouchableOpacity>
 
               </React.Fragment>
             }
 
-            <View style={{ marginTop: 30, marginBottom: 30, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")} style={{ marginRight: 15 }}>
+            <View style={{ marginTop: 32, marginBottom: 32, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")} style={{ marginRight: 16 }}>
                 <Text style={{ color: subscriptionTextColor('#aaa'), textAlign: 'center', fontSize: 14 }}>Terms of Use</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_policy")} style={{}}>
@@ -507,9 +493,9 @@ const Subscription = observer(class Subscription extends React.Component {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Подробности условий использования</Text>
+            <Text style={{ fontWeight: 'bold', marginTop: 8 }}>Подробности условий использования</Text>
 
-            <Text style={{ fontSize: 13, marginTop: 8, color: subscriptionTextColor('#555'), lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, marginTop: 8, color: subscriptionTextColor('#555'), lineHeight: 20 }}>
               Приложение распространяется бесплатно, без ограничений по времени. Автоматического списания средств нет.{'\n\n'}
               {'PRO-доступ можно приобрести на 1 месяц (' + this.getPrice('read_1_month', this.read_1_month) + '), 6 месяцев (' + this.getPrice('read_6_month', this.read_6_month) + '), 1 год (' + this.getPrice('read_1_year', this.read_1_year) + ') или навсегда (' + this.getPrice('read_forever', this.read_forever) + '). PRO убирает рекламу и открывает чтение без интернета.\n\n'}
               По окончании периода PRO-доступ не продлевается автоматически — для продления необходимо совершить покупку повторно в приложении или на сайте <Text onPress={() => Linking.openURL("https://reedle.ru")} style={{ color: subscriptionTextColor(app_theme_colors.red) }}>reedle.ru</Text>. Пожизненный доступ продлевать не нужно.{'\n\n'}

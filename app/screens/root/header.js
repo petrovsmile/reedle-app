@@ -2,12 +2,12 @@ class Header extends React.Component {
   render(){
     return(
       <SafeAreaView style={{backgroundColor: appThemeStore.colors.surface}}>
-        <View style={applicationStyles.header}>
+        <View style={{flexDirection:'row',justifyContent:'space-between',paddingLeft:16,paddingRight:16,marginTop:8,borderBottomWidth:1,borderBottomColor:app_theme_colors.backgroundLight,paddingBottom:8}}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
-            <AppIcon icon={MenuIcon} size={26} color={appThemeStore.colors.text} />
+            <AppIcon icon={MenuIcon} size={24} color={appThemeStore.colors.text} />
           </TouchableOpacity> 
-          <Text style={applicationStyles.header_title}>{this.props.title}</Text>
-          <View style={applicationStyles.header_empty_block}/>
+          <Text style={{lineHeight:28,height:32}}>{this.props.title}</Text>
+          <View style={{width:32,height:32}}/>
         </View>
         
       </SafeAreaView>

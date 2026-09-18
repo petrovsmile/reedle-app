@@ -3,22 +3,16 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   if (downloads.length === 0) return null;
 
   return (
-      <View style={[homeStyles.downloadsPanel, { backgroundColor: appThemeStore.colors.surface }]}>
-      <Text style={[homeStyles.downloadsTitle, { color: appThemeStore.colors.text }]}>Загрузка книг</Text>
+    <View style={[{ marginLeft: 16, marginRight: 16, marginTop: 8, padding: 8, borderRadius: 8, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: '#FFF', elevation: 3 }, { backgroundColor: appThemeStore.colors.surface }]}>
+      <Text style={[{ marginBottom: 8, fontSize: 16, fontWeight: '600', color: '#222' }, { color: appThemeStore.colors.text }]}>Загрузка книг</Text>
       {downloads.map((download) =>
-        <View key={download.bookId} style={homeStyles.downloadRow}>
+        <View key={download.bookId} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={[homeStyles.downloadBookName, { color: appThemeStore.colors.text }]}>{download.nameEn || download.name}</Text>
-            <View style={homeStyles.downloadProgressTrack}>
-              <View style={[
-                homeStyles.downloadProgressValue,
-                {
-                  width: (download.progress || 0) + '%',
-                  backgroundColor: download.status === 'error' ? '#f05458' : (download.color || '#75b641'),
-                }
-              ]} />
+            <Text numberOfLines={1} style={[{ marginBottom: 8, fontSize: 14, color: '#333' }, { color: appThemeStore.colors.text }]}>{download.nameEn || download.name}</Text>
+            <View style={{ height: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: '#e5e5e5' }}>
+              <View style={[{ height: 8, borderRadius: 8 }, { width: (download.progress || 0) + '%', backgroundColor: download.status === 'error' ? app_theme_colors.red : download.color || app_theme_colors.success }]} />
             </View>
-            <Text style={[homeStyles.downloadStatus, { color: appThemeStore.colors.mutedText }]}>
+            <Text style={[{ marginTop: 8, fontSize: 14, color: '#777' }, { color: appThemeStore.colors.mutedText }]}>
               {download.status === 'error'
                 ? 'Ошибка загрузки'
                 : download.status === 'completed'
@@ -27,8 +21,8 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
             </Text>
           </View>
           {(download.status === 'completed' || download.status === 'error') &&
-            <TouchableOpacity onPress={() => downloadStore.dismiss(download.bookId)} style={homeStyles.downloadDismiss}>
-              <Text style={homeStyles.downloadDismissText}>×</Text>
+            <TouchableOpacity onPress={() => downloadStore.dismiss(download.bookId)} style={{ width: 24, height: 24, marginLeft: 8, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 18, lineHeight: 24, color: '#999' }}>×</Text>
             </TouchableOpacity>
           }
         </View>
@@ -51,12 +45,14 @@ const Home = observer(class Home extends React.Component {
       sort_new_book: true,
       show_only_loaded: false,
       open_property: false,
+      search_value: '',
     };
 
     this.search_value = "";
   }
 
   async componentDidMount() {
+    this._unsubscribeTabPress = this.props.tabs.navigation.addListener('tabPress', () => this.getBooks());
     this._unsubscribeDownloadCompleted = downloadStore.onCompleted(() => this.filter_books());
 
     var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
@@ -82,6 +78,7 @@ const Home = observer(class Home extends React.Component {
   }
 
   componentWillUnmount() {
+    if (this._unsubscribeTabPress) this._unsubscribeTabPress();
     if (this._unsubscribeDownloadCompleted) this._unsubscribeDownloadCompleted();
   }
 
@@ -253,6 +250,7 @@ const Home = observer(class Home extends React.Component {
 
   onChangeText(value) {
     this.search_value = value;
+    this.setState({ search_value: value });
     this.filter_books();
   }
 
@@ -339,18 +337,18 @@ const Home = observer(class Home extends React.Component {
 
     return (
       <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
-        <View style={homeStyles.header}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 16, marginTop: 16 }}>
 
           <View style={homeStyles.header_empty_block} />
 
-          <View style={homeStyles.logo}>
-            <Text style={[homeStyles.logo_text, { color: appThemeStore.colors.text }]}>Reedle</Text>
-            <Text style={homeStyles.logo_dot}>.</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', height: 32 }}>
+            <Text style={[{ fontSize: 28, lineHeight: 32, fontFamily: 'LibreBaskerville-Regular', color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>Reedle</Text>
+            <Text style={{ fontSize: 28, lineHeight: 32, color: app_theme_colors.red, fontFamily: 'LibreBaskerville-Regular' }}>.</Text>
           </View>
 
           {(this.props.root.state.has_subscription == false) ? (
             <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Книги' })}>
-              <AppIcon icon={MegaphoneOffIcon} size={28} color={appThemeStore.colors.text} style={{ marginTop: 3 }} />
+              <AppIcon icon={MegaphoneOffIcon} size={24} style={{ padding: 4 }} color={appThemeStore.colors.text} />
             </TouchableOpacity>
           ) : (
             <View style={homeStyles.header_empty_block}></View>
@@ -359,40 +357,46 @@ const Home = observer(class Home extends React.Component {
 
         <HomeDownloadsPanel />
 
-        <View style={[homeStyles.search, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
-          <AppIcon icon={SearchIcon} size={24} color="#999" style={homeStyles.search_image} />
+        <View style={[{ flexDirection: 'row', height: 40, overflow: 'hidden', backgroundColor: app_theme_colors.backgroundLight, borderRadius: 8, margin: 16 }, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          <AppIcon icon={SearchIcon} size={24} color="#999" style={{ margin: 8 }} />
           <TextInput
-            style={[homeStyles.search_input, { color: appThemeStore.colors.text, outlineStyle: 'none' }]}
+            style={[{ flex: 1, minWidth: 0, height: 40, fontSize: 16, color: app_theme_colors.text, backgroundColor: 'transparent' }, { color: appThemeStore.colors.text, outlineStyle: 'none' }]}
+            value={this.state.search_value}
             onChangeText={(value) => this.onChangeText(value)}
             placeholder={"Поиск"}
             placeholderTextColor={appThemeStore.colors.text}
-            clearButtonMode="always"
+            clearButtonMode="never"
           />
+          {this.state.search_value.length > 0 &&
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Очистить поиск книг" onPress={() => this.onChangeText('')} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.mutedText} />
+            </TouchableOpacity>
+          }
         </View>
 
-        <View style={[homeStyles.level_selector, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
-          <View style={homeStyles.level_selector_wrap}>
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" color={appThemeStore.colors.background} level="all" current_level={this.state.level} />
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A1" color="#89c053" level="1" current_level={this.state.level} />
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A2" color="#5e9cea" level="2" current_level={this.state.level} />
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B1" color="#f5b945" level="3" current_level={this.state.level} />
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B2" color="#fb836f" level="4" current_level={this.state.level} />
-            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="C1" color="#fe4444" level="5" current_level={this.state.level} />
+        <View style={[{ backgroundColor: '#eee', borderRadius: 8, padding: 4, marginLeft: 16, marginRight: 16, zIndex: 1 }, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          <View style={{ flexDirection: 'row' }}>
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="Все" level="all" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A1" level="1" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="A2" level="2" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B1" level="3" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="B2" level="4" current_level={this.state.level} />
+            <LevelSelectorPoint onPress={(level) => this.setLevel(level)} name="C1" level="5" current_level={this.state.level} />
 
 
             <TouchableOpacity onPress={() => this.openProperty()}>
-              <View style={[homeStyles.settings_button, { backgroundColor: appThemeStore.colors.border }]}>
+              <View style={[{ width: 32, height: 32, marginLeft: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: appThemeStore.colors.border }]}>
                 {this.state.open_property == false &&
-                  <AppIcon icon={SlidersIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={SlidersIcon} size={24} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
                 {this.state.open_property == true &&
-                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
+                  <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} style={homeStyles.settings_image} />
                 }
               </View>
             </TouchableOpacity>
           </View>
           {this.state.open_property == true &&
-            <View style={[homeStyles.properties, { backgroundColor: appThemeStore.colors.surface }]}>
+            <View style={[{ padding: 8, backgroundColor: '#FFF', marginTop: 8, borderRadius: 8 }, { backgroundColor: appThemeStore.colors.surface }]}>
               <View style={homeStyles.properties_point}>
 
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Не показывать прочитанные книги</Text>
@@ -446,20 +450,20 @@ const Home = observer(class Home extends React.Component {
 
         <React.Fragment>
           {this.state.do_not_find == true &&
-            <View style={{ marginTop: 100 }}>
-              <Text style={{ textAlign: 'center', fontSize: 20, color: '#aaa' }}>Книги не найдены :(</Text>
+            <View style={{ marginTop: 104 }}>
+              <Text style={{ textAlign: 'center', fontSize: 18, color: '#aaa' }}>Книги не найдены :(</Text>
             </View>
           }
           {this.state.do_not_find == false &&
             <FlatList
-              style={{ flex: 1, marginTop: -10, zIndex: 0, paddingTop: 10 }}
+              style={{ flex: 1, marginTop: -8, zIndex: 0, paddingTop: 8 }}
               refreshControl={
                 <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
               }
               showsHorizontalScrollIndicator={false}
               scrollIndicatorInsets={{ right: 1 }}
               removeClippedSubviews={true}
-              contentContainerStyle={{ paddingBottom: 100 }}
+              contentContainerStyle={{ paddingBottom: 104 }}
               data={visibleBooks}
               renderItem={(book) => <Book
                 books_percents={this.props.root.state.books_percents}
@@ -471,7 +475,7 @@ const Home = observer(class Home extends React.Component {
               />}
               keyExtractor={(book) => String(book.id)}
               ItemSeparatorComponent={() => (
-                <View style={{ height: 1, marginLeft: 15, marginRight: 15, backgroundColor: appThemeStore.colors.border }} />
+                <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
               )}
               ListEmptyComponent={() => <PreviewBooks />}
             />
@@ -487,10 +491,10 @@ const Home = observer(class Home extends React.Component {
 class LevelSelectorPoint extends React.Component {
   render() {
     return (
-      <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={[homeStyles.level_selector_point, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
-        <View style={this.props.current_level == this.props.level && [{ backgroundColor: this.props.color }, homeStyles.level_selector_point_active]}>
-          <Text style={homeStyles.level_selector_point_text}>
-            <Text style={this.props.current_level == this.props.level && this.props.level != 'all' ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
+      <TouchableOpacity onPress={() => this.props.onPress(this.props.level)} style={[{ flex: 1, backgroundColor: '#eee', height: 32, borderRadius: 8 }, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+        <View style={this.props.current_level == this.props.level && [{ backgroundColor: app_theme_colors.red }, { flex: 1, borderRadius: 8 }]}>
+          <Text style={{ fontSize: 14, color: '#000', textAlign: 'center', lineHeight: 32 }}>
+            <Text style={this.props.current_level == this.props.level ? { color: '#FFF' } : { color: appThemeStore.colors.text }}>
               {this.props.name}
             </Text>
           </Text>
@@ -521,19 +525,17 @@ function PreviewBooks() {
 function PreviewBook() {
   return (
     <React.Fragment>
-      <View style={{ margin: 5 }}>
-        <View style={{ marginLeft: 10, marginRight: 10, paddingBottom: 15, paddingTop: 15, flexDirection: 'row' }}>
-          <View style={{ height: 100, width: 70, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
-            <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ borderRadius: 5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
-            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
-            <View style={{ borderRadius: 5, marginTop: 12.5, height: 25, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
-          </View>
+      <View style={{ margin: 16, flexDirection: 'row' }}>
+        <View style={{ height: 96, width: 72, marginRight: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
+        </View>
+        <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'space-between', height: 96 }}>
+          <View style={{ borderRadius: 8, height: 24, backgroundColor: appThemeStore.colors.backgroundLight, width: '50%' }}></View>
+          <View style={{ borderRadius: 8, height: 24, backgroundColor: appThemeStore.colors.backgroundLight }}></View>
+          <View style={{ borderRadius: 8, height: 24, backgroundColor: appThemeStore.colors.backgroundLight, width: '70%' }}></View>
         </View>
       </View>
-      <View style={{ height: 1, marginLeft: 15, marginRight: 15, backgroundColor: appThemeStore.colors.border }} />
+      <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
     </React.Fragment>
   );
 }

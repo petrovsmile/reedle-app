@@ -89,6 +89,7 @@ import {
   MegaphoneOff as MegaphoneOffIcon
 } from 'lucide-react-native';
 
+var SocialAuthSvgXml = require('react-native-svg').SvgXml;
 var RNFS = require('react-native-fs');
 var file_root = RNFS.DocumentDirectoryPath;
 

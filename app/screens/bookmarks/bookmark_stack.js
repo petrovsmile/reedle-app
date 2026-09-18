@@ -14,7 +14,7 @@ class BookmarkStack extends React.Component {
       <RootStack.Navigator initialRouteName="bookmark">
         <RootStack.Screen name="bookmark" options={() => ({ headerShown: false })}>
           {(stack) => (
-            <Bookmarks ref={(ref) => this.bookmarksRef = ref} root={this.props.root} stack={stack} root_stack={this.props.stack} />
+            <Bookmarks ref={(ref) => this.bookmarksRef = ref} tabs={this.props.tabs} root={this.props.root} stack={stack} root_stack={this.props.stack} />
           )}
         </RootStack.Screen>
       </RootStack.Navigator>

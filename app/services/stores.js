@@ -53,6 +53,17 @@ class AppStore {
   }
 }
 
+function normalizeReaderFontSize(value) {
+  var fontSize = Number(value);
+  if (fontSize <= 14) return 14;
+  if (fontSize <= 16) return 16;
+  return 18;
+}
+
+function readerLineHeight(value) {
+  return normalizeReaderFontSize(value) <= 16 ? 24 : 28;
+}
+
 // ==================== ReaderStore ====================
 class ReaderStore {
   fontSize = 18;
@@ -75,7 +86,7 @@ class ReaderStore {
     // Мерджим — обновляем только те поля, которые реально пришли.
     // Иначе при вызове вида setThemeSettings({fontFamily: 'X'}) все
     // остальные поля стали бы undefined (баг со сбросом шрифта/размеров).
-    if (settings.fontSize !== undefined) this.fontSize = settings.fontSize;
+    if (settings.fontSize !== undefined) this.fontSize = normalizeReaderFontSize(settings.fontSize);
     if (settings.fontFamily !== undefined) this.fontFamily = settings.fontFamily;
     if (settings.textAlign !== undefined) this.textAlign = settings.textAlign;
     if (settings.translate_icon_size !== undefined) this.translate_icon_size = settings.translate_icon_size;

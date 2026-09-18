@@ -21,7 +21,8 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   startPulseAnimation() {
-    Animated.loop(
+    this.stopPulseAnimation();
+    this.pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(this.scaleAnim, {
           toValue: 0.8,
@@ -34,10 +35,16 @@ const Paragraph = observer(class Paragraph extends React.Component {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    this.pulseAnimation.start();
   }
 
   stopPulseAnimation() {
+    if (this.pulseAnimation) {
+      this.pulseAnimation.stop();
+      this.pulseAnimation = null;
+    }
+    this.scaleAnim.stopAnimation();
     this.scaleAnim.setValue(1);
   }
 
@@ -139,6 +146,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   componentWillUnmount() {
+    this.stopPulseAnimation();
     if (currentSentenceSoundOwner === this && currentSentenceSound) {
       currentSentenceSound.release();
       currentSentenceSound = null;
@@ -250,29 +258,41 @@ const Paragraph = observer(class Paragraph extends React.Component {
     this.props.openTranslateSentence(translate);
   }
 
+  displayBlocks(blocks) {
+    return blocks.reduce((result, block) => {
+      var previousBlock = result[result.length - 1];
+      if ((block['v'] == "'s" || block['v'] == '’s') && previousBlock && previousBlock['w'] != undefined) {
+        previousBlock['v'] += block['v'];
+      } else {
+        result.push({ ...block });
+      }
+      return result;
+    }, []);
+  }
+
   render() {
 
     return (
 
       <React.Fragment>
         {(readerStore.page == 1 && this.props.data['name'] == 1) &&
-          <View style={readerScreenStyles.bookTitle}>
-            <Text style={[readerScreenStyles.bookTitleText, { color: readerStore.textColorTheme }]}>{this.props.book_name_en}</Text>
+          <View style={{ marginTop: 24, paddingLeft: 40, paddingRight: 24 }}>
+            <Text style={[{ fontSize: 18, fontFamily: 'LibreBaskerville-Regular' }, { color: readerStore.textColorTheme }]}>{this.props.book_name_en}</Text>
           </View>
         }
-        <View style={readerScreenStyles.paragraphRow}>
-          <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={readerScreenStyles.bookmarkButton}>
-            <Text style={[readerScreenStyles.bookmarkNumber, { color: readerStore.secondColorTheme }, (readerStore.bookmark == this.props.data['name']) && readerScreenStyles.bookmarkNumberActive]}>{this.props.data['name']}</Text>
+        <View style={{ marginTop: 16, flexDirection: 'row' }}>
+          <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={{ marginTop: 8, paddingRight: 8, paddingLeft: 16 }}>
+            <Text style={[{ fontSize: 18, fontFamily: 'Times', textAlign: 'center' }, { color: readerStore.secondColorTheme }, readerStore.bookmark == this.props.data['name'] && { color: app_theme_colors.red }]}>{this.props.data['name']}</Text>
             <AppIcon
               icon={BookmarkIcon}
-              size={20}
+              size={24}
               color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
-              style={readerScreenStyles.bookmarkImage}
+              fill={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : 'none'}
+              style={{ height: 24, width: 24, marginTop: 8 }}
             />
 
           </TouchableOpacity>
-          <View style={[readerScreenStyles.sentencesContainer, { justifyContent: readerStore.textAlign }]}>
-            <View style={readerScreenStyles.sentenceIndent}></View>
+          <View style={[{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginRight: 16 }, { justifyContent: readerStore.textAlign }]}>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
                 {this.props.voiceover && appStore.has_internet ? (
@@ -286,24 +306,20 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
                 ) : null}
-                {sentence['b'].map((block, index) => {
-
-                  var past_value = "";
-                  if (sentence['b'][index - 1] != undefined) {
-                    past_value = sentence['b'][index - 1]['v'];
-                  }
-
+                {this.displayBlocks(sentence['b']).map((block, index, blocks) => {
+                  const nextBlock = blocks[index + 1];
+                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',')) ? 4 : 8;
                   return (
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={[past_value != '"' && past_value != "'" ? readerScreenStyles.wordBlockWithMargin : readerScreenStyles.wordBlock, { borderBottomColor: readerStore.secondColorTheme }]}>
-                            <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme }}>{block['v']}</Text>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
+                            <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
                       }
                       {block['w'] == undefined &&
-                        <Text style={[readerScreenStyles.punctuation, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme }]}>{block['v']}</Text>
+                        <Text style={[{ marginRight }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
                       }
                     </React.Fragment>
                   );
@@ -317,7 +333,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     style={readerScreenStyles.translateButton}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color='#f05458' />
+                    <AppIcon icon={EllipsisVerticalIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
                   </TouchableOpacity>
                 }
 
@@ -331,7 +347,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
               style={readerScreenStyles.translateButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color='#f05458' />
+              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
             </TouchableOpacity>
 
 

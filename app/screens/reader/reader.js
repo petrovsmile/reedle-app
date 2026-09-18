@@ -118,7 +118,7 @@ class Reader extends React.Component {
 
     this.setState({
       translate_icon_size: settings['translate_icon_size'],
-      fontSize: settings['fontSize'],
+      fontSize: normalizeReaderFontSize(settings['fontSize']),
       textAlign: settings['textAlign'],
       backgroundColorTheme: settings['backgroundColorTheme'],
       textColorTheme: settings['textColorTheme'],
@@ -785,7 +785,7 @@ class Reader extends React.Component {
   renderParagraphItem({ item }) {
     if (item._type === 'ad') {
       return (
-        <View style={readerScreenStyles.adContainer}>
+        <View style={{ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 304, marginTop: 24 }}>
           {adSizeBig && (
             <BannerView
               size={adSizeBig}
@@ -794,14 +794,8 @@ class Reader extends React.Component {
           )}
           <TouchableOpacity
             onPress={() => this.openSubscription()}
-            style={[
-              readerScreenStyles.disableAdsButton,
-              {
-                backgroundColor: readerStore.backgroundColorTheme,
-                borderColor: readerStore.secondColorTheme
-              }
-            ]}>
-            <Text style={[readerScreenStyles.disableAdsButtonText, { color: readerStore.textColorTheme }]}>
+            style={[{ width: 200, height: 40, marginTop: 8, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: readerStore.backgroundColorTheme, borderColor: readerStore.secondColorTheme }]}>
+            <Text style={[{ fontSize: 14 }, { color: readerStore.textColorTheme }]}>
               Отключить рекламу
             </Text>
           </TouchableOpacity>
@@ -832,8 +826,9 @@ class Reader extends React.Component {
 
   render() {
     var safeAreaInsets = this.props.safeAreaInsets || { top: 0, bottom: 0 };
-    var safeAreaTop = safeAreaInsets.top || 0;
-    var safeAreaBottom = safeAreaInsets.bottom || 0;
+    // Web #root already applies safe-area padding; do not apply it twice.
+    var safeAreaTop = Platform.OS === 'web' ? 0 : (safeAreaInsets.top || 0);
+    var safeAreaBottom = Platform.OS === 'web' ? 0 : (safeAreaInsets.bottom || 0);
 
     return (
       <React.Fragment>
@@ -852,7 +847,7 @@ class Reader extends React.Component {
         {(this.state.paragraphs == false) ? (
           <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-              <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
+              <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
             </TouchableOpacity>
 
             <ActivityIndicator style={{ flex: 1 }} size="large" color={this.state.secondColorTheme || appThemeStore.colors.mutedText} />
@@ -885,26 +880,18 @@ class Reader extends React.Component {
             {(this.state.showAdInfo && this.props.root.state.has_subscription == false) &&
               <TouchableOpacity style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '120%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 }} onPress={() => this.closeAdInfo()}>
                 <TouchableWithoutFeedback>
-                  <View style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: '100%',
-                    backgroundColor: "#FFF",
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
-                  }}>
-                    <View style={{ padding: 30 }}>
-                      <Text style={{ fontSize: 17 }}>
+                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                    <View style={{ padding: 32 }}>
+                      <Text style={{ fontSize: 16 }}>
                         Чтобы приложение было бесплатным, мы вынуждены показывать рекламу. {"\n"} {"\n"}Вы можете приобрести PRO-версию, чтобы отключить рекламу, а еще будет доступен режим чтения без интернета.
                       </Text>
 
-                      <TouchableOpacity onPress={() => this.showAd()} style={{ marginTop: 30, backgroundColor: '#75b641', height: 50, borderRadius: 10 }}>
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Смотреть рекламу</Text>
+                      <TouchableOpacity onPress={() => this.showAd()} style={{ marginTop: 32, backgroundColor: app_theme_colors.success, height: 48, borderRadius: 8 }}>
+                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 48, fontSize: 16 }}>Смотреть рекламу</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={() => this.openSubscription()} style={{ marginTop: 15, marginBottom: 30, backgroundColor: '#f05458', height: 50, borderRadius: 10 }}>
-                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 50, fontSize: 16 }}>Приобрести PRO-версию</Text>
+                      <TouchableOpacity onPress={() => this.openSubscription()} style={{ marginTop: 16, marginBottom: 32, backgroundColor: app_theme_colors.red, height: 48, borderRadius: 8 }}>
+                        <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 48, fontSize: 16 }}>Приобрести PRO-версию</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -940,31 +927,22 @@ class Reader extends React.Component {
               openSubscription={() => this.openSubscription()}
             />
 
-            <View style={readerScreenStyles.layout}>
-              <View style={[readerScreenStyles.header, {
-                backgroundColor: this.state.backgroundColorTheme,
-                borderBottomWidth: 1,
-                borderColor: this.state.secondColorTheme,
-              }]}>
+            <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} style={{ marginTop: 5, marginLeft: 10 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
                 </TouchableOpacity>
 
                 {this.state.pages == 1 ? (
                   <View style={{ flex: 1 }}></View>
                 ) : (
                   <Slider
-                    style={{
-                      flex: 1,
-                      marginLeft: 5,
-                      marginRight: 5,
-                      width: Dimensions.get('window').width - 100
-                    }}
+                    style={{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }}
                     value={this.state.percent}
                     minimumValue={1}
                     maximumValue={100}
                     step={1}
-                    minimumTrackTintColor="#fe4444"
+                    minimumTrackTintColor={app_theme_colors.red}
                     maximumTrackTintColor={this.state.secondColorTheme}
                     thumbImage={require("./app/images/reader/sliderThumb.png")}
                     onValueChange={(value) => this.sliderValueChange(value)}
@@ -973,8 +951,8 @@ class Reader extends React.Component {
                 )}
 
                 <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
-                  <View style={{ height: 30, width: 30, marginTop: 5, marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                    <AppIcon icon={SettingsIcon} size={26} color={this.state.textColorTheme || '#000000'} />
+                  <View style={{ height: 32, width: 32, marginTop: 8, marginRight: 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon icon={SettingsIcon} size={24} color={this.state.textColorTheme || '#000000'} />
                   </View>
                 </TouchableWithoutFeedback>
 
@@ -999,7 +977,7 @@ class Reader extends React.Component {
 
               </View>
 
-              <View style={readerScreenStyles.readerContainer}>
+              <View style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative', zIndex: 1, ...(Platform.OS === 'web' ? { position: 'absolute', top: 40, bottom: 48, left: 0, right: 0 } : {}) }}>
                 {this.state.show_list &&
                   <FlatList
                     ref={(ref) => this.flatListRef = ref}
@@ -1012,41 +990,35 @@ class Reader extends React.Component {
                     onScroll={(event) => this.onScroll(event)}
                     onScrollEndDrag={(event) => this.onScrollEndDrag(event)}
                     scrollEventThrottle={8}
-                    ListFooterComponent={<View style={{ height: 50 + safeAreaBottom }} />}
+                    ListFooterComponent={<View style={{ height: 48 + safeAreaBottom }} />}
                     style={{ flex: 1 }}
                   />
                 }
               </View>
 
-              <View style={[readerScreenStyles.footerNav, {
-                height: 50 + safeAreaBottom,
-                paddingBottom: safeAreaBottom,
-                backgroundColor: this.state.backgroundColorTheme,
-                borderTopWidth: 1,
-                borderTopColor: this.state.secondColorTheme,
-              }]}>
+              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', ...(Platform.OS === 'web' ? { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { height: 48 + safeAreaBottom, paddingBottom: safeAreaBottom, backgroundColor: this.state.backgroundColorTheme, borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
 
                 {this.state.page > 1 &&
-                  <TouchableOpacity onPress={() => this.prevPage()} style={readerScreenStyles.navButton}>
-                    <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} />
+                  <TouchableOpacity onPress={() => this.prevPage()} style={{ padding: 8 }}>
+                    <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == 1 &&
-                  <AppIcon icon={ChevronLeftIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
                 }
 
 
-                <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                  <Text style={{ color: this.state.textColorTheme, lineHeight: 30, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                  <Text style={{ color: this.state.textColorTheme, lineHeight: 28, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
                 </View>
 
                 {this.state.page < this.state.pages &&
-                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 10 }}>
-                    <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} />
+                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 8 }}>
+                    <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == this.state.pages &&
-                  <AppIcon icon={ChevronRightIcon} size={30} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 10 }} />
+                  <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
                 }
 
               </View>

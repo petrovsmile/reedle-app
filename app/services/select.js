@@ -52,19 +52,9 @@ class Select extends React.Component {
     return (
       <TouchableOpacity
         onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
-        style={[{
-          height: 24,
-          paddingHorizontal: 8,
-          borderWidth: 1,
-          borderRadius: 4,
-          borderColor: appThemeStore.colors.border,
-          backgroundColor: appThemeStore.colors.backgroundLight,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }, this.props.style]}>
-        <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 12 }}>{selectedOption.title}</Text>
-        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 10, marginLeft: 8 }}>▼</Text>
+        style={[{ height: 24, paddingHorizontal: 8, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, this.props.style]}>
+        <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 14 }}>{selectedOption.title}</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 14, marginLeft: 8 }}>▼</Text>
       </TouchableOpacity>
     );
   }
@@ -94,8 +84,8 @@ class Select extends React.Component {
             activeOpacity={1}
             onPress={() => this.setState({ visible: false })}
             style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
                 <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <TouchableOpacity onPress={() => this.setState({ visible: false })}>
                     <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
@@ -107,7 +97,7 @@ class Select extends React.Component {
                 <Picker
                   selectedValue={this.state.pendingValue}
                   onValueChange={(value) => this.setState({ pendingValue: value })}
-                  itemStyle={{ color: appThemeStore.colors.text, fontSize: 20 }}>
+                  itemStyle={{ color: appThemeStore.colors.text, fontSize: 18 }}>
                   {this.renderItems()}
                 </Picker>
               </View>
@@ -120,15 +110,7 @@ class Select extends React.Component {
 
   renderAndroid() {
     return (
-      <View style={[{
-        height: 32,
-        borderWidth: 1,
-        borderRadius: 4,
-        borderColor: appThemeStore.colors.border,
-        backgroundColor: appThemeStore.colors.backgroundLight,
-        justifyContent: 'center',
-        overflow: 'hidden'
-      }, this.props.style]}>
+      <View style={[{ height: 32, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
         <Picker
           mode="dropdown"
           selectedValue={this.props.value}

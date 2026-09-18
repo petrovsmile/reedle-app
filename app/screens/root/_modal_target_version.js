@@ -61,45 +61,45 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
         visible={this.state.visible}>
 
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ margin: 30, borderRadius: 15, backgroundColor: appThemeStore.colors.surface, padding: 15 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ flexDirection: 'row', justifyContent: 'center' }}>
+            <View style={{ margin: 32, borderRadius: 16, backgroundColor: appThemeStore.colors.surface, padding: 16 }}>
 
               <Text style={{ fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>Обновите приложение</Text>
 
-              <View style={{ marginTop: 15, backgroundColor: '#ddd', borderRadius: 5, padding: 5 }} w>
+              <View style={{ marginTop: 16, backgroundColor: '#ddd', borderRadius: 8, padding: 8 }} w>
                 <Text style={{ textAlign: 'center', fontSize: 14 }}>
                   {this.current_version} -> {this.target_version}
                 </Text>
               </View>
 
 
-              <Text style={{ marginTop: 15 }}>
+              <Text style={{ marginTop: 16 }}>
                 Просим обновить приложение, чтобы иметь доступ ко всем нововведениям.
               </Text>
 
-              <Text style={{ marginTop: 15 }}>
+              <Text style={{ marginTop: 16 }}>
                 Обратите внимание, что если приложение не обновлять - это может привести к ошибкам.
               </Text>
 
               {Platform.OS === 'ios' &&
-                <TouchableOpacity onPress={() => Linking.openURL("https://apps.apple.com/ru/app/read-en/id1562732797")} style={{ marginTop: 15, backgroundColor: '#75b641', height: 40, borderRadius: 10 }}>
+                <TouchableOpacity onPress={() => Linking.openURL("https://apps.apple.com/ru/app/read-en/id1562732797")} style={{ marginTop: 16, backgroundColor: app_theme_colors.success, height: 40, borderRadius: 8 }}>
                   <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 40, fontSize: 14 }}>App Store</Text>
                 </TouchableOpacity>
               }
 
               {Platform.OS === 'android' &&
                 <React.Fragment>
-                  <TouchableOpacity onPress={() => Linking.openURL("https://play.google.com/store/apps/details?id=com.read_en")} style={{ marginTop: 15, backgroundColor: '#75b641', height: 40, borderRadius: 10 }}>
+                  <TouchableOpacity onPress={() => Linking.openURL("https://play.google.com/store/apps/details?id=com.read_en")} style={{ marginTop: 16, backgroundColor: app_theme_colors.success, height: 40, borderRadius: 8 }}>
                     <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Google Play</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => Linking.openURL("https://apps.rustore.ru/app/com.read_en")} style={{ marginTop: 15, backgroundColor: '#75b641', height: 40, borderRadius: 10 }}>
+                  <TouchableOpacity onPress={() => Linking.openURL("https://apps.rustore.ru/app/com.read_en")} style={{ marginTop: 16, backgroundColor: app_theme_colors.success, height: 40, borderRadius: 8 }}>
                     <Text style={{ color: '#FFF', textAlign: 'center', lineHeight: 40, fontSize: 14 }}>RuStore</Text>
                   </TouchableOpacity>
                 </React.Fragment>
               }
 
-              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 15, backgroundColor: appThemeStore.colors.backgroundLight, height: 40, borderRadius: 10 }}>
+              <TouchableOpacity onPress={() => this.close()} style={{ marginTop: 16, backgroundColor: appThemeStore.colors.backgroundLight, height: 40, borderRadius: 8 }}>
                 <Text style={{ color: appThemeStore.colors.text, textAlign: 'center', lineHeight: 40, fontSize: 14 }}>Обновить позже</Text>
               </TouchableOpacity>
 

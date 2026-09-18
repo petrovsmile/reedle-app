@@ -27,45 +27,54 @@ if (
   typeof window !== 'undefined' &&
   'serviceWorker' in navigator
 ) {
-  let reloadForUpdate = false;
+  let hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
 
-  const notifyUpdateAvailable = (registration) => {
-    if (!registration.waiting || !navigator.serviceWorker.controller) return;
-
-    window.reedlePwaUpdateRegistration = registration;
-    window.dispatchEvent(new CustomEvent('reedle:pwa-update-available'));
-  };
-
-  window.reedleApplyPwaUpdate = () => {
-    const registration = window.reedlePwaUpdateRegistration;
-    if (!registration || !registration.waiting) return;
-
-    reloadForUpdate = true;
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  const applyWaitingUpdate = (registration) => {
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
   };
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!reloadForUpdate) return;
-    reloadForUpdate = false;
+    if (!hadController) {
+      hadController = true;
+      return;
+    }
+    if (reloading) return;
+    reloading = true;
     window.location.reload();
   });
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })
+  const registerWorker = () => {
+    navigator.serviceWorker.register('/app/sw.js', { scope: '/app/', updateViaCache: 'none' })
       .then((registration) => {
-        notifyUpdateAvailable(registration);
+        applyWaitingUpdate(registration);
 
         registration.addEventListener('updatefound', () => {
           const worker = registration.installing;
           if (!worker) return;
-
           worker.addEventListener('statechange', () => {
-            if (worker.state === 'installed') notifyUpdateAvailable(registration);
+            if (worker.state === 'installed') applyWaitingUpdate(registration);
           });
         });
 
-        window.setInterval(() => registration.update(), 60 * 60 * 1000);
+        const checkForUpdate = () => {
+          registration.update()
+            .then(() => applyWaitingUpdate(registration))
+            .catch((error) => console.warn('PWA update check failed:', error));
+        };
+        checkForUpdate();
+        window.addEventListener('focus', checkForUpdate);
+        window.addEventListener('online', checkForUpdate);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') checkForUpdate();
+        });
+        window.setInterval(checkForUpdate, 60 * 60 * 1000);
       })
       .catch((error) => console.error('Service worker registration failed:', error));
-  });
+  };
+
+  if (document.readyState === 'complete') registerWorker();
+  else window.addEventListener('load', registerWorker, { once: true });
 }

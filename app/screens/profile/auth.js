@@ -157,157 +157,150 @@ class Auth extends React.Component {
   render() {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
-        <ScrollView>
+        <ScrollView contentContainerStyle={this.props.modal == true ? { paddingTop: 32 } : undefined}>
           <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
-            {this.props.modal == true &&
-              <View style={{ height: 35, flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <TouchableOpacity onPress={() => this.props.close()} style={{ width: 35, height: 35, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 7, margin: 10 }}>
-                  <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 7.5 }} />
-                </TouchableOpacity>
-              </View>
-            }
 
-            <View style={profileStyles.content}>
-            {this.props.bookmark_info != undefined &&
-              <React.Fragment>
-                <Text style={bookmarksStyles.auth_into}>
-                  Для того чтобы воспользоваться закладками или словарем,
-                  необходимо
-                  <Text style={{ color: '#f05458' }}> авторизоваться </Text>
-                  или
-                  <Text style={{ color: '#f05458' }}> зарегистрироваться</Text>
-                </Text>
-              </React.Fragment>
-            }
+            <View style={{ padding: 16 }}>
+              {this.props.bookmark_info != undefined &&
+                <React.Fragment>
+                  <Text style={bookmarksStyles.auth_into}>
+                    Для того чтобы воспользоваться закладками или словарем,
+                    необходимо
+                    <Text style={{ color: app_theme_colors.red }}> авторизоваться </Text>
+                    или
+                    <Text style={{ color: app_theme_colors.red }}> зарегистрироваться</Text>
+                  </Text>
+                </React.Fragment>
+              }
 
-            {this.state.method == 'login' &&
-              <Text style={profileStyles.title}>Вход</Text>
-            }
-            {this.state.method == 'reg' &&
-              <Text style={profileStyles.title}>Регистрация</Text>
-            }
-            {this.state.method == 'remember_password' &&
-              <Text style={profileStyles.title}>Восстановить пароль</Text>
-            }
+              {this.state.method == 'login' &&
+                <Text style={profileStyles.title}>Вход</Text>
+              }
+              {this.state.method == 'reg' &&
+                <Text style={profileStyles.title}>Регистрация</Text>
+              }
+              {this.state.method == 'remember_password' &&
+                <Text style={profileStyles.title}>Восстановить пароль</Text>
+              }
 
-            <View style={[profileStyles.authorization_form_tabs, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
-              <View style={{ flex: 1, flexDirection: 'row' }}>
-                <TouchableOpacity onPress={() => this.changeMethod('login')} style={[
-                  profileStyles.authorization_form_tab,
-                  { backgroundColor: this.state.method == 'login' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
-                ]}>
-                  <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[
-                  profileStyles.authorization_form_tab,
-                  { backgroundColor: this.state.method == 'reg' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }
-                ]}>
-                  <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {this.state.remember_password_thanks ? (
-              <View style={profileStyles.remember_password_thanks}>
-                <Text style={profileStyles.remember_password_thanks_text}>Новый пароль отправлен на почту</Text>
-              </View>
-            ) : (
-              <React.Fragment>
-                {this.state.method == 'remember_password' &&
-                  <Text style={profileStyles.remember_password_info}>Новый пароль придет на почту</Text>
-                }
-
-                <View style={profileStyles.point_input}>
-                  <Text style={profileStyles.input_title}>E-mail</Text>
-                  <TextInput
-                    onChangeText={(value) => this.setState({ email: value })}
-                    style={profileStyles.input}
-                    placeholder={"E-mail"}
-                  />
-                </View>
-
-                {(this.state.method == 'login' || this.state.method == 'reg') &&
-                  <View style={profileStyles.point_input}>
-                    <Text style={profileStyles.input_title}>Пароль</Text>
-                    <TextInput
-                      secureTextEntry={this.state.securePassword}
-                      onChangeText={(value) => this.setState({ password: value })}
-                      style={profileStyles.input}
-                      placeholder={"Пароль"}
-                    />
-                    <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
-                    </TouchableOpacity>
-                  </View>
-                }
-
-                {this.state.method == 'reg' &&
-                  <View style={profileStyles.point_input}>
-                    <Text style={profileStyles.input_title}>Повторите пароль</Text>
-                    <TextInput
-                      secureTextEntry={this.state.securePassword}
-                      onChangeText={(value) => this.setState({ repeat_password: value })}
-                      style={profileStyles.input}
-                      placeholder={"Пароль"}
-                    />
-                    <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                      <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
-                    </TouchableOpacity>
-                  </View>
-                }
-
-                {this.state.error != false &&
-                  <Text style={profileStyles.error_block}>{this.state.error}</Text>
-                }
-
-                <TouchableOpacity onPress={() => this.sendForm(this.state.method)} style={profileStyles.form_button}>
-                  {this.state.button_loader == true &&
-                    <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
-                  }
-
-                  {this.state.button_loader == false &&
-                    <React.Fragment>
-                      {this.state.method == 'login' &&
-                        <Text style={profileStyles.form_button_text}>Вход</Text>
-                      }
-                      {this.state.method == 'reg' &&
-                        <Text style={profileStyles.form_button_text}>Регистрация</Text>
-                      }
-                      {this.state.method == 'remember_password' &&
-                        <Text style={profileStyles.form_button_text}>Отправить</Text>
-                      }
-                    </React.Fragment>
-                  }
-                </TouchableOpacity>
-
-                {this.state.method == 'login' &&
-                  <TouchableOpacity onPress={() => this.changeMethod('remember_password')} style={profileStyles.button_remember_password}>
-                    <Text style={profileStyles.remember_password_text}>Забыли пароль?</Text>
+              <View style={[{ height: 40, marginBottom: 8, marginTop: 24, backgroundColor: app_theme_colors.backgroundLight, borderRadius: 8 }, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+                <View style={{ flex: 1, flexDirection: 'row' }}>
+                  <TouchableOpacity onPress={() => this.changeMethod('login')} style={[profileStyles.authorization_form_tab, { backgroundColor: this.state.method == 'login' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }]}>
+                    <Text style={profileStyles.authorization_form_tab_text}>Вход</Text>
                   </TouchableOpacity>
-                }
-
-                <Text style={{ textAlign: 'center', marginTop: 24 }}>
-                  Войти через соц. сети
-                </Text>
-                <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 4, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('vk')}>
-                    <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/vk.png')} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('yandex')}>
-                    <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/ya.png')} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 4, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('google')}>
-                    <Image style={{ width: 24, height: 24 }} source={require('./app/images/profile/auth/socials/google.png')} />
+                  <TouchableOpacity onPress={() => this.changeMethod('reg')} style={[profileStyles.authorization_form_tab, { backgroundColor: this.state.method == 'reg' ? appThemeStore.colors.background : appThemeStore.colors.backgroundLight }]}>
+                    <Text style={profileStyles.authorization_form_tab_text}>Регистрация</Text>
                   </TouchableOpacity>
                 </View>
-              </React.Fragment>
-            )}
+              </View>
 
-            <View style={{ height: 100 }}></View>
+              {this.state.remember_password_thanks ? (
+                <View style={{ marginBottom: 8, backgroundColor: app_theme_colors.backgroundLight, borderRadius: 8 }}>
+                  <Text style={{ textAlign: 'center', margin: 8, fontSize: 16, lineHeight: 100 }}>Новый пароль отправлен на почту</Text>
+                </View>
+              ) : (
+                <React.Fragment>
+                  {this.state.method == 'remember_password' &&
+                    <Text style={{ textAlign: 'center', marginTop: 24, marginBottom: 8 }}>Новый пароль придет на почту</Text>
+                  }
+
+                  <View style={profileStyles.point_input}>
+                    <Text style={profileStyles.input_title}>E-mail</Text>
+                    <TextInput
+                      onChangeText={(value) => this.setState({ email: value })}
+                      style={profileStyles.input}
+                      placeholder={"E-mail"}
+                    />
+                  </View>
+
+                  {(this.state.method == 'login' || this.state.method == 'reg') &&
+                    <View style={profileStyles.point_input}>
+                      <Text style={profileStyles.input_title}>Пароль</Text>
+                      <TextInput
+                        secureTextEntry={this.state.securePassword}
+                        onChangeText={(value) => this.setState({ password: value })}
+                        style={profileStyles.input}
+                        placeholder={"Пароль"}
+                      />
+                      <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
+                        <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={24} color="#777" style={{ margin: 8 }} />
+                      </TouchableOpacity>
+                    </View>
+                  }
+
+                  {this.state.method == 'reg' &&
+                    <View style={profileStyles.point_input}>
+                      <Text style={profileStyles.input_title}>Повторите пароль</Text>
+                      <TextInput
+                        secureTextEntry={this.state.securePassword}
+                        onChangeText={(value) => this.setState({ repeat_password: value })}
+                        style={profileStyles.input}
+                        placeholder={"Пароль"}
+                      />
+                      <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
+                        <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={24} color="#777" style={{ margin: 8 }} />
+                      </TouchableOpacity>
+                    </View>
+                  }
+
+                  {this.state.error != false &&
+                    <Text style={profileStyles.error_block}>{this.state.error}</Text>
+                  }
+
+                  <TouchableOpacity onPress={() => this.sendForm(this.state.method)} style={profileStyles.form_button}>
+                    {this.state.button_loader == true &&
+                      <ActivityIndicator style={{ flex: 1 }} size="small" color="#FFF" />
+                    }
+
+                    {this.state.button_loader == false &&
+                      <React.Fragment>
+                        {this.state.method == 'login' &&
+                          <Text style={profileStyles.form_button_text}>Вход</Text>
+                        }
+                        {this.state.method == 'reg' &&
+                          <Text style={profileStyles.form_button_text}>Регистрация</Text>
+                        }
+                        {this.state.method == 'remember_password' &&
+                          <Text style={profileStyles.form_button_text}>Отправить</Text>
+                        }
+                      </React.Fragment>
+                    }
+                  </TouchableOpacity>
+
+                  {this.state.method == 'login' &&
+                    <TouchableOpacity onPress={() => this.changeMethod('remember_password')} style={{ marginTop: 16 }}>
+                      <Text>Забыли пароль?</Text>
+                    </TouchableOpacity>
+                  }
+
+                  <Text style={{ textAlign: 'center', marginTop: 24 }}>
+                    Войти через соц. сети
+                  </Text>
+                  <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', marginTop: 16 }}>
+                    <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#0077FF', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('vk')}>
+                      <SocialAuthIcon name="vk" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#f9d657', borderRadius: 8, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('yandex')}>
+                      <SocialAuthIcon name="ya" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ width: 40, height: 40, backgroundColor: '#df432f', borderRadius: 8, marginLeft: 16, justifyContent: 'center', alignItems: 'center' }} onPress={() => root_app.oauthAuthorization.authorize('google')}>
+                      <SocialAuthIcon name="google" />
+                    </TouchableOpacity>
+                  </View>
+                </React.Fragment>
+              )}
+
+              <View style={{ height: 104 }}></View>
 
             </View>
           </View>
         </ScrollView>
+        {this.props.modal == true &&
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть окно авторизации" onPress={() => this.props.close()} style={{ position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: 8, right: 8, zIndex: 100, elevation: 6, width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
+          </TouchableOpacity>
+        }
+        {this.props.modal == true && <AppErrorNotice />}
       </SafeAreaView>
     )
   }

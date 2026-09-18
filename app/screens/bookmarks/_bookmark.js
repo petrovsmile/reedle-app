@@ -17,18 +17,18 @@ class Bookmark extends React.Component {
 
   render() {
     return (
-      <View style={bookmarksStyles.bookmarkRow}>
+      <View style={{marginLeft:8,marginRight:8,marginBottom:8,flexDirection:'row',alignItems:'center'}}>
         <TouchableOpacity
           onPress={() => this.props.openBook(this.bookmark.book_id, { page: this.bookmark.page, paragraph: this.bookmark.paragraph })}
-          style={[bookmarksStyles.bookmarkCard, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          style={[{flex:1,height:40,paddingLeft:8,paddingRight:8,borderRadius:8,backgroundColor:app_theme_colors.backgroundLight,flexDirection:'row'},{backgroundColor:appThemeStore.colors.backgroundLight}]}>
           <Text numberOfLines={1} ellipsizeMode='tail' style={{ flex: 1, lineHeight: 40, color: appThemeStore.colors.text }}>{this.bookmark.book_name}</Text>
-          <Text style={{ width: 100, textAlign: 'right', lineHeight: 40, fontWeight: 'bold', color: appThemeStore.colors.text }}>Стр. {this.bookmark.page}</Text>
+          <Text style={{ width: 104, textAlign: 'right', lineHeight: 40, fontWeight: 'bold', color: appThemeStore.colors.text }}>Стр. {this.bookmark.page}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => this.props.deleteBookmark()}
-          style={bookmarksStyles.deleteButton}
+          style={{width:40,height:40,alignItems:'center',justifyContent:'center'}}
           accessibilityLabel="Удалить закладку">
-          <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
+          <AppIcon icon={TrashIcon} size={24} color={app_theme_colors.red} />
         </TouchableOpacity>
       </View>
     )

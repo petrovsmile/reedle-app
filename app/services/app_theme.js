@@ -38,7 +38,7 @@ class AppThemeStore {
         card: colors.surface,
         text: colors.text,
         border: colors.border,
-        notification: '#f05458'
+        notification: app_theme_colors.red
       }
     };
   }
@@ -104,14 +104,7 @@ function createThemedTextInput() {
         {...props}
         ref={ref}
         placeholderTextColor={props.placeholderTextColor || appThemeStore.colors.mutedText}
-        style={[
-          { color: appThemeStore.colors.text, backgroundColor: appThemeStore.colors.surface },
-          props.style,
-          {
-            borderColor: appThemeStore.colors.border,
-            ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {})
-          }
-        ]}
+        style={[{color:appThemeStore.colors.text,backgroundColor:appThemeStore.colors.surface},props.style,{borderColor:appThemeStore.colors.border,...(Platform.OS==='web'?{outlineStyle:'none'}:{})}]}
       />
     );
   }));

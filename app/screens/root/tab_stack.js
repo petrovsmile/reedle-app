@@ -32,12 +32,9 @@ class TabStack extends React.Component {
         <Tab.Screen name="books"
           listeners={{
             focus: () => this.setWebDocumentTitle('Книги'),
-            tabPress: () => {
-              if (this.homeRef) this.homeRef.getBooks();
-            }
           }}
           options={() => ({
-            tabBarIcon: ({ color }) => <AppIcon icon={BookOpenIcon} size={18} color={color} />,
+            tabBarIcon: ({ color }) => <AppIcon icon={BookOpenIcon} size={16} color={color} />,
             title: 'Книги',
             headerShown: false
           })}>
@@ -59,12 +56,9 @@ class TabStack extends React.Component {
         <Tab.Screen name="bookmarks"
           listeners={{
             focus: () => this.setWebDocumentTitle('Закладки'),
-            tabPress: () => {
-              if (this.bookmarkStackRef) this.bookmarkStackRef.refresh();
-            }
           }}
           options={() => ({
-            tabBarIcon: ({ color }) => <AppIcon icon={BookmarkIcon} size={18} color={color} />,
+            tabBarIcon: ({ color }) => <AppIcon icon={BookmarkIcon} size={16} color={color} />,
             title: 'Закладки',
           })}>
           {(tabs) => (
@@ -74,12 +68,9 @@ class TabStack extends React.Component {
         <Tab.Screen name="dictionary"
           listeners={{
             focus: () => this.setWebDocumentTitle('Словарь'),
-            tabPress: () => {
-              if (this.dictionaryRef) this.dictionaryRef.getWords();
-            }
           }}
           options={() => ({
-            tabBarIcon: ({ color }) => <AppIcon icon={BookAIcon} size={18} color={color} />,
+            tabBarIcon: ({ color }) => <AppIcon icon={BookAIcon} size={16} color={color} />,
             title: 'Словарь',
           })}>
           {(tabs) => (
@@ -94,7 +85,7 @@ class TabStack extends React.Component {
             }
           }}
           options={() => ({
-            tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={18} color={color} />,
+            tabBarIcon: ({ color }) => <AppIcon icon={NewspaperIcon} size={16} color={color} />,
             title: 'Блог',
           })}>
           {() => (
@@ -106,7 +97,7 @@ class TabStack extends React.Component {
             focus: () => this.setWebDocumentTitle('Профиль'),
           }}
           options={({ route }) => ({
-            tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={18} color={color} />,
+            tabBarIcon: ({ color }) => <AppIcon icon={UserIcon} size={16} color={color} />,
             title: 'Профиль',
             headerShown: (getFocusedRouteNameFromRoute(route) || 'profile_home') == 'profile_home',
           })}>

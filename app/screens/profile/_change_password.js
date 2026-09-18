@@ -74,7 +74,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={24} color="#777" style={{ margin: 8 }} />
               </TouchableOpacity>
             </View>
 
@@ -87,7 +87,7 @@ class ChangePassword extends React.Component {
                 placeholder={"Пароль"}
               />
               <TouchableOpacity onPress={() => this.setState({ securePassword: !this.state.securePassword })} style={profileStyles.button_password_hide}>
-                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={20} color="#777" style={{ margin: 10 }} />
+                <AppIcon icon={this.state.securePassword ? EyeOffIcon : EyeIcon} size={24} color="#777" style={{ margin: 8 }} />
               </TouchableOpacity>
             </View>
 

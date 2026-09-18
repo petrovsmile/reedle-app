@@ -4,7 +4,7 @@ class Storage {
     if (value == undefined || value == null || value === '') {
       value = default_value;
       if (default_value != undefined) {
-        this.set(key, default_value);
+        await this.set(key, default_value);
       }
     }
     return value;

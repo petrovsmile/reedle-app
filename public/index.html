@@ -14,9 +14,9 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
   <link rel="canonical" href="https://reedle.ru/" />
   <title>Reedle — книги на английском</title>
-  <link rel="preload" href="/app/fonts/libre-baskerville-400-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/app/fonts/libre-baskerville-400-latin-ext.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/app/fonts/fonts.css" media="all">
+  <link rel="preload" href="<%= htmlWebpackPlugin.files.publicPath %>fonts/libre-baskerville-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="<%= htmlWebpackPlugin.files.publicPath %>fonts/libre-baskerville-400-latin-ext.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="<%= htmlWebpackPlugin.files.publicPath %>fonts/fonts.css" media="all">
   <style>
     html,
     body,
@@ -171,7 +171,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         if (window.location.pathname.indexOf('/app/') === 0) {
-          navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' });
+          navigator.serviceWorker.register('/app/sw.js', { scope: '/app/', updateViaCache: 'none' });
         } else {
           navigator.serviceWorker.getRegistrations().then(function (registrations) {
             registrations.forEach(function (registration) {

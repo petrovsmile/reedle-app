@@ -33,9 +33,6 @@ class RootApp extends React.Component {
       error_title: '',
       error_description: '',
       oauth_modal_show: false,
-      oauth_manual_token: '',
-      oauth_manual_loading: false,
-      oauth_manual_error: false,
       type_payment: Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa'
     }
 
@@ -407,6 +404,11 @@ class RootApp extends React.Component {
 
 
   showError(title, description) {
+    runInAction(() => {
+      appStore.error_show = true;
+      appStore.error_title = title;
+      appStore.error_description = description;
+    });
     this.setState({
       error_show: true,
       error_title: title,
@@ -417,13 +419,12 @@ class RootApp extends React.Component {
 
     clearTimeout(this.notification_timer);
     this.notification_timer = setTimeout(() => {
-      this.setState({
-        error_show: false
-      });
+      this.closeError();
     }, 3000);
   }
 
   closeError() {
+    appStore.closeError();
     this.setState({
       error_show: false,
     });
@@ -461,9 +462,9 @@ class RootApp extends React.Component {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, height: '100%' }}>
           <AppIcon icon={ChevronLeftIcon} size={24} color={color || appThemeStore.colors.text} />
-          <Text style={{ marginLeft: 4, color: color || appThemeStore.colors.text, fontSize: 16 }}>{title}</Text>
+          <Text style={{ marginLeft: 8, color: color || appThemeStore.colors.text, fontSize: 16 }}>{title}</Text>
         </TouchableOpacity>
       )
     });
@@ -478,32 +479,27 @@ class RootApp extends React.Component {
         {this.state.confirm_conditions === null ? (
           <View style={{ flex: 1, backgroundColor: themeColors.background }} />
         ) : this.state.confirm_conditions == false ? (
-          <View style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: 15, backgroundColor: themeColors.background }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-              <Image
-                style={{ height: 200, width: 200, }}
-                source={require('./app/images/layouts/logo.png')}
-              />
+          <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ width: '300px', backgroundColor: themeColors.background }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <Image
+                  style={{ height: 200, width: 200, }}
+                  source={require('./app/images/layouts/logo.png')}
+                />
+              </View>
+              <Text>Продолжая пользоваться приложением вы принимате, что приложение собирает данные о приблизительном и принимаете условия</Text>
+              <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_policy")}>
+                <Text style={{ color: app_theme_colors.red }}>Политики конфидициальности</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")}>
+                <Text style={{ color: app_theme_colors.red, marginBottom: 16 }}>Пользовательского соглашения</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => this.confirm_conditions()} style={profileStyles.form_button}>
+                <Text style={profileStyles.form_button_text}>Продолжить</Text>
+              </TouchableOpacity>
+
             </View>
-            <View>
-              <Text style={{ textAlign: 'center' }}>Продолжая пользоваться приложением,</Text>
-
-              <Text style={{ textAlign: 'center' }}>вы принимате, что</Text>
-              <Text style={{ textAlign: 'center' }}>приложение собирает данные</Text>
-              <Text style={{ textAlign: 'center' }}>о приблизительном местоположении</Text>
-              <Text style={{ textAlign: 'center' }}>и принимаете условия</Text>
-            </View>
-            <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_policy")}>
-              <Text style={{ color: app_theme_colors.red, textAlign: 'center' }}>Политики конфидициальности</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL("https://reedle.ru/apps_terms_and_conditions")}>
-              <Text style={{ color: app_theme_colors.red, textAlign: 'center', marginBottom: 15 }}>Пользовательского соглашения</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => this.confirm_conditions()} style={profileStyles.form_button}>
-              <Text style={profileStyles.form_button_text}>Продолжить</Text>
-            </TouchableOpacity>
-
           </View>
         ) : (
           <View style={{ flex: 1 }}>
@@ -575,24 +571,7 @@ class RootApp extends React.Component {
               </Stack.Navigator>
             </NavigationContainer>
 
-            {this.state.error_show == true &&
-              <TouchableOpacity onPress={() => this.closeError()} style={applicationStyles.error_request}>
-                <View style={applicationStyles.error_request_texts}>
-                  <Text style={applicationStyles.error_request_text}>
-                    {this.state.error_title}
-                  </Text>
-
-                  {this.state.error_description != undefined &&
-                    <Text style={applicationStyles.error_request_text}>
-                      {this.state.error_description}
-                    </Text>
-                  }
-                </View>
-                <View style={applicationStyles.error_request_icon}>
-                  <AppIcon icon={CloseIcon} size={20} color="#FFF" />
-                </View>
-              </TouchableOpacity>
-            }
+            <AppErrorNotice />
           </View>
         )}
         <PwaInstallBanner />
@@ -608,55 +587,22 @@ class RootApp extends React.Component {
                 <TouchableOpacity
                   accessibilityLabel="Закрыть"
                   onPress={() => this.oauthAuthorization.close()}
-                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-                  <AppIcon icon={CloseIcon} size={26} color={themeColors.text} />
+                  style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon icon={CloseIcon} size={24} color={themeColors.text} />
                 </TouchableOpacity>
               </View>
 
               <View style={{ flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'center', paddingBottom: 80 }}>
                 <ActivityIndicator size="large" color={app_theme_colors.red} />
-                <Text style={{ fontSize: 28, fontWeight: '600', textAlign: 'center', marginTop: 24 }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', textAlign: 'center', marginTop: 24 }}>
                   Идёт авторизация…
                 </Text>
-                <Text style={{ fontSize: 17, lineHeight: 25, textAlign: 'center', marginTop: 16 }}>
+                <Text style={{ fontSize: 16, lineHeight: 24, textAlign: 'center', marginTop: 16 }}>
                   Авторизуйтесь в социальной сети и вернитесь в приложение.
                 </Text>
-                <Text style={{ color: themeColors.mutedText, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 }}>
-                  Если авторизация не подтвердилась автоматически, введите токен, который вы получите после успешного входа.
-                </Text>
-
-                <TextInput
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  value={this.state.oauth_manual_token}
-                  onChangeText={(value) => this.setState({ oauth_manual_token: value, oauth_manual_error: false })}
-                  onSubmitEditing={() => this.oauthAuthorization.authorizeByManualToken()}
-                  placeholder="Токен авторизации"
-                  returnKeyType="done"
-                  style={{ height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, fontSize: 16, marginTop: 28 }}
-                />
-
-                {this.state.oauth_manual_error != false &&
-                  <Text style={{ color: app_theme_colors.red, lineHeight: 20, marginTop: 10 }}>
-                    {this.state.oauth_manual_error}
-                  </Text>
-                }
-
-                <TouchableOpacity
-                  disabled={!String(this.state.oauth_manual_token || '').trim() || this.state.oauth_manual_loading}
-                  onPress={() => this.oauthAuthorization.authorizeByManualToken()}
-                  style={[
-                    profileStyles.form_button,
-                    { marginTop: 16, opacity: !String(this.state.oauth_manual_token || '').trim() ? 0.5 : 1 },
-                  ]}>
-                  {this.state.oauth_manual_loading ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Text style={profileStyles.form_button_text}>Подтвердить токен</Text>
-                  )}
-                </TouchableOpacity>
               </View>
             </View>
+            <AppErrorNotice />
           </SafeAreaView>
         </Modal>
       </View>

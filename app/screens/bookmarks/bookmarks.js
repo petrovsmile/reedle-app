@@ -14,6 +14,7 @@ class Bookmarks extends React.Component {
   }
 
   async componentDidMount() {
+    this._unsubTabPress = this.props.tabs.navigation.addListener('tabPress', () => this.getBookmarks());
     //await new Storage().set('bookmarks_keys', JSON.stringify([]));
     this._unsubFocus = this.props.stack.navigation.addListener('focus', () => {
       this.getBookmarks();
@@ -23,6 +24,7 @@ class Bookmarks extends React.Component {
   }
 
   componentWillUnmount() {
+    if (this._unsubTabPress) this._unsubTabPress();
     if (this._unsubFocus) {
       this._unsubFocus();
     }
@@ -126,27 +128,27 @@ class Bookmarks extends React.Component {
         </Modal>
 
         {this.props.root.state.current_user == false ? (
-          <View style={bookmarksStyles.auth_content}>
+          <View style={{ margin: 16, marginTop: 32 }}>
             <Text style={bookmarksStyles.auth_into}>
               Для того чтобы воспользоваться закладками,
               необходимо
             </Text>
-            <Text onPress={() => this.setState({ auth_modal: true, auth_method: 'login' })} style={[bookmarksStyles.auth_into, { color: '#f05458', marginTop: 15 }]}>авторизоваться</Text>
+            <Text onPress={() => this.setState({ auth_modal: true, auth_method: 'login' })} style={[bookmarksStyles.auth_into, { color: app_theme_colors.red, marginTop: 16 }]}>авторизоваться</Text>
             <Text style={bookmarksStyles.auth_into}>или</Text>
-            <Text onPress={() => this.setState({ auth_modal: true, auth_method: 'reg' })} style={[bookmarksStyles.auth_into, { color: '#f05458' }]}>зарегистрироваться</Text>
+            <Text onPress={() => this.setState({ auth_modal: true, auth_method: 'reg' })} style={[bookmarksStyles.auth_into, { color: app_theme_colors.red }]}>зарегистрироваться</Text>
           </View>
         ) : (
 
           <React.Fragment>
             {this.state.do_not_find == true &&
-              <View style={{ marginTop: 100, flex: 1, padding: 15 }}>
-                <Text style={{ textAlign: 'center', fontSize: 20, color: '#aaa', flexDirection: 'row' }}>
+              <View style={{ marginTop: 104, flex: 1, padding: 16 }}>
+                <Text style={{ textAlign: 'center', fontSize: 18, color: '#aaa', flexDirection: 'row' }}>
                   Чтобы создать закладку,
                   зайдите на книгу и нажмите иконку закладки
                 </Text>
-                <Text style={{ marginTop: 50, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили закладку, но она не отображается, обновите раздел</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15 }}>
-                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 10 }} onPress={() => this.getBookmarks()}>
+                <Text style={{ marginTop: 48, fontSize: 14, color: '#aaa', textAlign: 'center' }}>Если вы добавили закладку, но она не отображается, обновите раздел</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 16 }}>
+                  <TouchableOpacity style={{ width: 200, height: 40, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8 }} onPress={() => this.getBookmarks()}>
                     <Text style={{ lineHeight: 40, textAlign: 'center', color: appThemeStore.colors.text }}>Обновить</Text>
                   </TouchableOpacity>
                 </View>
@@ -154,14 +156,14 @@ class Bookmarks extends React.Component {
             }
             {this.state.do_not_find == false &&
               <FlatList
-                style={{ flex: 1, zIndex: 0, paddingTop: 10 }}
+                style={{ flex: 1, zIndex: 0, paddingTop: 8 }}
                 refreshControl={
                   <RefreshControl refreshing={false} onRefresh={() => this.getBookmarks()} />
                 }
                 showsHorizontalScrollIndicator={false}
                 scrollIndicatorInsets={{ right: 1 }}
                 removeClippedSubviews={true}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 104 }}
                 data={this.state.bookmarks}
                 renderItem={(bookmark) => (
                   <Bookmark
@@ -204,8 +206,8 @@ function PreviewBookmarks() {
 function PreviewBookmark() {
   return (
     <React.Fragment>
-      <View style={{ marginLeft: 15, marginRight: 15, paddingBottom: 15, paddingTop: 15, borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
-        <View style={{ height: 50, marginRight: 10, borderRadius: 10, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+      <View style={{ marginLeft: 16, marginRight: 16, paddingBottom: 16, paddingTop: 16, borderBottomWidth: 1, borderBottomColor: '#ddd' }}>
+        <View style={{ height: 48, marginRight: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
           <ActivityIndicator style={{ flex: 1 }} size="small" color={appThemeStore.colors.mutedText} />
         </View>
       </View>

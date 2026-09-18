@@ -8,9 +8,9 @@ class ProfileStack extends React.Component {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: '100%' }}>
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, height: '100%' }}>
           <AppIcon icon={ChevronLeftIcon} size={24} color={appThemeStore.colors.text} />
-          <Text style={{ marginLeft: 4, color: appThemeStore.colors.text, fontSize: 16 }}>Профиль</Text>
+          <Text style={{ marginLeft: 8, color: appThemeStore.colors.text, fontSize: 16 }}>Профиль</Text>
         </TouchableOpacity>
       )
     });

@@ -15,13 +15,14 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+    event.waitUntil(self.skipWaiting());
   }
 });
 
@@ -30,7 +31,7 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((cacheNames) => Promise.all(
         cacheNames
-          .filter((cacheName) => cacheName !== CACHE_NAME)
+          .filter((cacheName) => cacheName.startsWith('reedle-pwa-') && cacheName !== CACHE_NAME)
           .map((cacheName) => caches.delete(cacheName))
       ))
       .then(() => self.clients.claim())
@@ -38,25 +39,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method !== 'GET' ||
+      requestUrl.origin !== self.location.origin ||
+      !requestUrl.pathname.startsWith(BASE_PATH)) {
     return;
   }
 
-  if (event.request.mode === 'navigate') {
+  if (event.request.mode === 'navigate' || requestUrl.pathname === BASE_PATH + 'index.html') {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-store' })
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(BASE_PATH, copy));
+          if (response.ok) event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(BASE_PATH, copy)));
           return response;
         })
-        .catch(() => caches.match(BASE_PATH))
+        .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match(BASE_PATH)))
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
+    caches.open(CACHE_NAME).then((cache) => cache.match(event.request))
       .then((cachedResponse) => cachedResponse || fetch(event.request).then((response) => {
         const requestUrl = new URL(event.request.url);
 
@@ -66,7 +70,7 @@ self.addEventListener('fetch', (event) => {
           requestUrl.pathname.startsWith(BASE_PATH)
         ) {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
         }
 
         return response;

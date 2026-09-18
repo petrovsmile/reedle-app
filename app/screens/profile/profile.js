@@ -56,10 +56,10 @@ class Profile extends React.Component {
   renderMenuItem(title, onPress, last) {
     return (
       <TouchableOpacity
-        style={[profileStyles.menu_item, last && profileStyles.menu_item_last]}
+        style={[{ minHeight: 56, marginLeft: 16, paddingRight: 16, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: app_theme_colors.backgroundLight }, last && { borderBottomWidth: 0 }]}
         onPress={onPress}>
-        <Text style={[profileStyles.menu_item_text, { color: appThemeStore.colors.text }]}>{title}</Text>
-        <Text style={profileStyles.menu_item_arrow}>›</Text>
+        <Text style={[{ flex: 1, fontSize: 16 }, { color: appThemeStore.colors.text }]}>{title}</Text>
+        <Text style={{ color: '#aaa', fontSize: 18, lineHeight: 28 }}>›</Text>
       </TouchableOpacity>
     );
   }
@@ -87,43 +87,47 @@ class Profile extends React.Component {
           />
         </Modal>
 
-        <ScrollView contentContainerStyle={profileStyles.page}>
+        <ScrollView contentContainerStyle={{
+          alignItems: 'center',
+          paddingTop: 32,
+          paddingBottom: 32,
+        }}>
           {current_user == false ? (
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Войти в аккаунт"
               onPress={() => this.setState({ auth_modal: true })}
-              style={profileStyles.login_button}>
-              <AppIcon icon={UserIcon} size={20} color={app_theme_colors.inverseText} />
-              <Text style={profileStyles.login_button_text}>Войти в аккаунт</Text>
+              style={{ minHeight: 48, marginBottom: 32, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: app_theme_colors.red, borderRadius: 8 }}>
+              <AppIcon icon={UserIcon} size={24} color={app_theme_colors.inverseText} />
+              <Text style={{ marginLeft: 8, color: app_theme_colors.inverseText, fontSize: 16, fontWeight: '600' }}>Войти в аккаунт</Text>
             </TouchableOpacity>
           ) : (
             <React.Fragment>
-            <View style={[profileStyles.avatar, { backgroundColor: this.avatarColor(current_user) }]}>
-              <Text style={profileStyles.avatar_text}>{this.avatarLetters(current_user.email)}</Text>
-            </View>
-            <Text style={[profileStyles.email, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
+              <View style={[{ width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: this.avatarColor(current_user) }]}>
+                <Text style={{ color: app_theme_colors.inverseText, fontSize: 32, fontWeight: 'bold' }}>{this.avatarLetters(current_user.email)}</Text>
+              </View>
+              <Text style={[{ marginTop: 16, marginBottom: 32, fontSize: 16, color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
             </React.Fragment>
           )}
 
-          <View style={profileStyles.menu}>
+          <View style={{ alignSelf: 'stretch', marginBottom: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: app_theme_colors.backgroundLight }}>
             {this.renderMenuItem('ПРО-доступ', () => this.props.root_stack.navigation.navigate('subscription', { backTitle: 'Профиль' }))}
             {current_user != false &&
               <React.Fragment>
-              {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
-              {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
+                {this.renderMenuItem('Аккаунт', () => this.props.stack.navigation.navigate('profile_details'))}
+                {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               </React.Fragment>
             }
             {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
             {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
           </View>
 
-          <View style={profileStyles.app_info}>
+          <View style={{ alignSelf: 'stretch', paddingHorizontal: 16, paddingTop: 8 }}>
             <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Техническая поддержка:{' '}
               <Text
                 accessibilityRole="link"
                 onPress={() => Linking.openURL('mailto:info@reedle.ru')}
-                style={profileStyles.app_info_link}>info@reedle.ru</Text>
+                style={{ color: app_theme_colors.red, textDecorationLine: 'underline' }}>info@reedle.ru</Text>
             </Text>
             <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {this.appVersion()}</Text>
           </View>
@@ -239,32 +243,35 @@ class ProfileMemory extends React.Component {
   render() {
     return (
       <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        <View style={[profileStyles.memorySummary, { borderBottomColor: appThemeStore.colors.border }]}>
-          <Text style={[profileStyles.memoryTotal, { color: appThemeStore.colors.text }]}>
+        <View style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
+          <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: appThemeStore.colors.text }]}>
             {'Занято: ' + this.formatSize(this.totalSize())}
           </Text>
           <TouchableOpacity
             disabled={this.state.books.length == 0 || this.state.deleting}
             onPress={() => this.confirmClear()}>
-            <Text style={[profileStyles.memoryClear, (this.state.books.length == 0 || this.state.deleting) && profileStyles.memoryActionDisabled]}>Очистить</Text>
+            <Text style={[{ color: app_theme_colors.red, fontSize: 16, fontWeight: '600' }, (this.state.books.length == 0 || this.state.deleting) && profileStyles.memoryActionDisabled]}>Очистить</Text>
           </TouchableOpacity>
         </View>
 
         {this.state.loading ? (
           <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />
         ) : (
-          <ScrollView contentContainerStyle={profileStyles.memoryList}>
+          <ScrollView contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: 32,
+          }}>
             {this.state.books.length == 0 && (
-              <Text style={[profileStyles.memoryEmpty, { color: appThemeStore.colors.mutedText }]}>Скачанных книг нет</Text>
+              <Text style={[{ paddingTop: 64, textAlign: 'center', fontSize: 16 }, { color: appThemeStore.colors.mutedText }]}>Скачанных книг нет</Text>
             )}
             {this.state.books.map((book) => (
-              <View key={book.id} style={[profileStyles.memoryRow, { borderBottomColor: appThemeStore.colors.border }]}>
-                <View style={profileStyles.memoryBookInfo}>
-                  <Text numberOfLines={1} style={[profileStyles.memoryBookName, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
-                  <Text style={[profileStyles.memoryBookSize, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
+              <View key={book.id} style={[{ minHeight: 64, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
+                <View style={{ flex: 1, minWidth: 0, paddingRight: 16 }}>
+                  <Text numberOfLines={1} style={[{ fontSize: 16 }, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
+                  <Text style={[{ marginTop: 8, fontSize: 14 }, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
                 </View>
                 <TouchableOpacity accessibilityLabel="Удалить книгу" disabled={this.state.deleting} onPress={() => this.confirmDelete(book)} style={this.state.deleting && profileStyles.memoryActionDisabled}>
-                  <AppIcon icon={TrashIcon} size={20} color={app_theme_colors.red} />
+                  <AppIcon icon={TrashIcon} size={24} color={app_theme_colors.red} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -313,21 +320,17 @@ class ProfileDetails extends React.Component {
   renderSocialRow(type, title, color, image, connected, last) {
     return (
       <TouchableOpacity
-        style={[
-          profileStyles.social_row,
-          { borderBottomColor: appThemeStore.colors.border },
-          last && profileStyles.social_row_last,
-        ]}
+        style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: app_theme_colors.backgroundLight }, { borderBottomColor: appThemeStore.colors.border }, last && { borderBottomWidth: 0 }]}
         disabled={this.state.social_loader != false}
         onPress={() => this.socialAction(type, connected)}>
-        <View style={[profileStyles.social_icon, { backgroundColor: connected ? color : appThemeStore.colors.backgroundLight }]}>
-          <Image style={profileStyles.social_icon_image} source={image} />
+        <View style={[{ width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: connected ? color : appThemeStore.colors.backgroundLight }]}>
+          <Image style={{ width: 24, height: 24 }} source={image} />
         </View>
-        <Text style={[profileStyles.social_name, { color: appThemeStore.colors.text }]}>{title}</Text>
+        <Text style={[{ flex: 1, marginLeft: 16, fontSize: 16 }, { color: appThemeStore.colors.text }]}>{title}</Text>
         {this.state.social_loader == type ? (
           <ActivityIndicator size="small" color={appThemeStore.colors.mutedText} />
         ) : (
-          <Text style={profileStyles.social_action}>{connected ? 'Отключить' : 'Подключить'}</Text>
+          <Text style={{ color: app_theme_colors.red, fontSize: 14 }}>{connected ? 'Отключить' : 'Подключить'}</Text>
         )}
       </TouchableOpacity>
     );
@@ -357,20 +360,20 @@ class ProfileDetails extends React.Component {
         <ScrollView contentContainerStyle={profileStyles.section}>
           <UpdateProfile current_user={current_user} />
 
-          <Text style={[profileStyles.social_title, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
-          <Text style={profileStyles.social_description}>Для быстрого входа в аккаунт</Text>
-          <View style={[profileStyles.social_list, { borderColor: appThemeStore.colors.border }]}>
+          <Text style={[{ marginTop: 32, fontSize: 18, fontWeight: 'bold' }, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
+          <Text style={{ marginTop: 8, marginBottom: 16, color: '#777' }}>Для быстрого входа в аккаунт</Text>
+          <View style={[{ borderWidth: 1, borderColor: app_theme_colors.backgroundLight, borderRadius: 8, overflow: 'hidden' }, { borderColor: appThemeStore.colors.border }]}>
             {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
             {this.renderSocialRow('yandex', 'Яндекс', '#f9d657', require('./app/images/profile/auth/socials/ya.png'), current_user.yandex_connected)}
             {this.renderSocialRow('google', 'Google', '#df432f', require('./app/images/profile/auth/socials/google.png'), current_user.google_connected, true)}
           </View>
 
-          <TouchableOpacity style={profileStyles.log_out_button} onPress={() => this.log_out()}>
-            <Text style={profileStyles.log_out_text}>Выйти из аккаунта</Text>
+          <TouchableOpacity style={{ height: 40, backgroundColor: app_theme_colors.red, borderRadius: 8, marginTop: 32 }} onPress={() => this.log_out()}>
+            <Text style={{ textAlign: 'center', flex: 1, color: app_theme_colors.inverseText, lineHeight: 40 }}>Выйти из аккаунта</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={profileStyles.delete_button} onPress={() => Linking.openURL('https://reedle.ru/profile/delete')}>
-            <Text style={profileStyles.delete_button_text}>Удалить аккаунт</Text>
+          <TouchableOpacity style={{ height: 40, marginTop: 8, justifyContent: 'center' }} onPress={() => Linking.openURL('https://reedle.ru/profile/delete')}>
+            <Text style={{ color: app_theme_colors.red, textAlign: 'center' }}>Удалить аккаунт</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

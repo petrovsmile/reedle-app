@@ -12,6 +12,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     // Animated value для пульсирования иконки озвучки слова
     this.scaleAnim = new Animated.Value(1);
+    this.voiceoverRequestId = 0;
   }
 
   async componentDidMount() {
@@ -27,11 +28,24 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     });
   }
 
-  componentWillUnmount() {
-    if (this.voiceoverSound) {
-      this.voiceoverSound.release();
-      this.voiceoverSound = null;
+  componentDidUpdate(previousProps) {
+    if (previousProps.original !== this.props.original ||
+      (previousProps.visible && !this.props.visible)) {
+      this.cancelVoiceover();
+      this.setState({ voiceover_playing: false });
     }
+  }
+
+  componentWillUnmount() {
+    this.cancelVoiceover();
+  }
+
+  cancelVoiceover() {
+    this.voiceoverRequestId += 1;
+    const sound = this.voiceoverSound;
+    this.voiceoverSound = null;
+    if (sound) sound.release();
+    this.stopPulseAnimation();
     this.voiceover_playing_lock = false;
   }
 
@@ -62,7 +76,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
   }
 
   startPulseAnimation() {
-    Animated.loop(
+    this.stopPulseAnimation();
+    this.pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(this.scaleAnim, {
           toValue: 0.8,
@@ -75,10 +90,16 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    this.pulseAnimation.start();
   }
 
   stopPulseAnimation() {
+    if (this.pulseAnimation) {
+      this.pulseAnimation.stop();
+      this.pulseAnimation = null;
+    }
+    this.scaleAnim.stopAnimation();
     this.scaleAnim.setValue(1);
   }
 
@@ -92,7 +113,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     if (Sound.setActive) {
       try {
         Sound.setActive(true);
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -107,6 +128,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     }
 
     this.voiceover_playing_lock = true;
+    const requestId = ++this.voiceoverRequestId;
 
     AppMetrica.reportEvent('Voiceover', {
       original: original
@@ -117,7 +139,13 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
     });
     this.startPulseAnimation();
 
-    var pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
+    var pesponse;
+    try {
+      pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
+    } catch (error) {
+      if (requestId !== this.voiceoverRequestId) return;
+    }
+    if (requestId !== this.voiceoverRequestId) return;
 
     if (!pesponse || !pesponse.url) {
       appStore.showError(
@@ -140,7 +168,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
       }
 
       var sound = new AppSound(url, '', error => {
-        if (this.voiceoverSound !== sound) {
+        if (requestId !== this.voiceoverRequestId || this.voiceoverSound !== sound) {
           sound.release();
           return;
         }
@@ -172,6 +200,10 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         sound.setVolume(1);
 
         sound.play((success) => {
+          if (requestId !== this.voiceoverRequestId || this.voiceoverSound !== sound) {
+            sound.release();
+            return;
+          }
           if (success) {
             if (!this.props.has_subscription && !this.state.words.includes(original)) {
               var new_words = [...this.state.words, original];
@@ -198,7 +230,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
           this.stopPulseAnimation();
           this.voiceover_playing_lock = false;
 
-          if (this.voiceoverSound === sound) {
+          if (requestId === this.voiceoverRequestId && this.voiceoverSound === sound) {
             sound.release();
             this.voiceoverSound = null;
           } else {
@@ -206,7 +238,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
           }
         });
       }, () => {
-        if (this.voiceoverSound === sound) {
+        if (requestId === this.voiceoverRequestId && this.voiceoverSound === sound) {
           this.voiceoverSound = null;
           this.setState({ voiceover_playing: false });
           this.stopPulseAnimation();
@@ -314,31 +346,23 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         visible={this.props.visible}
         onDismiss={this.props.onDismiss}
       >
+        <SafeAreaProvider style={{ flex: 1 }}>
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
-            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-              <View style={{
-                margin: 20,
-                backgroundColor: readerStore.backgroundColorTheme,
-                borderRadius: 10,
-                alignItems: "center",
-                width: 250,
-                shadowRadius: 4,
-                overflow: 'hidden',
-                elevation: 5
-              }}>
+            <TouchableOpacity activeOpacity={1} onPress={() => { }}>
+              <View style={{ margin: 24, backgroundColor: readerStore.backgroundColorTheme, borderRadius: 8, alignItems: "center", width: 248, overflow: 'hidden', elevation: 5 }}>
                 {appStore.has_internet ? (
                   <React.Fragment>
                     <React.Fragment>
                       {(this.state.count_voiceover < 15 || this.props.has_subscription) ? (
                         <TouchableWithoutFeedback onPress={() => this.voice_word(this.props.original)}>
-                          <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
-                            <Animated.View style={this.state.voiceover_playing && { transform: [{ scale: this.scaleAnim }] }}>
+                          <View style={{ position: 'absolute', left: 8, top: 8, width: 48, height: 32 }}>
+                            <Animated.View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center', transform: [{ scale: this.scaleAnim }] }}>
                               <AppIcon icon={VolumeIcon} size={24} color={this.state.voiceover_playing ? app_theme_colors.red : readerStore.textColorTheme} />
                             </Animated.View>
                             {!this.props.has_subscription &&
-                              <View style={{ marginTop: 5, width: 24 }}>
-                                <Text style={{ fontSize: 9, color: '#aaa', textAlign: 'center' }}>
+                              <View style={{ marginTop: 4, width: 32 }}>
+                                <Text style={{ fontSize: 10, color: '#aaa' }}>
                                   {15 - this.state.count_voiceover}/15
                                 </Text>
                               </View>
@@ -347,7 +371,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                         </TouchableWithoutFeedback>
                       ) : (
                         <TouchableWithoutFeedback onPress={() => AppAlert.alert('Лимит на сегодня закончился', 'Оплатите подписку, чтобы пользоваться озвучкой без ограничений.\nБесплатно доступно 15 слов в день.')}>
-                          <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
+                          <View style={{ position: 'absolute', left: 8, top: 8, width: 48, height: 32 }}>
                             <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                           </View>
                         </TouchableWithoutFeedback>
@@ -356,64 +380,64 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                   </React.Fragment>
                 ) : (
                   <TouchableWithoutFeedback onPress={() => appStore.showError('Отсутствует подключение к интернету')}>
-                    <View style={{ position: 'absolute', left: 10, top: 10, width: 48, height: 34 }}>
+                    <View style={{ position: 'absolute', left: 8, top: 8, width: 48, height: 32 }}>
                       <AppIcon icon={VolumeIcon} size={24} color="#aaa" />
                     </View>
                   </TouchableWithoutFeedback>
                 )}
 
-                <View style={{ marginTop: 10 }}>
-                  <Text style={{ color: '#f05458', fontSize: 19 }}>{this.props.original}</Text>
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ color: app_theme_colors.red, fontSize: 18 }}>{this.props.original}</Text>
                 </View>
                 {this.props.transcription != null &&
-                  <View style={{ marginTop: 5 }}>
+                  <View style={{ marginTop: 8 }}>
                     <Text style={{ color: '#aaa' }}>[{this.props.transcription}]</Text>
                   </View>
                 }
-                <View style={{ paddingLeft: 10, paddingRight: 10, marginTop: 10 }}>
+                <View style={{ paddingLeft: 8, paddingRight: 8, marginTop: 8 }}>
                   <Text style={{ color: readerStore.textColorTheme, textAlign: 'center' }}>{this.props.translate}</Text>
                 </View>
                 <TouchableWithoutFeedback onPress={() => this.props.close()}>
-                  <View style={{ margin: 10, marginTop: 15, height: 40, backgroundColor: '#f05458', width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
+                  <View style={{ margin: 8, marginTop: 16, height: 40, backgroundColor: app_theme_colors.red, width: 232, flexDirection: 'column', justifyContent: 'center', borderRadius: 8 }}>
                     <Text style={{ color: '#FFF', lineHeight: 40, textAlign: 'center' }}>Понятно</Text>
                   </View>
                 </TouchableWithoutFeedback>
 
                 {this.props.word_in_dictionary ? (
                   <React.Fragment>
-                    <View style={{ width: 230, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 5, marginBottom: 5 }}>
-                      <Text style={{ color: appThemeStore.colors.text, fontSize: 14, textAlign: 'center', marginTop: 5, marginBottom: 5 }}>
+                    <View style={{ width: 232, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, marginBottom: 8 }}>
+                      <Text style={{ color: appThemeStore.colors.text, fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 8 }}>
                         Слово добавлено в словарь
                       </Text>
                     </View>
 
                     <TouchableOpacity onPress={() => this.deleteWordFromDictionary()}>
-                      <View style={{ borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, margin: 10, marginTop: 0, height: 32, width: 230, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                        <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Удалить из словаря</Text>
+                      <View style={{ borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, margin: 8, marginTop: 0, height: 32, width: 232, flexDirection: 'column', justifyContent: 'center', borderRadius: 8 }}>
+                        <Text style={{ color: appThemeStore.colors.text, lineHeight: 32, textAlign: 'center' }}>Удалить из словаря</Text>
                       </View>
                     </TouchableOpacity>
                   </React.Fragment>
                 ) : (
                   <React.Fragment>
-                    <View style={{ flexDirection: 'row', height: 32, width: 230, margin: 10, marginTop: 10, alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', height: 32, width: 232, margin: 8, marginTop: 0, alignItems: 'center' }}>
                       {(this.state.count_words < 30 || this.props.has_subscription) ? (
-                        <TouchableOpacity onPress={() => this.addWordToDictionary()}>
-                          <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                            <Text style={{ color: appThemeStore.colors.text, lineHeight: 30, textAlign: 'center' }}>Добавить в словарь</Text>
+                        <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => this.addWordToDictionary()}>
+                          <View style={{ flex: 1, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 8 }}>
+                            <Text style={{ color: appThemeStore.colors.text, lineHeight: 32, textAlign: 'center' }}>Добавить в словарь</Text>
                           </View>
                         </TouchableOpacity>
                       ) : (
-                        <View style={{ flex: 1, width: this.props.has_subscription ? 230 : 198, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 5 }}>
-                          <Text style={{ color: '#444', lineHeight: 30, textAlign: 'center' }}>Вы исчерпали лимит</Text>
+                        <View style={{ flex: 1, height: 32, flexDirection: 'column', justifyContent: 'center', borderRadius: 8 }}>
+                          <Text style={{ color: '#444', lineHeight: 32, textAlign: 'center' }}>Вы исчерпали лимит</Text>
                         </View>
                       )}
                       {this.props.has_subscription == false &&
-                        <TouchableOpacity onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
-                          <View style={{ width: 24, height: 24, margin: 6, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 4, overflow: 'hidden' }}>
+                        <TouchableOpacity style={{ flexShrink: 0, marginLeft: 8 }} onPress={() => this.setState({ show_limits_information: !this.state.show_limits_information })}>
+                          <View style={{ width: 32, height: 32, borderWidth: 1, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
                             {this.state.show_limits_information ? (
-                              <AppIcon icon={CloseIcon} size={20} color={appThemeStore.colors.text} style={{ margin: 1 }} />
+                              <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
                             ) : (
-                              <Text style={{ color: appThemeStore.colors.text, fontSize: 14, lineHeight: 22, textAlign: 'center' }}>?</Text>
+                              <Text style={{ color: appThemeStore.colors.text, fontSize: 14, lineHeight: 32, textAlign: 'center' }}>?</Text>
                             )}
                           </View>
                         </TouchableOpacity>
@@ -421,16 +445,16 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
                     </View>
 
                     {this.state.show_limits_information &&
-                      <View style={{ margin: 10, marginTop: 0 }}>
+                      <View style={{ margin: 8, marginTop: 0 }}>
                         <View><Text style={{ textAlign: 'center', fontSize: 12 }}>Без PRO-доступа вы можете</Text></View>
-                        <View><Text style={{ marginTop: 4, textAlign: 'center', fontSize: 12 }}>добавить до 30 слов</Text></View>
-                        <View><Text style={{ marginTop: 4, textAlign: 'center', fontSize: 12 }}>и озвучить до 15 слов в день</Text></View>
+                        <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>добавить до 30 слов</Text></View>
+                        <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>и озвучить до 15 слов в день</Text></View>
 
                         <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>Вы добавили {this.state.count_words}/30</Text></View>
-                        <View><Text style={{ marginTop: 4, textAlign: 'center', fontSize: 12 }}>Вы озвучили {this.state.count_voiceover}/15</Text></View>
+                        <View><Text style={{ marginTop: 8, textAlign: 'center', fontSize: 12 }}>Вы озвучили {this.state.count_voiceover}/15</Text></View>
 
                         <TouchableOpacity onPress={() => this.openSubscription()}>
-                          <Text style={{ color: '#f05458', fontSize: 12, marginTop: 4, textAlign: 'center', }}>Приобрести PRO-доступ</Text>
+                          <Text style={{ color: app_theme_colors.red, fontSize: 12, marginTop: 8, textAlign: 'center', }}>Приобрести PRO-доступ</Text>
                         </TouchableOpacity>
                       </View>
                     }
@@ -441,17 +465,12 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             </TouchableOpacity>
 
             {this.props.has_subscription == false &&
-              <View style={{ position: 'absolute', left: 0, bottom: 0, width: Dimensions.get('window').width, height: 50, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                {adSizeMini && (
-                  <BannerView
-                    size={adSizeMini}
-                    adRequest={{ adUnitId: AD_UNIT_BANNER }}
-                  />
-                )}
-              </View>
+              <TranslationAdBanner />
             }
           </View>
         </TouchableOpacity>
+        <AppErrorNotice />
+        </SafeAreaProvider>
       </Modal >
     )
   }

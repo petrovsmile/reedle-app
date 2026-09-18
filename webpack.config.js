@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
@@ -16,7 +17,7 @@ class EmitPwaAssetsPlugin {
             compilation.hooks.processAssets.tap(
                 {
                     name: 'EmitPwaAssetsPlugin',
-                    stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
+                    stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
                 },
                 () => {
                     const { RawSource } = compiler.webpack.sources;
@@ -39,7 +40,11 @@ class EmitPwaAssetsPlugin {
                                 .join(',\n  ');
                             source = source
                                 .toString()
-                                .replace('__BUILD_HASH__', compilation.fullHash.slice(0, 12))
+                                .replace('__BUILD_HASH__', crypto.createHash('sha256')
+                                    .update(compilation.fullHash)
+                                    .update(compilation.getAsset('index.html').source.source())
+                                    .update(source)
+                                    .digest('hex').slice(0, 12))
                                 .replaceAll('__PUBLIC_PATH__', compilation.outputOptions.publicPath)
                                 .replace('__APP_SHELL_ASSETS__', entryAssets);
                         }
@@ -210,7 +215,7 @@ module.exports = {
         },
         proxy: [
             {
-                context: ['/api', '/books', '/oauth_redirect'],
+                context: ['/api', '/books', '/oauth_redirect', '/voiceover', '/voiceover_books'],
                 target: apiProxyTarget,
                 changeOrigin: true,
                 secure: false,

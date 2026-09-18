@@ -25,9 +25,6 @@ class OAuthAuthorization {
   open() {
     this.root.setState({
       oauth_modal_show: true,
-      oauth_manual_token: '',
-      oauth_manual_loading: false,
-      oauth_manual_error: false,
     });
   }
 
@@ -35,36 +32,11 @@ class OAuthAuthorization {
     this.cancel();
     this.root.setState({
       oauth_modal_show: false,
-      oauth_manual_loading: false,
-      oauth_manual_error: false,
     });
   }
 
   cancel() {
     this.webAttempt += 1;
-  }
-
-  async authorizeByManualToken() {
-    var token = String(this.root.state.oauth_manual_token || '').trim();
-    if (!token || this.root.state.oauth_manual_loading) return;
-
-    this.root.setState({ oauth_manual_loading: true, oauth_manual_error: false });
-    var user = await new Request('/api/v1/users/by_oauth_token', {
-      token: token,
-    }, {
-      do_not_show_error: true,
-    }).get();
-
-    if (!user || user.error != undefined) {
-      this.root.setState({
-        oauth_manual_loading: false,
-        oauth_manual_error: 'Не удалось подтвердить токен. Проверьте его и попробуйте ещё раз.',
-      });
-      return;
-    }
-
-    this.cancel();
-    await this.setCurrentUser(user);
   }
 
   async startWait(type, user_id) {
@@ -98,7 +70,6 @@ class OAuthAuthorization {
         await Linking.openURL(oauthResponse.redirect_url);
       }
     } catch (_) {
-      this.root.setState({ oauth_manual_error: 'Не удалось открыть страницу авторизации.' });
       return;
     }
 
@@ -157,7 +128,7 @@ class OAuthAuthorization {
     appStore.setCurrentUser(user);
     this.root.setState({
       current_user: user,
-      ...(closeModal ? { oauth_modal_show: false, oauth_manual_loading: false } : {}),
+      ...(closeModal ? { oauth_modal_show: false } : {}),
     });
     await new Storage().set('current_user', JSON.stringify(user));
     this.root.checkSubscription();

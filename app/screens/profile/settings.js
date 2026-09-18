@@ -27,6 +27,7 @@ class ProfileSettings extends React.Component {
   async loadSettings() {
     var value = await new Storage().get('themeReaderSettings');
     var settings = value ? JSON.parse(value) : {};
+    settings.fontSize = normalizeReaderFontSize(settings.fontSize || 18);
     settings.backgroundColorTheme = appThemeStore.colors.background;
     settings.textColorTheme = appThemeStore.colors.text;
     settings.secondColorTheme = appThemeStore.colors.second;
@@ -65,6 +66,7 @@ class ProfileSettings extends React.Component {
   render() {
     if (!this.state.loaded) return <ActivityIndicator style={{ flex: 1 }} color={appThemeStore.colors.mutedText} />;
     var previewParagraphs = [
+      'The Little Prince',
       'It is only with the heart that one can see rightly; what is essential is invisible to the eye.',
       'The morning was quiet, and a pale golden light stretched across the fields. A small bird landed nearby and listened to the wind.',
       'He opened the old book and continued reading. Every page carried him farther from the room and closer to a new adventure.',
@@ -73,17 +75,16 @@ class ProfileSettings extends React.Component {
     ];
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
-        <ScrollView contentContainerStyle={{ padding: 15, paddingBottom: 60 }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Пример отображения</Text>
-          <View style={{ minHeight: 620, position: 'relative', padding: 20, borderRadius: 10, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
-            <Text style={{ fontSize: 24, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, marginBottom: 18 }}>The Little Prince</Text>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения</Text>
+          <View style={{ minHeight: 624, position: 'relative', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
             {previewParagraphs.map((paragraph, index) =>
-              <Text key={index} style={{ marginBottom: 16, fontSize: this.state.fontSize, lineHeight: this.state.fontSize * 1.55, fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
+              <Text key={index} style={{ marginBottom: 16, fontSize: this.state.fontSize, lineHeight: readerLineHeight(this.state.fontSize), fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
                 {paragraph}
               </Text>
             )}
 
-            <View style={{ position: 'absolute', right: 10, top: 10, width: 212, zIndex: 5 }}>
+            <View style={{ position: 'absolute', right: 8, top: 8, width: 216, zIndex: 5 }}>
               <ReaderSettingsPanel
                 {...this.state}
                 changeFontSize={(type) => this.changeFontSize(type)}

@@ -1,35 +1,32 @@
 const blogStyles = StyleSheet.create({
-  screen: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#fff' },
-  scrollContent: { flex: 1, minHeight: 0 },
-  content: { padding: 10, paddingBottom: 24 },
-  title: { fontSize: 30, fontWeight: 'bold', margin: 5, marginBottom: 12 },
-  row: { flex: 1, padding: 5 },
-  card: { flex: 1 },
-  cardImageWrap: { height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#eee' },
-  cardImage: { width: '100%', height: '100%' },
-  infoOverlay: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 10, paddingVertical: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)'
+  screen: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    backgroundColor: '#fff'
   },
-  infoOverlayText: { color: '#fff', fontSize: 12 },
-  look: { flexDirection: 'row', alignItems: 'center' },
-  cardTitle: { marginTop: 9, color: '#111', fontSize: 15, fontWeight: 'bold', lineHeight: 20 },
-  loader: { padding: 24 },
-  empty: { padding: 30, textAlign: 'center', color: '#777' },
-  articleContent: { padding: 15, paddingBottom: 100 },
-  articleTitle: { fontSize: 30, lineHeight: 38, fontWeight: 'bold', marginBottom: 10 },
-  articleInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  articleInfoText: { color: '#aaa', fontSize: 14 },
-  articleImage: { width: '100%', height: 230, borderRadius: 10, backgroundColor: '#eee', marginBottom: 4 },
-  block: { marginTop: 16 },
-  paragraph: { fontSize: 16, lineHeight: 25, color: '#222' },
-  header: { fontSize: 23, lineHeight: 30, fontWeight: 'bold' },
-  delimiter: { textAlign: 'center', fontSize: 18, letterSpacing: 6 },
-  listRow: { flexDirection: 'row', paddingLeft: 6, marginBottom: 7 },
-  listMarker: { width: 25, fontSize: 16, lineHeight: 24 },
-  listText: { flex: 1, fontSize: 16, lineHeight: 24 },
-  contentImage: { width: '100%', height: 230, borderRadius: 10, backgroundColor: '#eee' },
-  caption: { marginTop: 5, color: '#aaa', fontSize: 14 }
+  scrollContent: {
+    flex: 1,
+    minHeight: 0
+  },
+  infoOverlayText: {
+    color: '#fff',
+    fontSize: 14
+  },
+  look: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  empty: {
+    padding: 32,
+    textAlign: 'center',
+    color: '#777'
+  },
+  articleInfoText: {
+    color: '#aaa',
+    fontSize: 14
+  },
+  block: {
+    marginTop: 16
+  }
 });
