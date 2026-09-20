@@ -138,12 +138,14 @@ class AppAlertModal extends React.Component {
   }
 }
 
-const AppErrorNotice = observer(function AppErrorNotice(props) {
-  var insets = React.useContext(SafeAreaInsetsContext) || { top: 0 };
+const AppErrorNotice = observer(function AppErrorNotice() {
+  var insets = React.useContext(SafeAreaInsetsContext) || { top: 0, right: 0, left: 0 };
   if (!appStore.error_show) return null;
-  var safeAreaTop = props.withinSafeArea || Platform.OS === 'web' ? 0 : (insets.top || 0);
+  var safeAreaTop = Platform.OS === 'web' ? 0 : (insets.top || 0);
+  var safeAreaRight = Platform.OS === 'web' ? 0 : (insets.right || 0);
+  var safeAreaLeft = Platform.OS === 'web' ? 0 : (insets.left || 0);
   return (
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => typeof root_app !== 'undefined' && root_app ? root_app.closeError() : appStore.closeError()} style={{ position: 'absolute', top: safeAreaTop + 8, left: 16, right: 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => typeof root_app !== 'undefined' && root_app ? root_app.closeError() : appStore.closeError()} style={{ position: 'absolute', top: safeAreaTop + 8, left: safeAreaLeft + 16, right: safeAreaRight + 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ flex: 1, padding: 8, justifyContent: 'center' }}>
         <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_title}</Text>
         {!!appStore.error_description && <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_description}</Text>}
@@ -1306,7 +1308,6 @@ import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import type { Node } from 'react';
 import {
-  SafeAreaView,
   Text as NativeText,
   View,
   TouchableOpacity,
@@ -1423,8 +1424,12 @@ const homeStore = new HomeStore();
 
 // Modal content is rendered in a separate native host and therefore must own
 // its safe-area boundary instead of relying on the screen behind it.
-const AppSafeAreaView = (props) => (
-  <ContextSafeAreaView {...props} style={[{ flex: 1 }, props.style]} />
+const AppSafeAreaView = ({ style, edges, ...props }) => (
+  <ContextSafeAreaView
+    {...props}
+    edges={Platform.OS === 'web' ? [] : edges}
+    style={[{ flex: 1 }, style]}
+  />
 );
 
 const advertisingConfig = new AdvertisingConfig(Platform.OS);
@@ -1767,7 +1772,7 @@ class Blog extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
           style={blogStyles.scrollContent}
           data={this.state.loading || this.state.refreshing ? [] : this.state.articles}
@@ -1783,7 +1788,7 @@ class Blog extends React.Component {
           onEndReached={() => this.state.nextPage && this.loadArticles(this.state.nextPage)}
           onEndReachedThreshold={0.4}
         />
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -1859,7 +1864,7 @@ class BlogArticle extends React.Component {
 
     var article = this.state.article;
     return (
-      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView style={blogStyles.scrollContent} contentContainerStyle={{ padding: 16, paddingBottom: 104 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
             <View style={blogStyles.look}>
@@ -1872,7 +1877,7 @@ class BlogArticle extends React.Component {
           {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={[{ width: '100%', height: 232, borderRadius: 8, backgroundColor: '#eee', marginBottom: 8 }, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -2051,7 +2056,7 @@ class Bookmarks extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -2119,7 +2124,7 @@ class Bookmarks extends React.Component {
           </React.Fragment>
 
         )}
-      </SafeAreaView>
+      </AppSafeAreaView>
 
     )
   }
@@ -2562,7 +2567,7 @@ class Dictionary extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
@@ -2703,7 +2708,7 @@ class Dictionary extends React.Component {
             )}
           </React.Fragment>
         )}
-      </SafeAreaView>
+      </AppSafeAreaView>
 
     )
   }
@@ -2721,9 +2726,9 @@ class DictionaryLearning extends Dictionary {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         {this.renderLearning()}
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -3653,6 +3658,8 @@ class UpdateProfile extends React.Component {
 }
 
 class Auth extends React.Component {
+  static contextType = SafeAreaInsetsContext;
+
   constructor(props) {
     super(props);
 
@@ -3809,8 +3816,12 @@ class Auth extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.context || { top: 0, right: 0 };
+    var safeAreaTop = Platform.OS === 'web' ? 0 : (safeAreaInsets.top || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
+
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={this.props.modal == true ? { paddingTop: 32 } : undefined}>
           <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
 
@@ -3950,12 +3961,12 @@ class Auth extends React.Component {
           </View>
         </ScrollView>
         {this.props.modal == true &&
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть окно авторизации" onPress={() => this.props.close()} style={{ position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: 8, right: 8, zIndex: 100, elevation: 6, width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть окно авторизации" onPress={() => this.props.close()} style={{ position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: safeAreaTop + 8, right: safeAreaRight + 8, zIndex: 100, elevation: 6, width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
             <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
           </TouchableOpacity>
         }
-        {this.props.modal == true && <AppErrorNotice withinSafeArea={true} />}
-      </SafeAreaView>
+        {this.props.modal == true && <AppErrorNotice />}
+      </AppSafeAreaView>
     )
   }
 }
@@ -4034,7 +4045,7 @@ class Profile extends React.Component {
     var current_user = this.props.root.state.current_user;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
@@ -4094,7 +4105,7 @@ class Profile extends React.Component {
             <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {this.appVersion()}</Text>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -4204,7 +4215,7 @@ class ProfileMemory extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <View style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
           <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: appThemeStore.colors.text }]}>
             {'Занято: ' + this.formatSize(this.totalSize())}
@@ -4239,7 +4250,7 @@ class ProfileMemory extends React.Component {
             ))}
           </ScrollView>
         )}
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -4318,7 +4329,7 @@ class ProfileDetails extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <UpdateProfile current_user={current_user} />
 
@@ -4338,7 +4349,7 @@ class ProfileDetails extends React.Component {
             <Text style={{ color: app_theme_colors.red, textAlign: 'center' }}>Удалить аккаунт</Text>
           </TouchableOpacity>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -4349,11 +4360,11 @@ class ProfilePassword extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <ChangePassword current_user={current_user} />
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -4473,7 +4484,7 @@ class ProfileSettings extends React.Component {
       'The road continued beyond the hill, turning gently toward the distant town. He smiled and walked on without looking back.'
     ];
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения</Text>
           <View style={{ minHeight: 624, position: 'relative', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
@@ -4494,7 +4505,7 @@ class ProfileSettings extends React.Component {
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -5136,7 +5147,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             }
           </View>
         </TouchableOpacity>
-        <AppErrorNotice withinSafeArea={true} />
+        <AppErrorNotice />
         </AppSafeAreaView>
       </Modal >
     )
@@ -6833,7 +6844,7 @@ function PwaInstallBanner() {
 class Header extends React.Component {
   render(){
     return(
-      <SafeAreaView style={{backgroundColor: appThemeStore.colors.surface}}>
+      <AppSafeAreaView style={{flex: 0, backgroundColor: appThemeStore.colors.surface}}>
         <View style={{flexDirection:'row',justifyContent:'space-between',paddingLeft:16,paddingRight:16,marginTop:8,borderBottomWidth:1,borderBottomColor:app_theme_colors.backgroundLight,paddingBottom:8}}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
             <AppIcon icon={MenuIcon} size={24} color={appThemeStore.colors.text} />
@@ -6842,7 +6853,7 @@ class Header extends React.Component {
           <View style={{width:32,height:32}}/>
         </View>
         
-      </SafeAreaView>
+      </AppSafeAreaView>
     )
   }
 }
@@ -7451,7 +7462,7 @@ class RootApp extends React.Component {
                 </Text>
               </View>
             </View>
-            <AppErrorNotice withinSafeArea={true} />
+            <AppErrorNotice />
           </AppSafeAreaView>
         </Modal>
       </View>
@@ -7790,7 +7801,7 @@ const Show = observer(class Show extends React.Component {
   render() {
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
+      <AppSafeAreaView style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 
@@ -7879,7 +7890,7 @@ const Show = observer(class Show extends React.Component {
             }
           </View>
         }
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
 
   }
@@ -8113,7 +8124,7 @@ const Subscription = observer(class Subscription extends React.Component {
       : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
 
         <Modal
           animationType="slide"
@@ -8395,7 +8406,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     )
   }
 });

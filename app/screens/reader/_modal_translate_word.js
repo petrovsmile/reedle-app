@@ -469,7 +469,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             }
           </View>
         </TouchableOpacity>
-        <AppErrorNotice withinSafeArea={true} />
+        <AppErrorNotice />
         </AppSafeAreaView>
       </Modal >
     )

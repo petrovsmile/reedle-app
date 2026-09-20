@@ -111,7 +111,7 @@ class Bookmarks extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -179,7 +179,7 @@ class Bookmarks extends React.Component {
           </React.Fragment>
 
         )}
-      </SafeAreaView>
+      </AppSafeAreaView>
 
     )
   }

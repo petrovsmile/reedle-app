@@ -76,7 +76,7 @@ class Blog extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
           style={blogStyles.scrollContent}
           data={this.state.loading || this.state.refreshing ? [] : this.state.articles}
@@ -92,7 +92,7 @@ class Blog extends React.Component {
           onEndReached={() => this.state.nextPage && this.loadArticles(this.state.nextPage)}
           onEndReachedThreshold={0.4}
         />
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -168,7 +168,7 @@ class BlogArticle extends React.Component {
 
     var article = this.state.article;
     return (
-      <SafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView style={blogStyles.scrollContent} contentContainerStyle={{ padding: 16, paddingBottom: 104 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
             <View style={blogStyles.look}>
@@ -181,7 +181,7 @@ class BlogArticle extends React.Component {
           {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={[{ width: '100%', height: 232, borderRadius: 8, backgroundColor: '#eee', marginBottom: 8 }, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />}
           {(article.content || []).map((block, index) => this.renderBlock(block, index))}
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }

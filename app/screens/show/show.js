@@ -137,7 +137,7 @@ const Show = observer(class Show extends React.Component {
   render() {
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
+      <AppSafeAreaView style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 
@@ -226,7 +226,7 @@ const Show = observer(class Show extends React.Component {
             }
           </View>
         }
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
 
   }

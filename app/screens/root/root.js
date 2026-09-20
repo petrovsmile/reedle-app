@@ -602,7 +602,7 @@ class RootApp extends React.Component {
                 </Text>
               </View>
             </View>
-            <AppErrorNotice withinSafeArea={true} />
+            <AppErrorNotice />
           </AppSafeAreaView>
         </Modal>
       </View>

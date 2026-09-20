@@ -1,4 +1,6 @@
 class Auth extends React.Component {
+  static contextType = SafeAreaInsetsContext;
+
   constructor(props) {
     super(props);
 
@@ -155,8 +157,12 @@ class Auth extends React.Component {
   }
 
   render() {
+    var safeAreaInsets = this.context || { top: 0, right: 0 };
+    var safeAreaTop = Platform.OS === 'web' ? 0 : (safeAreaInsets.top || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
+
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]} >
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={this.props.modal == true ? { paddingTop: 32 } : undefined}>
           <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
 
@@ -296,12 +302,12 @@ class Auth extends React.Component {
           </View>
         </ScrollView>
         {this.props.modal == true &&
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть окно авторизации" onPress={() => this.props.close()} style={{ position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: 8, right: 8, zIndex: 100, elevation: 6, width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть окно авторизации" onPress={() => this.props.close()} style={{ position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: safeAreaTop + 8, right: safeAreaRight + 8, zIndex: 100, elevation: 6, width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
             <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
           </TouchableOpacity>
         }
-        {this.props.modal == true && <AppErrorNotice withinSafeArea={true} />}
-      </SafeAreaView>
+        {this.props.modal == true && <AppErrorNotice />}
+      </AppSafeAreaView>
     )
   }
 }

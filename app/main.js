@@ -3,7 +3,6 @@ import 'react-native-gesture-handler';
 import React, { useState, useEffect } from 'react';
 import type { Node } from 'react';
 import {
-  SafeAreaView,
   Text as NativeText,
   View,
   TouchableOpacity,
@@ -120,8 +119,12 @@ const homeStore = new HomeStore();
 
 // Modal content is rendered in a separate native host and therefore must own
 // its safe-area boundary instead of relying on the screen behind it.
-const AppSafeAreaView = (props) => (
-  <ContextSafeAreaView {...props} style={[{ flex: 1 }, props.style]} />
+const AppSafeAreaView = ({ style, edges, ...props }) => (
+  <ContextSafeAreaView
+    {...props}
+    edges={Platform.OS === 'web' ? [] : edges}
+    style={[{ flex: 1 }, style]}
+  />
 );
 
 const advertisingConfig = new AdvertisingConfig(Platform.OS);

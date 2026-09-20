@@ -74,7 +74,7 @@ class ProfileSettings extends React.Component {
       'The road continued beyond the hill, turning gently toward the distant town. He smiled and walked on without looking back.'
     ];
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения</Text>
           <View style={{ minHeight: 624, position: 'relative', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
@@ -95,7 +95,7 @@ class ProfileSettings extends React.Component {
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }

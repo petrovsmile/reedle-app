@@ -72,7 +72,7 @@ class Profile extends React.Component {
     var current_user = this.props.root.state.current_user;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
@@ -132,7 +132,7 @@ class Profile extends React.Component {
             <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {this.appVersion()}</Text>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -242,7 +242,7 @@ class ProfileMemory extends React.Component {
 
   render() {
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <View style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
           <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: appThemeStore.colors.text }]}>
             {'Занято: ' + this.formatSize(this.totalSize())}
@@ -277,7 +277,7 @@ class ProfileMemory extends React.Component {
             ))}
           </ScrollView>
         )}
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -356,7 +356,7 @@ class ProfileDetails extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <UpdateProfile current_user={current_user} />
 
@@ -376,7 +376,7 @@ class ProfileDetails extends React.Component {
             <Text style={{ color: app_theme_colors.red, textAlign: 'center' }}>Удалить аккаунт</Text>
           </TouchableOpacity>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }
@@ -387,11 +387,11 @@ class ProfilePassword extends React.Component {
     if (current_user == false) return <Auth />;
 
     return (
-      <SafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
           <ChangePassword current_user={current_user} />
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     );
   }
 }

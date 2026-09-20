@@ -226,7 +226,7 @@ const Subscription = observer(class Subscription extends React.Component {
       : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
 
         <Modal
           animationType="slide"
@@ -508,7 +508,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </AppSafeAreaView>
     )
   }
 });

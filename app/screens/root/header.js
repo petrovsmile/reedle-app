@@ -1,7 +1,7 @@
 class Header extends React.Component {
   render(){
     return(
-      <SafeAreaView style={{backgroundColor: appThemeStore.colors.surface}}>
+      <AppSafeAreaView style={{flex: 0, backgroundColor: appThemeStore.colors.surface}}>
         <View style={{flexDirection:'row',justifyContent:'space-between',paddingLeft:16,paddingRight:16,marginTop:8,borderBottomWidth:1,borderBottomColor:app_theme_colors.backgroundLight,paddingBottom:8}}>
           <TouchableOpacity onPress={() => this.props.navigation.openDrawer()}>
             <AppIcon icon={MenuIcon} size={24} color={appThemeStore.colors.text} />
@@ -10,7 +10,7 @@ class Header extends React.Component {
           <View style={{width:32,height:32}}/>
         </View>
         
-      </SafeAreaView>
+      </AppSafeAreaView>
     )
   }
 }
