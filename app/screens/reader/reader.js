@@ -825,10 +825,13 @@ class Reader extends React.Component {
   }
 
   render() {
-    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, bottom: 0 };
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, right: 0, bottom: 0, left: 0 };
     // Web #root already applies safe-area padding; do not apply it twice.
     var safeAreaTop = Platform.OS === 'web' ? 0 : (safeAreaInsets.top || 0);
     var safeAreaBottom = Platform.OS === 'web' ? 0 : (safeAreaInsets.bottom || 0);
+    var safeAreaLeft = Platform.OS === 'web' ? 0 : (safeAreaInsets.left || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
+    var safeRootInsets = { paddingTop: safeAreaTop, paddingLeft: safeAreaLeft, paddingRight: safeAreaRight };
 
     return (
       <React.Fragment>
@@ -845,7 +848,7 @@ class Reader extends React.Component {
         }
 
         {(this.state.paragraphs == false) ? (
-          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme }, safeRootInsets]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
               <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
             </TouchableOpacity>
@@ -854,7 +857,7 @@ class Reader extends React.Component {
           </View>
         ) : (
 
-          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme }, safeRootInsets]}>
 
             <Modal
               animationType="slide"
@@ -880,7 +883,7 @@ class Reader extends React.Component {
             {(this.state.showAdInfo && this.props.root.state.has_subscription == false) &&
               <TouchableOpacity style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '120%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 }} onPress={() => this.closeAdInfo()}>
                 <TouchableWithoutFeedback>
-                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', paddingBottom: safeAreaBottom, backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
                     <View style={{ padding: 32 }}>
                       <Text style={{ fontSize: 16 }}>
                         Чтобы приложение было бесплатным, мы вынуждены показывать рекламу. {"\n"} {"\n"}Вы можете приобрести PRO-версию, чтобы отключить рекламу, а еще будет доступен режим чтения без интернета.
@@ -928,7 +931,7 @@ class Reader extends React.Component {
             />
 
             <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', alignItems: 'center', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                   <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
                 </TouchableOpacity>
@@ -937,7 +940,7 @@ class Reader extends React.Component {
                   <View style={{ flex: 1 }}></View>
                 ) : (
                   <Slider
-                    style={{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }}
+                    style={[{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }, Platform.OS === 'web' ? null : { height: 40, alignSelf: 'center' }]}
                     value={this.state.percent}
                     minimumValue={1}
                     maximumValue={100}

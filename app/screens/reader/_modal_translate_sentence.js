@@ -7,7 +7,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
         transparent={true}
         visible={this.props.visible}
       >
-        <SafeAreaProvider style={{ flex: 1 }}>
+        <AppSafeAreaView>
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
             <TouchableOpacity
@@ -56,7 +56,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
             }
           </View>
         </TouchableOpacity>
-        </SafeAreaProvider>
+        </AppSafeAreaView>
 
       </Modal>
     )

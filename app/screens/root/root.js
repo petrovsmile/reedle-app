@@ -477,9 +477,9 @@ class RootApp extends React.Component {
         />
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
-          <View style={{ flex: 1, backgroundColor: themeColors.background }} />
+          <AppSafeAreaView style={{ backgroundColor: themeColors.background }} />
         ) : this.state.confirm_conditions == false ? (
-          <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
+          <AppSafeAreaView style={{ justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: '300px', backgroundColor: themeColors.background }}>
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
                 <Image
@@ -500,7 +500,7 @@ class RootApp extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
+          </AppSafeAreaView>
         ) : (
           <View style={{ flex: 1 }}>
             <NavigationContainer
@@ -581,7 +581,7 @@ class RootApp extends React.Component {
           presentationStyle="fullScreen"
           visible={this.state.oauth_modal_show}
           onRequestClose={() => this.oauthAuthorization.close()}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+          <AppSafeAreaView style={{ backgroundColor: themeColors.background }}>
             <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <TouchableOpacity
@@ -602,8 +602,8 @@ class RootApp extends React.Component {
                 </Text>
               </View>
             </View>
-            <AppErrorNotice />
-          </SafeAreaView>
+            <AppErrorNotice withinSafeArea={true} />
+          </AppSafeAreaView>
         </Modal>
       </View>
     );

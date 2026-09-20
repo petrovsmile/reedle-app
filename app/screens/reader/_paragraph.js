@@ -259,15 +259,20 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   displayBlocks(blocks) {
-    return blocks.reduce((result, block) => {
+    var result = [];
+    for (var index = 0; index < blocks.length; index++) {
+      var block = blocks[index];
       var previousBlock = result[result.length - 1];
       if ((block['v'] == "'s" || block['v'] == '’s') && previousBlock && previousBlock['w'] != undefined) {
         previousBlock['v'] += block['v'];
+      } else if ((block['v'] == "'" || block['v'] == '’') && blocks[index + 1] && blocks[index + 1]['v'] == 's' && previousBlock && previousBlock['w'] != undefined) {
+        previousBlock['v'] += block['v'] + blocks[index + 1]['v'];
+        index++;
       } else {
         result.push({ ...block });
       }
-      return result;
-    }, []);
+    }
+    return result;
   }
 
   render() {
@@ -308,7 +313,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 ) : null}
                 {this.displayBlocks(sentence['b']).map((block, index, blocks) => {
                   const nextBlock = blocks[index + 1];
-                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',')) ? 4 : 8;
+                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',' || nextBlock['v'] === ';' || nextBlock['v'] === ':')) ? 4 : 8;
                   return (
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&

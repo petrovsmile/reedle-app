@@ -60,7 +60,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
         transparent={true}
         visible={this.state.visible}>
 
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }} onPress={() => this.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 32, borderRadius: 16, backgroundColor: appThemeStore.colors.surface, padding: 16 }}>
 
@@ -106,6 +107,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </AppSafeAreaView>
 
       </Modal>
     )

@@ -80,10 +80,11 @@ class Select extends React.Component {
           transparent={true}
           visible={this.state.visible}
           onRequestClose={() => this.setState({ visible: false })}>
+          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => this.setState({ visible: false })}
-            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
+            style={{ flex: 1, justifyContent: 'flex-end' }}>
             <TouchableWithoutFeedback onPress={() => { }}>
               <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
                 <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -103,6 +104,7 @@ class Select extends React.Component {
               </View>
             </TouchableWithoutFeedback>
           </TouchableOpacity>
+          </AppSafeAreaView>
         </Modal>
       </React.Fragment>
     );

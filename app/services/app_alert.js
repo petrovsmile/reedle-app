@@ -52,10 +52,11 @@ class AppAlertModal extends React.Component {
         visible={true}
         statusBarTranslucent={true}
         onRequestClose={() => this.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => this.close()}
-          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <TouchableWithoutFeedback onPress={() => { }}>
             <View style={{ width: '100%', maxWidth: 424, padding: 24, borderRadius: 8, backgroundColor: appThemeStore.colors.surface }}>
               {this.state.title ? <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
@@ -76,6 +77,7 @@ class AppAlertModal extends React.Component {
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
+        </AppSafeAreaView>
       </Modal>
     );
   }

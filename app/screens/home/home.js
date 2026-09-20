@@ -314,8 +314,10 @@ const Home = observer(class Home extends React.Component {
   }
 
   render() {
-    var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, left: 0, right: 0 };
     var safeAreaTop = safeAreaInsets.top || 0;
+    var safeAreaLeft = Platform.OS === 'web' ? 0 : (safeAreaInsets.left || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
     var visibleBooks = Array.isArray(this.state.books_filtered) ? this.state.books_filtered : [];
     if (this.state.not_show_read) {
       visibleBooks = visibleBooks.filter(book => Number(appStore.books_percents[book.id]) !== 100);
@@ -336,7 +338,7 @@ const Home = observer(class Home extends React.Component {
     }
 
     return (
-      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
+      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, paddingLeft: safeAreaLeft, paddingRight: safeAreaRight, backgroundColor: appThemeStore.colors.background }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 16, marginTop: 16 }}>
 
           <View style={homeStyles.header_empty_block} />

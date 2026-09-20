@@ -300,7 +300,7 @@ class Auth extends React.Component {
             <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
           </TouchableOpacity>
         }
-        {this.props.modal == true && <AppErrorNotice />}
+        {this.props.modal == true && <AppErrorNotice withinSafeArea={true} />}
       </SafeAreaView>
     )
   }

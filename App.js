@@ -107,10 +107,11 @@ class AppAlertModal extends React.Component {
         visible={true}
         statusBarTranslucent={true}
         onRequestClose={() => this.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => this.close()}
-          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          style={{ flex: 1, position: 'relative', zIndex: 2147483647, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <TouchableWithoutFeedback onPress={() => { }}>
             <View style={{ width: '100%', maxWidth: 424, padding: 24, borderRadius: 8, backgroundColor: appThemeStore.colors.surface }}>
               {this.state.title ? <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: appThemeStore.colors.text }}>{this.state.title}</Text> : null}
@@ -131,15 +132,18 @@ class AppAlertModal extends React.Component {
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
+        </AppSafeAreaView>
       </Modal>
     );
   }
 }
 
-const AppErrorNotice = observer(function AppErrorNotice() {
+const AppErrorNotice = observer(function AppErrorNotice(props) {
+  var insets = React.useContext(SafeAreaInsetsContext) || { top: 0 };
   if (!appStore.error_show) return null;
+  var safeAreaTop = props.withinSafeArea || Platform.OS === 'web' ? 0 : (insets.top || 0);
   return (
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => typeof root_app !== 'undefined' && root_app ? root_app.closeError() : appStore.closeError()} style={{ position: 'absolute', top: 8, left: 16, right: 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => typeof root_app !== 'undefined' && root_app ? root_app.closeError() : appStore.closeError()} style={{ position: 'absolute', top: safeAreaTop + 8, left: 16, right: 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ flex: 1, padding: 8, justifyContent: 'center' }}>
         <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_title}</Text>
         {!!appStore.error_description && <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_description}</Text>}
@@ -492,7 +496,11 @@ class Request {
 
       try {
         if (method == 'get') {
-          var response = await axios.get(url, { signal: this.AbortSignal(5000), params: this.params });
+          var response = await axios.get(url, {
+            signal: this.AbortSignal(5000),
+            params: this.params,
+            headers: { Authorization: `Bearer ${API_TOKEN}` }
+          });
         }
 
         if (method == 'post') {
@@ -640,10 +648,11 @@ class Select extends React.Component {
           transparent={true}
           visible={this.state.visible}
           onRequestClose={() => this.setState({ visible: false })}>
+          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => this.setState({ visible: false })}
-            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
+            style={{ flex: 1, justifyContent: 'flex-end' }}>
             <TouchableWithoutFeedback onPress={() => { }}>
               <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
                 <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -663,6 +672,7 @@ class Select extends React.Component {
               </View>
             </TouchableWithoutFeedback>
           </TouchableOpacity>
+          </AppSafeAreaView>
         </Modal>
       </React.Fragment>
     );
@@ -1328,7 +1338,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRo
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaInsetsContext, SafeAreaView as ContextSafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
@@ -1410,6 +1420,12 @@ const appStore = new AppStore();
 const readerStore = new ReaderStore();
 const downloadStore = new DownloadStore();
 const homeStore = new HomeStore();
+
+// Modal content is rendered in a separate native host and therefore must own
+// its safe-area boundary instead of relying on the screen behind it.
+const AppSafeAreaView = (props) => (
+  <ContextSafeAreaView {...props} style={[{ flex: 1 }, props.style]} />
+);
 
 const advertisingConfig = new AdvertisingConfig(Platform.OS);
 let adSizeBig = null;
@@ -3204,8 +3220,10 @@ const Home = observer(class Home extends React.Component {
   }
 
   render() {
-    var safeAreaInsets = this.props.safeAreaInsets || { top: 0 };
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, left: 0, right: 0 };
     var safeAreaTop = safeAreaInsets.top || 0;
+    var safeAreaLeft = Platform.OS === 'web' ? 0 : (safeAreaInsets.left || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
     var visibleBooks = Array.isArray(this.state.books_filtered) ? this.state.books_filtered : [];
     if (this.state.not_show_read) {
       visibleBooks = visibleBooks.filter(book => Number(appStore.books_percents[book.id]) !== 100);
@@ -3226,7 +3244,7 @@ const Home = observer(class Home extends React.Component {
     }
 
     return (
-      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, backgroundColor: appThemeStore.colors.background }]}>
+      <View style={[applicationStyles.save_area_view, { paddingTop: safeAreaTop, paddingLeft: safeAreaLeft, paddingRight: safeAreaRight, backgroundColor: appThemeStore.colors.background }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 16, marginTop: 16 }}>
 
           <View style={homeStyles.header_empty_block} />
@@ -3936,7 +3954,7 @@ class Auth extends React.Component {
             <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} />
           </TouchableOpacity>
         }
-        {this.props.modal == true && <AppErrorNotice />}
+        {this.props.modal == true && <AppErrorNotice withinSafeArea={true} />}
       </SafeAreaView>
     )
   }
@@ -4490,7 +4508,8 @@ class ModalFastLearning extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }} onPress={() => this.props.close()}>
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => { }}
@@ -4537,6 +4556,7 @@ class ModalFastLearning extends React.Component {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </AppSafeAreaView>
 
       </Modal>
     )
@@ -4552,7 +4572,8 @@ class ModalNoAd extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }} onPress={() => this.props.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 32, borderRadius: 16, backgroundColor: appThemeStore.colors.surface, padding: 16 }}>
 
@@ -4572,6 +4593,7 @@ class ModalNoAd extends React.Component {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </AppSafeAreaView>
 
       </Modal>
     )
@@ -4587,7 +4609,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
         transparent={true}
         visible={this.props.visible}
       >
-        <SafeAreaProvider style={{ flex: 1 }}>
+        <AppSafeAreaView>
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
             <TouchableOpacity
@@ -4636,7 +4658,7 @@ const ModalTranslateSentence = observer(class ModalTranslateSentence extends Rea
             }
           </View>
         </TouchableOpacity>
-        </SafeAreaProvider>
+        </AppSafeAreaView>
 
       </Modal>
     )
@@ -4991,7 +5013,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         visible={this.props.visible}
         onDismiss={this.props.onDismiss}
       >
-        <SafeAreaProvider style={{ flex: 1 }}>
+        <AppSafeAreaView>
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
             <TouchableOpacity activeOpacity={1} onPress={() => { }}>
@@ -5114,8 +5136,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             }
           </View>
         </TouchableOpacity>
-        <AppErrorNotice />
-        </SafeAreaProvider>
+        <AppErrorNotice withinSafeArea={true} />
+        </AppSafeAreaView>
       </Modal >
     )
   }
@@ -5382,15 +5404,20 @@ const Paragraph = observer(class Paragraph extends React.Component {
   }
 
   displayBlocks(blocks) {
-    return blocks.reduce((result, block) => {
+    var result = [];
+    for (var index = 0; index < blocks.length; index++) {
+      var block = blocks[index];
       var previousBlock = result[result.length - 1];
       if ((block['v'] == "'s" || block['v'] == '’s') && previousBlock && previousBlock['w'] != undefined) {
         previousBlock['v'] += block['v'];
+      } else if ((block['v'] == "'" || block['v'] == '’') && blocks[index + 1] && blocks[index + 1]['v'] == 's' && previousBlock && previousBlock['w'] != undefined) {
+        previousBlock['v'] += block['v'] + blocks[index + 1]['v'];
+        index++;
       } else {
         result.push({ ...block });
       }
-      return result;
-    }, []);
+    }
+    return result;
   }
 
   render() {
@@ -5431,7 +5458,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 ) : null}
                 {this.displayBlocks(sentence['b']).map((block, index, blocks) => {
                   const nextBlock = blocks[index + 1];
-                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',')) ? 4 : 8;
+                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',' || nextBlock['v'] === ';' || nextBlock['v'] === ':')) ? 4 : 8;
                   return (
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
@@ -5563,9 +5590,10 @@ class ReaderSettings extends React.Component {
         animationType="fade"
         onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
         statusBarTranslucent={true}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}>
         <TouchableOpacity
           activeOpacity={1}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}
+          style={{ flex: 1 }}
           onPress={() => this.props.closeSettings && this.props.closeSettings()}>
           <TouchableWithoutFeedback onPress={() => { }}>
             <View style={{ position: 'absolute', right: 8, top: 40, width: 216 }}>
@@ -5573,6 +5601,7 @@ class ReaderSettings extends React.Component {
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
+        </AppSafeAreaView>
       </Modal>
     );
   }
@@ -6405,10 +6434,13 @@ class Reader extends React.Component {
   }
 
   render() {
-    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, bottom: 0 };
+    var safeAreaInsets = this.props.safeAreaInsets || { top: 0, right: 0, bottom: 0, left: 0 };
     // Web #root already applies safe-area padding; do not apply it twice.
     var safeAreaTop = Platform.OS === 'web' ? 0 : (safeAreaInsets.top || 0);
     var safeAreaBottom = Platform.OS === 'web' ? 0 : (safeAreaInsets.bottom || 0);
+    var safeAreaLeft = Platform.OS === 'web' ? 0 : (safeAreaInsets.left || 0);
+    var safeAreaRight = Platform.OS === 'web' ? 0 : (safeAreaInsets.right || 0);
+    var safeRootInsets = { paddingTop: safeAreaTop, paddingLeft: safeAreaLeft, paddingRight: safeAreaRight };
 
     return (
       <React.Fragment>
@@ -6425,7 +6457,7 @@ class Reader extends React.Component {
         }
 
         {(this.state.paragraphs == false) ? (
-          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme }, safeRootInsets]}>
             <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
               <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
             </TouchableOpacity>
@@ -6434,7 +6466,7 @@ class Reader extends React.Component {
           </View>
         ) : (
 
-          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme, paddingTop: safeAreaTop }]}>
+          <View style={[readerScreenStyles.safeRoot, { backgroundColor: this.state.backgroundColorTheme }, safeRootInsets]}>
 
             <Modal
               animationType="slide"
@@ -6460,7 +6492,7 @@ class Reader extends React.Component {
             {(this.state.showAdInfo && this.props.root.state.has_subscription == false) &&
               <TouchableOpacity style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '120%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 }} onPress={() => this.closeAdInfo()}>
                 <TouchableWithoutFeedback>
-                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', paddingBottom: safeAreaBottom, backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
                     <View style={{ padding: 32 }}>
                       <Text style={{ fontSize: 16 }}>
                         Чтобы приложение было бесплатным, мы вынуждены показывать рекламу. {"\n"} {"\n"}Вы можете приобрести PRO-версию, чтобы отключить рекламу, а еще будет доступен режим чтения без интернета.
@@ -6508,7 +6540,7 @@ class Reader extends React.Component {
             />
 
             <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', alignItems: 'center', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
                   <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
                 </TouchableOpacity>
@@ -6517,7 +6549,7 @@ class Reader extends React.Component {
                   <View style={{ flex: 1 }}></View>
                 ) : (
                   <Slider
-                    style={{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }}
+                    style={[{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }, Platform.OS === 'web' ? null : { height: 40, alignSelf: 'center' }]}
                     value={this.state.percent}
                     minimumValue={1}
                     maximumValue={100}
@@ -6675,7 +6707,8 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
         transparent={true}
         visible={this.state.visible}>
 
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }} onPress={() => this.close()}>
           <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ flexDirection: 'row', justifyContent: 'center' }}>
             <View style={{ margin: 32, borderRadius: 16, backgroundColor: appThemeStore.colors.surface, padding: 16 }}>
 
@@ -6721,6 +6754,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </AppSafeAreaView>
 
       </Modal>
     )
@@ -7292,9 +7326,9 @@ class RootApp extends React.Component {
         />
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
-          <View style={{ flex: 1, backgroundColor: themeColors.background }} />
+          <AppSafeAreaView style={{ backgroundColor: themeColors.background }} />
         ) : this.state.confirm_conditions == false ? (
-          <View style={{ flex: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
+          <AppSafeAreaView style={{ justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: '300px', backgroundColor: themeColors.background }}>
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
                 <Image
@@ -7315,7 +7349,7 @@ class RootApp extends React.Component {
               </TouchableOpacity>
 
             </View>
-          </View>
+          </AppSafeAreaView>
         ) : (
           <View style={{ flex: 1 }}>
             <NavigationContainer
@@ -7396,7 +7430,7 @@ class RootApp extends React.Component {
           presentationStyle="fullScreen"
           visible={this.state.oauth_modal_show}
           onRequestClose={() => this.oauthAuthorization.close()}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }}>
+          <AppSafeAreaView style={{ backgroundColor: themeColors.background }}>
             <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <TouchableOpacity
@@ -7417,8 +7451,8 @@ class RootApp extends React.Component {
                 </Text>
               </View>
             </View>
-            <AppErrorNotice />
-          </SafeAreaView>
+            <AppErrorNotice withinSafeArea={true} />
+          </AppSafeAreaView>
         </Modal>
       </View>
     );
@@ -8101,8 +8135,9 @@ const Subscription = observer(class Subscription extends React.Component {
           transparent={true}
           visible={this.state.modal_yoo_kassa}
         >
-          <View activeOpacity={1} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 8 }}>
+          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View activeOpacity={1} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 16, borderRadius: 8 }}>
               <View style={{ height: 56, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1 }}>
                 <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, margin: 8 }}>
                   <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} style={{ margin: 8 }} />
@@ -8136,6 +8171,7 @@ const Subscription = observer(class Subscription extends React.Component {
               </View>
             </View>
           </View>
+          </AppSafeAreaView>
         </Modal>
 
         <ScrollView style={{ flex: 1 }} >

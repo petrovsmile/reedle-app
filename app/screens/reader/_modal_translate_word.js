@@ -346,7 +346,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
         visible={this.props.visible}
         onDismiss={this.props.onDismiss}
       >
-        <SafeAreaProvider style={{ flex: 1 }}>
+        <AppSafeAreaView>
         <TouchableOpacity activeOpacity={1} style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.5)' }} onPress={() => this.props.close()}>
           <View style={{ flex: 1, width: '100%', justifyContent: "center", alignItems: "center" }}>
             <TouchableOpacity activeOpacity={1} onPress={() => { }}>
@@ -469,8 +469,8 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
             }
           </View>
         </TouchableOpacity>
-        <AppErrorNotice />
-        </SafeAreaProvider>
+        <AppErrorNotice withinSafeArea={true} />
+        </AppSafeAreaView>
       </Modal >
     )
   }

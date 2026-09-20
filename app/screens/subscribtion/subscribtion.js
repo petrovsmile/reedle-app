@@ -248,8 +248,9 @@ const Subscription = observer(class Subscription extends React.Component {
           transparent={true}
           visible={this.state.modal_yoo_kassa}
         >
-          <View activeOpacity={1} style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 40, borderRadius: 8 }}>
+          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View activeOpacity={1} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: appThemeStore.colors.surface, flex: 1, flexDirection: 'column', marginTop: 16, borderRadius: 8 }}>
               <View style={{ height: 56, flexDirection: 'row', justifyContent: 'flex-end', borderBottomColor: '#ddd', borderBottomWidth: 1 }}>
                 <TouchableOpacity onPress={() => this.closeYooKassa()} style={{ width: 32, height: 32, backgroundColor: appThemeStore.colors.backgroundLight, borderRadius: 8, margin: 8 }}>
                   <AppIcon icon={CloseIcon} size={24} color={appThemeStore.colors.text} style={{ margin: 8 }} />
@@ -283,6 +284,7 @@ const Subscription = observer(class Subscription extends React.Component {
               </View>
             </View>
           </View>
+          </AppSafeAreaView>
         </Modal>
 
         <ScrollView style={{ flex: 1 }} >

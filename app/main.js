@@ -35,7 +35,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRo
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaInsetsContext, SafeAreaView as ContextSafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
@@ -117,6 +117,12 @@ const appStore = new AppStore();
 const readerStore = new ReaderStore();
 const downloadStore = new DownloadStore();
 const homeStore = new HomeStore();
+
+// Modal content is rendered in a separate native host and therefore must own
+// its safe-area boundary instead of relying on the screen behind it.
+const AppSafeAreaView = (props) => (
+  <ContextSafeAreaView {...props} style={[{ flex: 1 }, props.style]} />
+);
 
 const advertisingConfig = new AdvertisingConfig(Platform.OS);
 let adSizeBig = null;

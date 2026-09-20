@@ -80,9 +80,10 @@ class ReaderSettings extends React.Component {
         animationType="fade"
         onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
         statusBarTranslucent={true}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}>
         <TouchableOpacity
           activeOpacity={1}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' }}
+          style={{ flex: 1 }}
           onPress={() => this.props.closeSettings && this.props.closeSettings()}>
           <TouchableWithoutFeedback onPress={() => { }}>
             <View style={{ position: 'absolute', right: 8, top: 40, width: 216 }}>
@@ -90,6 +91,7 @@ class ReaderSettings extends React.Component {
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>
+        </AppSafeAreaView>
       </Modal>
     );
   }

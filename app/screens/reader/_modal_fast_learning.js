@@ -7,7 +7,8 @@ class ModalFastLearning extends React.Component {
         transparent={true}
         visible={this.props.visible}>
 
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => this.props.close()}>
+        <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }} onPress={() => this.props.close()}>
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => { }}
@@ -54,6 +55,7 @@ class ModalFastLearning extends React.Component {
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
+        </AppSafeAreaView>
 
       </Modal>
     )

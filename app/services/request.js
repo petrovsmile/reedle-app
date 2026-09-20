@@ -38,7 +38,11 @@ class Request {
 
       try {
         if (method == 'get') {
-          var response = await axios.get(url, { signal: this.AbortSignal(5000), params: this.params });
+          var response = await axios.get(url, {
+            signal: this.AbortSignal(5000),
+            params: this.params,
+            headers: { Authorization: `Bearer ${API_TOKEN}` }
+          });
         }
 
         if (method == 'post') {
