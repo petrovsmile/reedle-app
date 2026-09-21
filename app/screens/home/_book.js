@@ -134,7 +134,7 @@ class BookStatusIcon extends React.Component {
         accessibilityLabel={this.props.title}
       >
         {this.state.showTitle &&
-          <View style={[{ position: 'absolute', bottom: 24, minWidth: 128, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, elevation: 5, zIndex: 10 }, { backgroundColor: app_theme_colors.tooltipBackground }, this.props.alignRight ? { right: 0 } : { left: 0 }]}>
+          <View style={[{ position: 'absolute', bottom: 24, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, elevation: 5, zIndex: 10 }, { backgroundColor: app_theme_colors.tooltipBackground }, this.props.alignRight ? { right: 0 } : { left: 0 }]}>
             <Text numberOfLines={1} style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>{this.props.title}</Text>
           </View>
         }
