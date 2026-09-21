@@ -27,6 +27,10 @@ allprojects {
         maven { url 'https://cboost.jfrog.io/artifactory/chartboost-ads/' }
         maven { url 'https://dl.appnext.com/' }
     }
+
+    configurations.configureEach {
+        resolutionStrategy.force 'io.appmetrica.analytics:analytics:8.5.0'
+    }
 }
 
 apply plugin: "com.facebook.react.rootproject"
