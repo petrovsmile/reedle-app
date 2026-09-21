@@ -260,14 +260,36 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
   displayBlocks(blocks) {
     var result = [];
+    var contractionSuffixes = ['s', 'm', 're', 've', 'd', 'll'];
+
     for (var index = 0; index < blocks.length; index++) {
       var block = blocks[index];
       var previousBlock = result[result.length - 1];
-      if ((block['v'] == "'s" || block['v'] == '’s') && previousBlock && previousBlock['w'] != undefined) {
+      var value = String(block['v'] || '');
+      var normalizedValue = value.replace(/’/g, "'").toLowerCase();
+      var nextBlock = blocks[index + 1];
+      var nextValue = nextBlock ? String(nextBlock['v'] || '') : '';
+      var normalizedNextValue = nextValue.replace(/’/g, "'").toLowerCase();
+      var followingBlock = blocks[index + 2];
+      var followingValue = followingBlock ? String(followingBlock['v'] || '').toLowerCase() : '';
+      var hasPreviousWord = previousBlock && previousBlock['w'] != undefined;
+      var isJoinedContraction = normalizedValue == "n't" || (
+        normalizedValue[0] == "'" && contractionSuffixes.includes(normalizedValue.slice(1))
+      );
+
+      // The parser may return a contraction as one token ("'re" / "n't")
+      // or split its apostrophe and ending into separate blocks.
+      if (hasPreviousWord && isJoinedContraction) {
         previousBlock['v'] += block['v'];
-      } else if ((block['v'] == "'" || block['v'] == '’') && blocks[index + 1] && blocks[index + 1]['v'] == 's' && previousBlock && previousBlock['w'] != undefined) {
-        previousBlock['v'] += block['v'] + blocks[index + 1]['v'];
+      } else if (hasPreviousWord && normalizedValue == "'" && contractionSuffixes.includes(normalizedNextValue)) {
+        previousBlock['v'] += block['v'] + nextBlock['v'];
         index++;
+      } else if (hasPreviousWord && normalizedValue == 'n' && normalizedNextValue == "'t") {
+        previousBlock['v'] += block['v'] + nextBlock['v'];
+        index++;
+      } else if (hasPreviousWord && normalizedValue == 'n' && normalizedNextValue == "'" && followingValue == 't') {
+        previousBlock['v'] += block['v'] + nextBlock['v'] + followingBlock['v'];
+        index += 2;
       } else {
         result.push({ ...block });
       }

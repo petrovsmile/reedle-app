@@ -76,7 +76,7 @@ class OAuthAuthorization {
     var expiresAt = Date.now() + 5 * 60 * 1000;
 
     while (attempt == this.webAttempt && Date.now() < expiresAt) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
 
       var user = await new Request('/api/v1/users/by_oauth_token', {

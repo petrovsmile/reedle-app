@@ -399,7 +399,7 @@ class OAuthAuthorization {
     var expiresAt = Date.now() + 5 * 60 * 1000;
 
     while (attempt == this.webAttempt && Date.now() < expiresAt) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
 
       var user = await new Request('/api/v1/users/by_oauth_token', {
@@ -5416,14 +5416,36 @@ const Paragraph = observer(class Paragraph extends React.Component {
 
   displayBlocks(blocks) {
     var result = [];
+    var contractionSuffixes = ['s', 'm', 're', 've', 'd', 'll'];
+
     for (var index = 0; index < blocks.length; index++) {
       var block = blocks[index];
       var previousBlock = result[result.length - 1];
-      if ((block['v'] == "'s" || block['v'] == '’s') && previousBlock && previousBlock['w'] != undefined) {
+      var value = String(block['v'] || '');
+      var normalizedValue = value.replace(/’/g, "'").toLowerCase();
+      var nextBlock = blocks[index + 1];
+      var nextValue = nextBlock ? String(nextBlock['v'] || '') : '';
+      var normalizedNextValue = nextValue.replace(/’/g, "'").toLowerCase();
+      var followingBlock = blocks[index + 2];
+      var followingValue = followingBlock ? String(followingBlock['v'] || '').toLowerCase() : '';
+      var hasPreviousWord = previousBlock && previousBlock['w'] != undefined;
+      var isJoinedContraction = normalizedValue == "n't" || (
+        normalizedValue[0] == "'" && contractionSuffixes.includes(normalizedValue.slice(1))
+      );
+
+      // The parser may return a contraction as one token ("'re" / "n't")
+      // or split its apostrophe and ending into separate blocks.
+      if (hasPreviousWord && isJoinedContraction) {
         previousBlock['v'] += block['v'];
-      } else if ((block['v'] == "'" || block['v'] == '’') && blocks[index + 1] && blocks[index + 1]['v'] == 's' && previousBlock && previousBlock['w'] != undefined) {
-        previousBlock['v'] += block['v'] + blocks[index + 1]['v'];
+      } else if (hasPreviousWord && normalizedValue == "'" && contractionSuffixes.includes(normalizedNextValue)) {
+        previousBlock['v'] += block['v'] + nextBlock['v'];
         index++;
+      } else if (hasPreviousWord && normalizedValue == 'n' && normalizedNextValue == "'t") {
+        previousBlock['v'] += block['v'] + nextBlock['v'];
+        index++;
+      } else if (hasPreviousWord && normalizedValue == 'n' && normalizedNextValue == "'" && followingValue == 't') {
+        previousBlock['v'] += block['v'] + nextBlock['v'] + followingBlock['v'];
+        index += 2;
       } else {
         result.push({ ...block });
       }
@@ -6551,31 +6573,31 @@ class Reader extends React.Component {
             />
 
             <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', alignItems: 'center', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 40, paddingBottom: 4, paddingTop: 4, flexShrink: 0, flexDirection: 'row' }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} />
                 </TouchableOpacity>
 
-                {this.state.pages == 1 ? (
-                  <View style={{ flex: 1 }}></View>
-                ) : (
-                  <Slider
-                    style={[{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }, Platform.OS === 'web' ? null : { height: 40, alignSelf: 'center' }]}
-                    value={this.state.percent}
-                    minimumValue={1}
-                    maximumValue={100}
-                    step={1}
-                    minimumTrackTintColor={app_theme_colors.red}
-                    maximumTrackTintColor={this.state.secondColorTheme}
-                    thumbImage={require("./app/images/reader/sliderThumb.png")}
-                    onValueChange={(value) => this.sliderValueChange(value)}
-                    onSlidingComplete={() => this.onSlidingComplete()}
-                  />
-                )}
+                <View style={{ height: 32, flex: 1, marginLeft: 4, marginRight: 4, alignItems: 'center' }}>
+                  {this.state.pages != 1 &&
+                    <Slider
+                      style={{ flex: 1, width: '100%' }}
+                      value={this.state.percent}
+                      minimumValue={1}
+                      maximumValue={100}
+                      step={1}
+                      minimumTrackTintColor={app_theme_colors.red}
+                      maximumTrackTintColor={this.state.secondColorTheme}
+                      thumbImage={require("./app/images/reader/sliderThumb.png")}
+                      onValueChange={(value) => this.sliderValueChange(value)}
+                      onSlidingComplete={() => this.onSlidingComplete()}
+                    />
+                  }
+                </View>
 
                 <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
-                  <View style={{ height: 32, width: 32, marginTop: 8, marginRight: 8, alignItems: 'center', justifyContent: 'center' }}>
-                    <AppIcon icon={SettingsIcon} size={24} color={this.state.textColorTheme || '#000000'} />
+                  <View style={{ height: 32, width: 32, alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon icon={SettingsIcon} size={24} color={this.state.textColorTheme || '#000000'} style={{ margin: 4 }} />
                   </View>
                 </TouchableWithoutFeedback>
 
@@ -6619,29 +6641,29 @@ class Reader extends React.Component {
                 }
               </View>
 
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', ...(Platform.OS === 'web' ? { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { height: 48 + safeAreaBottom, paddingBottom: safeAreaBottom, backgroundColor: this.state.backgroundColorTheme, borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 40, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', ...(Platform.OS === 'web' ? { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { height: 40 + safeAreaBottom, paddingBottom: safeAreaBottom, backgroundColor: this.state.backgroundColorTheme, borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
 
                 {this.state.page > 1 &&
-                  <TouchableOpacity onPress={() => this.prevPage()} style={{ padding: 8 }}>
+                  <TouchableOpacity onPress={() => this.prevPage()} style={{ padding: 4 }}>
                     <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == 1 &&
-                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 4 }} />
                 }
 
 
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                  <Text style={{ color: this.state.textColorTheme, lineHeight: 28, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  <Text style={{ color: this.state.textColorTheme, lineHeight: 32, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
                 </View>
 
                 {this.state.page < this.state.pages &&
-                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 8 }}>
+                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 4 }}>
                     <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == this.state.pages &&
-                  <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
+                  <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 4 }} />
                 }
 
               </View>

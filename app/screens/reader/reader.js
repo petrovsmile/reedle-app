@@ -931,31 +931,31 @@ class Reader extends React.Component {
             />
 
             <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', alignItems: 'center', ...(Platform.OS === 'web' ? { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 40, paddingBottom: 4, paddingTop: 4, flexShrink: 0, flexDirection: 'row' }, { backgroundColor: this.state.backgroundColorTheme, borderBottomWidth: 1, borderColor: this.state.secondColorTheme }]}>
                 <TouchableOpacity onPress={() => this.props.stack.navigation.goBack()}>
-                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} style={{ marginTop: 8, marginLeft: 8 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} />
                 </TouchableOpacity>
 
-                {this.state.pages == 1 ? (
-                  <View style={{ flex: 1 }}></View>
-                ) : (
-                  <Slider
-                    style={[{ flex: 1, marginLeft: 8, marginRight: 8, width: Dimensions.get('window').width - 100 }, Platform.OS === 'web' ? null : { height: 40, alignSelf: 'center' }]}
-                    value={this.state.percent}
-                    minimumValue={1}
-                    maximumValue={100}
-                    step={1}
-                    minimumTrackTintColor={app_theme_colors.red}
-                    maximumTrackTintColor={this.state.secondColorTheme}
-                    thumbImage={require("./app/images/reader/sliderThumb.png")}
-                    onValueChange={(value) => this.sliderValueChange(value)}
-                    onSlidingComplete={() => this.onSlidingComplete()}
-                  />
-                )}
+                <View style={{ height: 32, flex: 1, marginLeft: 4, marginRight: 4, alignItems: 'center' }}>
+                  {this.state.pages != 1 &&
+                    <Slider
+                      style={{ flex: 1, width: '100%' }}
+                      value={this.state.percent}
+                      minimumValue={1}
+                      maximumValue={100}
+                      step={1}
+                      minimumTrackTintColor={app_theme_colors.red}
+                      maximumTrackTintColor={this.state.secondColorTheme}
+                      thumbImage={require("./app/images/reader/sliderThumb.png")}
+                      onValueChange={(value) => this.sliderValueChange(value)}
+                      onSlidingComplete={() => this.onSlidingComplete()}
+                    />
+                  }
+                </View>
 
                 <TouchableWithoutFeedback onPress={() => this.openThemeSetting()}>
-                  <View style={{ height: 32, width: 32, marginTop: 8, marginRight: 8, alignItems: 'center', justifyContent: 'center' }}>
-                    <AppIcon icon={SettingsIcon} size={24} color={this.state.textColorTheme || '#000000'} />
+                  <View style={{ height: 32, width: 32, alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon icon={SettingsIcon} size={24} color={this.state.textColorTheme || '#000000'} style={{ margin: 4 }} />
                   </View>
                 </TouchableWithoutFeedback>
 
@@ -999,29 +999,29 @@ class Reader extends React.Component {
                 }
               </View>
 
-              <View style={[{ height: 48, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', ...(Platform.OS === 'web' ? { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { height: 48 + safeAreaBottom, paddingBottom: safeAreaBottom, backgroundColor: this.state.backgroundColorTheme, borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
+              <View style={[{ height: 40, flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between', ...(Platform.OS === 'web' ? { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2 } : {}) }, { height: 40 + safeAreaBottom, paddingBottom: safeAreaBottom, backgroundColor: this.state.backgroundColorTheme, borderTopWidth: 1, borderTopColor: this.state.secondColorTheme }]}>
 
                 {this.state.page > 1 &&
-                  <TouchableOpacity onPress={() => this.prevPage()} style={{ padding: 8 }}>
+                  <TouchableOpacity onPress={() => this.prevPage()} style={{ padding: 4 }}>
                     <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == 1 &&
-                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
+                  <AppIcon icon={ChevronLeftIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 4 }} />
                 }
 
 
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                  <Text style={{ color: this.state.textColorTheme, lineHeight: 28, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  <Text style={{ color: this.state.textColorTheme, lineHeight: 32, fontSize: 16 }}> {this.state.page} / {this.state.pages}</Text>
                 </View>
 
                 {this.state.page < this.state.pages &&
-                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 8 }}>
+                  <TouchableOpacity onPress={() => this.nextPage()} style={{ padding: 4 }}>
                     <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} />
                   </TouchableOpacity>
                 }
                 {this.state.page == this.state.pages &&
-                  <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 8 }} />
+                  <AppIcon icon={ChevronRightIcon} size={32} color={this.state.textColorTheme} opacity={0.3} style={{ margin: 4 }} />
                 }
 
               </View>

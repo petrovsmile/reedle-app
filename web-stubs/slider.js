@@ -14,13 +14,44 @@ export default function Slider({
   onSlidingStart,
   onSlidingComplete,
 }) {
+  const [liveValue, setLiveValue] = React.useState(value);
+  const liveValueRef = React.useRef(value);
+  const isSlidingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (isSlidingRef.current) return;
+
+    liveValueRef.current = value;
+    setLiveValue(value);
+  }, [value]);
+
   const range = maximumValue - minimumValue;
   const progress = range > 0
-    ? Math.max(0, Math.min(100, ((value - minimumValue) / range) * 100))
+    ? Math.max(0, Math.min(100, ((liveValue - minimumValue) / range) * 100))
     : 0;
 
   const emitValue = (event, callback) => {
     if (callback) callback(Number(event.currentTarget.value));
+  };
+
+  const startSliding = (event) => {
+    isSlidingRef.current = true;
+    emitValue(event, onSlidingStart);
+  };
+
+  const changeValue = (event) => {
+    var nextValue = Number(event.currentTarget.value);
+    if (nextValue === liveValueRef.current) return;
+
+    liveValueRef.current = nextValue;
+    setLiveValue(nextValue);
+    if (onValueChange) onValueChange(nextValue);
+  };
+
+  const completeSliding = (event) => {
+    changeValue(event);
+    isSlidingRef.current = false;
+    emitValue(event, onSlidingComplete);
   };
 
   return (
@@ -32,14 +63,15 @@ export default function Slider({
         min={minimumValue}
         max={maximumValue}
         step={step || 1}
-        value={value}
+        value={liveValue}
         disabled={disabled}
-        onChange={(event) => emitValue(event, onValueChange)}
-        onMouseDown={(event) => emitValue(event, onSlidingStart)}
-        onTouchStart={(event) => emitValue(event, onSlidingStart)}
-        onMouseUp={(event) => emitValue(event, onSlidingComplete)}
-        onTouchEnd={(event) => emitValue(event, onSlidingComplete)}
-        onKeyUp={(event) => emitValue(event, onSlidingComplete)}
+        onInput={changeValue}
+        onChange={changeValue}
+        onMouseDown={startSliding}
+        onTouchStart={startSliding}
+        onMouseUp={completeSliding}
+        onTouchEnd={completeSliding}
+        onKeyUp={completeSliding}
         style={{
           width: '100%',
           height: '100%',
