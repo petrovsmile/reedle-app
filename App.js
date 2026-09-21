@@ -2855,7 +2855,7 @@ const Book = observer(class Book extends React.Component {
 class BookStatusIcon extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { showTitle: false };
+    this.state = { showTitle: false, titleWidth: null };
   }
 
   componentWillUnmount() {
@@ -2890,6 +2890,16 @@ class BookStatusIcon extends React.Component {
     }
   }
 
+  setTitleWidth(event) {
+    var lines = event.nativeEvent.lines || [];
+    if (lines.length == 0) return;
+
+    var titleWidth = Math.ceil(lines[0].width) + 16;
+    if (titleWidth != this.state.titleWidth) {
+      this.setState({ titleWidth: titleWidth });
+    }
+  }
+
   render() {
     return (
       <TouchableOpacity
@@ -2898,8 +2908,18 @@ class BookStatusIcon extends React.Component {
         accessibilityRole="button"
         accessibilityLabel={this.props.title}
       >
+        {Platform.OS !== 'web' &&
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            onTextLayout={(event) => this.setTitleWidth(event)}
+            style={{ position: 'absolute', width: 1000, opacity: 0, fontSize: 14 }}
+          >
+            {this.props.title}
+          </Text>
+        }
         {this.state.showTitle &&
-          <View style={[{ position: 'absolute', bottom: 24, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, elevation: 5, zIndex: 10 }, { backgroundColor: app_theme_colors.tooltipBackground }, this.props.alignRight ? { right: 0 } : { left: 0 }]}>
+          <View style={[{ position: 'absolute', bottom: 24, minWidth: 128, width: Platform.OS === 'web' ? undefined : this.state.titleWidth, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, elevation: 5, zIndex: 10 }, { backgroundColor: app_theme_colors.tooltipBackground }, this.props.alignRight ? { right: 0 } : { left: 0 }]}>
             <Text numberOfLines={1} style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>{this.props.title}</Text>
           </View>
         }
