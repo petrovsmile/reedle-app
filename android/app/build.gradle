@@ -82,7 +82,7 @@ android {
         applicationId "com.read_en"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 93
+        versionCode 94
         versionName "2.0.0"
         missingDimensionStrategy "store", "play"
         resConfigs "ru", "en"
