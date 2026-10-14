@@ -57,7 +57,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -112,15 +112,25 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            shrinkResources enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             signingConfig signingConfigs.release
         }
     }
 }
 
+configurations.configureEach {
+    // The Play build uses Google Play Billing only. RevenueCat otherwise pulls in
+    // its Amazon Store module, whose consumer rules disable R8 optimization globally.
+    exclude group: "com.revenuecat.purchases", module: "purchases-store-amazon"
+    exclude group: "com.amazon.device", module: "amazon-appstore-sdk"
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // 1.14 avoids Android 15+ deprecated system-bar APIs in Material dialogs/sheets.
+    implementation("com.google.android.material:material:1.14.0")
     implementation(project(":appmetrica_react-native-analytics"))
 
     // Медиация отключена — используется только РСЯ (Yandex собственный инвентарь).

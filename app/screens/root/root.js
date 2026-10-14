@@ -473,7 +473,6 @@ class RootApp extends React.Component {
       <View style={{ flex: 1, backgroundColor: themeColors.background }}>
         <StatusBar
           barStyle={themeColors.text == '#ffffff' ? 'light-content' : 'dark-content'}
-          backgroundColor={themeColors.surface}
         />
         <TargetVersion />
         {this.state.confirm_conditions === null ? (
