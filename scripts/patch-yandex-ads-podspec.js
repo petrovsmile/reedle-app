@@ -4,6 +4,25 @@
 const fs = require('fs');
 const path = require('path');
 
+// RN 0.87's prebuilt React module does not expose RCTConvert+CoreLocation
+// to Swift. CLLocationDegrees is a Double, so read the JS numbers directly.
+const locationFactoryPath = path.join(
+  __dirname,
+  '../node_modules/yandex-mobile-ads/ios/Utils/Factory/LocationFactory.swift'
+);
+if (fs.existsSync(locationFactoryPath)) {
+  const source = fs.readFileSync(locationFactoryPath, 'utf8');
+  const patched = source
+    .replace('let latitude = dict[Constants.Key.latitude],', 'let latitude = dict[Constants.Key.latitude] as? NSNumber,')
+    .replace('let longitude = dict[Constants.Key.longitude]', 'let longitude = dict[Constants.Key.longitude] as? NSNumber')
+    .replace('RCTConvert.clLocationDegrees(latitude)', 'latitude.doubleValue')
+    .replace('RCTConvert.clLocationDegrees(longitude)', 'longitude.doubleValue');
+  if (source.includes('RCTConvert.clLocationDegrees(') && patched !== source) {
+    fs.writeFileSync(locationFactoryPath, patched, 'utf8');
+    console.log('[patch-yandex-ads] fixed coordinate conversion for prebuilt React');
+  }
+}
+
 const podspecPath = path.join(
   __dirname,
   '../node_modules/yandex-mobile-ads/yandex-mobile-ads.podspec'
