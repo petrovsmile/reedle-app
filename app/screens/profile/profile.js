@@ -48,9 +48,27 @@ class Profile extends React.Component {
     return this.state.book_colors[Math.abs(numeric_id) % this.state.book_colors.length];
   }
 
-  avatarLetters(email) {
-    var email_name = String(email || '').split('@')[0];
+  avatarLetters(user) {
+    var first_name = String(user.first_name || '').trim();
+    var last_name = String(user.last_name || '').trim();
+
+    if (first_name.length > 0 && last_name.length > 0) {
+      return (Array.from(last_name)[0] + Array.from(first_name)[0]).toUpperCase();
+    }
+
+    var email_name = String(user.email || '').split('@')[0];
     return email_name.replace(/[^a-zа-яё0-9]/gi, '').slice(0, 2).toUpperCase() || '?';
+  }
+
+  profileTitle(user) {
+    var first_name = String(user.first_name || '').trim();
+    var last_name = String(user.last_name || '').trim();
+
+    if (first_name.length > 0 && last_name.length > 0) {
+      return last_name + ' ' + first_name;
+    }
+
+    return user.email;
   }
 
   renderMenuItem(title, onPress, last) {
@@ -104,9 +122,9 @@ class Profile extends React.Component {
           ) : (
             <React.Fragment>
               <View style={[{ width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: this.avatarColor(current_user) }]}>
-                <Text style={{ color: app_theme_colors.inverseText, fontSize: 32, fontWeight: 'bold' }}>{this.avatarLetters(current_user.email)}</Text>
+                <Text style={{ color: app_theme_colors.inverseText, fontSize: 32, fontWeight: 'bold' }}>{this.avatarLetters(current_user)}</Text>
               </View>
-              <Text style={[{ marginTop: 16, marginBottom: 32, fontSize: 16, color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>{current_user.email}</Text>
+              <Text style={[{ marginTop: 16, marginBottom: 32, fontSize: 16, color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>{this.profileTitle(current_user)}</Text>
             </React.Fragment>
           )}
 
@@ -358,7 +376,7 @@ class ProfileDetails extends React.Component {
     return (
       <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView contentContainerStyle={profileStyles.section}>
-          <UpdateProfile current_user={current_user} />
+          <UpdateProfile current_user={current_user} root={this.props.root} />
 
           <Text style={[{ marginTop: 32, fontSize: 18, fontWeight: 'bold' }, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
           <Text style={{ marginTop: 8, marginBottom: 16, color: '#777' }}>Для быстрого входа в аккаунт</Text>

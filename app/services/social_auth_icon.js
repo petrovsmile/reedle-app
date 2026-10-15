@@ -5,5 +5,10 @@ const socialAuthIcons = {
 };
 
 function SocialAuthIcon({ name }) {
-  return <SocialAuthSvgXml xml={socialAuthIcons[name]} width={24} height={24} />;
+  var xml = socialAuthIcons[name].replace(
+    /\s(?:aria-hidden|focusable|data-prefix|data-icon|role|class)="[^"]*"/g,
+    ''
+  );
+
+  return <SocialAuthSvgXml xml={xml} width={24} height={24} />;
 }

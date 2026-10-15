@@ -139,6 +139,10 @@ module.exports = {
         alias: {
             // react-native → react-native-web
             'react-native$': 'react-native-web',
+            '@react-native/assets-registry/registry$': path.resolve(
+                __dirname,
+                'node_modules/react-native-web/dist/modules/AssetRegistry/index.js'
+            ),
 
             // Заглушки нативных модулей без веб-поддержки
             'react-native-fs': path.resolve(__dirname, 'web-stubs/react-native-fs.js'),
