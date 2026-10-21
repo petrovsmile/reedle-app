@@ -111,8 +111,6 @@ const Show = observer(class Show extends React.Component {
   async markAsRead() {
     var bookId = this.props.stack.route.params.book_id;
     await new Storage().set('percent_' + bookId, '100');
-    var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
-    this.props.root.setState({ books_percents: percents });
     appStore.setBooksPercents(Object.assign({}, appStore.books_percents, { [bookId]: 100 }));
     this.setState({ percent: 100, context_menu_visible: false });
   }
@@ -180,12 +178,12 @@ const Show = observer(class Show extends React.Component {
                 <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginRight: 15 }}>
                     <AppIcon icon={BookOpenIcon} size={20} color="#FFF" style={{ marginRight: 8 }} />
-                    <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{this.props.root.state.books_percents[this.props.stack.route.params.book_id]}%</Text>
+                    <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{appStore.books_percents[this.props.stack.route.params.book_id]}%</Text>
                   </View>
                 </View>
 
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
-                  {this.props.root.state.has_internet == true || this.state.have_file == true ? (
+                  {appStore.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
                       <AppIcon icon={ChevronRightIcon} size={28} color="#000" style={{ margin: 16 }} />
                     </TouchableOpacity>
@@ -196,7 +194,7 @@ const Show = observer(class Show extends React.Component {
 
                 {this.state.have_file == false &&
                   <View style={{ marginRight: 15 }}>
-                    {this.props.root.state.has_subscription == true ? (
+                    {appStore.has_subscription == true ? (
                       <ButtonRead
                         set_have_file={() => this.set_have_file()}
                         book_id={this.state.book.id} color={this.state.book.color}

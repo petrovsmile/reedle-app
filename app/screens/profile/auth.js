@@ -55,10 +55,10 @@ class Auth extends React.Component {
   }
 
   async login() {
-    var response = await new Request('/api/v1/users/login', {
+    var response = await new Request('/api/v2/users/login', {
       email: this.state.email,
       password: this.state.password
-    }).get();
+    }).post();
 
     this.setState({
       button_loader: false
@@ -77,11 +77,8 @@ class Auth extends React.Component {
         });
 
         appStore.setCurrentUser(response);
-        root_app.setState({
-          current_user: response
-        });
 
-        await new Storage().set('current_user', JSON.stringify(response));
+        await persistCurrentUser(response);
 
         await root_app.checkSubscription();
         if (this.props.onSuccess) await this.props.onSuccess(response);
@@ -91,7 +88,7 @@ class Auth extends React.Component {
   }
 
   async reg() {
-    var response = await new Request('/api/v1/users/registration', {
+    var response = await new Request('/api/v2/users/registration', {
       email: this.state.email,
       password: this.state.password,
       repeat_password: this.state.repeat_password
@@ -114,11 +111,8 @@ class Auth extends React.Component {
         });
 
         appStore.setCurrentUser(response);
-        root_app.setState({
-          current_user: response
-        });
 
-        await new Storage().set('current_user', JSON.stringify(response));
+        await persistCurrentUser(response);
 
         await root_app.checkSubscription();
         if (this.props.onSuccess) await this.props.onSuccess(response);
@@ -127,7 +121,7 @@ class Auth extends React.Component {
   }
 
   async remember_password() {
-    var response = await new Request('/api/v1/users/remember_password', {
+    var response = await new Request('/api/v2/users/remember_password', {
       email: this.state.email,
       password: this.state.password,
       repeat_password: this.state.repeat_password

@@ -24,7 +24,7 @@ class UpdateProfile extends React.Component {
       error: false,
     });
 
-    var response = await new Request('/api/v1/users/' + this.props.current_user.id, {
+    var response = await new Request('/api/v2/users/current', {
       first_name: this.state.first_name,
       last_name: this.state.last_name,
       email: this.state.email,
@@ -49,9 +49,8 @@ class UpdateProfile extends React.Component {
           email: this.state.email.trim().toLowerCase(),
         };
 
-        this.props.root.setState({ current_user: updated_user });
         appStore.setCurrentUser(updated_user);
-        await new Storage().set('current_user', JSON.stringify(updated_user));
+        await persistCurrentUser(updated_user);
 
         this.setState({
           first_name: updated_user.first_name || '',

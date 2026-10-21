@@ -1,4 +1,4 @@
-class Profile extends React.Component {
+const Profile = observer(class Profile extends React.Component {
   constructor(props) {
     super(props);
 
@@ -20,7 +20,7 @@ class Profile extends React.Component {
         this.setBookColors(cached_books);
       }
 
-      var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+      var server_books = await new Request('/api/v2/books', {}, { do_not_show_error: true }).get();
       if (server_books != false) this.setBookColors(server_books);
     } catch (error) {
       // У страницы всегда остаётся резервный цвет, даже если кэш книг повреждён.
@@ -87,14 +87,14 @@ class Profile extends React.Component {
   }
 
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
 
     return (
       <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
-          visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -153,7 +153,7 @@ class Profile extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});
 
 class ProfileMemory extends React.Component {
   constructor(props) {
@@ -300,7 +300,7 @@ class ProfileMemory extends React.Component {
   }
 }
 
-class ProfileDetails extends React.Component {
+const ProfileDetails = observer(class ProfileDetails extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -313,15 +313,12 @@ class ProfileDetails extends React.Component {
 
     this.setState({ social_loader: type });
     try {
-      var response = await new Request('/api/v1/users/social/' + type, {
-        user_id: this.props.root.state.current_user.id,
-      }).delete();
+      var response = await new Request('/api/v2/users/social/' + type, {}).delete();
 
       if (response == false || response.error != undefined) return;
 
       appStore.setCurrentUser(response);
-      this.props.root.setState({ current_user: response });
-      await new Storage().set('current_user', JSON.stringify(response));
+      await persistCurrentUser(response);
     } finally {
       this.setState({ social_loader: false });
     }
@@ -331,7 +328,7 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.props.root.oauthAuthorization.authorize(type, this.props.root.state.current_user.id);
+      this.props.root.oauthAuthorization.authorize(type);
     }
   }
 
@@ -355,22 +352,12 @@ class ProfileDetails extends React.Component {
   }
 
   async log_out() {
-    await new Storage().remove('current_user');
-    await new Storage().set('has_subscription', 'false');
-    await new Storage().set('subscription_info', JSON.stringify({}));
-
-    this.props.root.setState({
-      current_user: false,
-      has_subscription: false,
-      subscription_info: {},
-    });
-    appStore.setSubscription(false);
-    appStore.setSubscriptionInfo({});
-    appStore.setCurrentUser(false);
+    await new Request('/api/v2/users/logout', {}, { do_not_show_error: true }).delete();
+    await clearAuthenticationState();
   }
 
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
     if (current_user == false) return <Auth />;
 
     return (
@@ -397,11 +384,11 @@ class ProfileDetails extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});
 
-class ProfilePassword extends React.Component {
+const ProfilePassword = observer(class ProfilePassword extends React.Component {
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
     if (current_user == false) return <Auth />;
 
     return (
@@ -412,4 +399,4 @@ class ProfilePassword extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});

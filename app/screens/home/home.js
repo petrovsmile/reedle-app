@@ -100,7 +100,7 @@ const Home = observer(class Home extends React.Component {
       this.setState({
         books: books,
       }, async () => {
-        var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+        var server_books = await new Request('/api/v2/books', {}, { do_not_show_error: true }).get();
         if (server_books == false) {
           this.filter_books();
         } else {
@@ -204,9 +204,6 @@ const Home = observer(class Home extends React.Component {
         percents[book.id] = book.percent;
       });
 
-      this.props.root.setState({
-        books_percents: percents
-      });
       appStore.setBooksPercents(percents);
 
       this.setState({
@@ -245,6 +242,11 @@ const Home = observer(class Home extends React.Component {
   }
 
   goToSite() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.assign('https://reedle.ru');
+      return;
+    }
+
     Linking.openURL("https://reedle.ru");
   }
 
@@ -343,12 +345,16 @@ const Home = observer(class Home extends React.Component {
 
           <View style={homeStyles.header_empty_block} />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center', height: 32 }}>
+          <TouchableOpacity
+            accessibilityRole='link'
+            accessibilityLabel='Перейти на сайт Reedle'
+            onPress={() => this.goToSite()}
+            style={{ flexDirection: 'row', justifyContent: 'center', height: 32 }}>
             <Text style={[{ fontSize: 28, lineHeight: 32, fontFamily: 'LibreBaskerville-Regular', color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>Reedle</Text>
             <Text style={{ fontSize: 28, lineHeight: 32, color: app_theme_colors.red, fontFamily: 'LibreBaskerville-Regular' }}>.</Text>
-          </View>
+          </TouchableOpacity>
 
-          {(this.props.root.state.has_subscription == false) ? (
+          {(appStore.has_subscription == false) ? (
             <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Книги' })}>
               <AppIcon icon={MegaphoneOffIcon} size={24} style={{ padding: 4 }} color={appThemeStore.colors.text} />
             </TouchableOpacity>
@@ -468,7 +474,7 @@ const Home = observer(class Home extends React.Component {
               contentContainerStyle={{ paddingBottom: 104 }}
               data={visibleBooks}
               renderItem={(book) => <Book
-                books_percents={this.props.root.state.books_percents}
+                books_percents={appStore.books_percents}
                 book={book}
                 onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
                   book_id: book_id,

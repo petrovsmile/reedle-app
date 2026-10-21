@@ -52,7 +52,7 @@ class Dictionary extends React.Component {
   }
 
   openLearningFromHeader() {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({ auth_modal: true, auth_method: 'login' });
       return;
     }
@@ -79,7 +79,7 @@ class Dictionary extends React.Component {
   }
 
   async _getWords() {
-    if (this.props.root.state.current_user != false) {
+    if (appStore.current_user != false) {
       this.setState({
         do_not_find: false,
         words: [],
@@ -116,7 +116,7 @@ class Dictionary extends React.Component {
   }
 
   async getWordsFromServer() {
-    await SyncManager.syncWords(this.props.root.state.current_user.id);
+    await SyncManager.syncWords(appStore.current_user.id);
   }
 
   async deleteWord(data) {
@@ -131,7 +131,7 @@ class Dictionary extends React.Component {
     await new Storage().set('words_keys', JSON.stringify(words_keys));
     await new Storage().remove('word_' + data.original);
     await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
-    await SyncManager.flush(this.props.root.state.current_user.id);
+    await SyncManager.flush(appStore.current_user.id);
     await this.getWords();
   }
 
@@ -409,7 +409,7 @@ class Dictionary extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -420,7 +420,7 @@ class Dictionary extends React.Component {
           />
         </Modal>
 
-        {this.props.root.state.current_user == false ? (
+        {appStore.current_user == false ? (
           <View style={{ margin: 16, marginTop: 32 }}>
             <Text style={dictionaryStyles.auth_into}>
               Для того чтобы воспользоваться
@@ -453,7 +453,7 @@ class Dictionary extends React.Component {
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
 
-                  {this.props.root.state.has_subscription == false &&
+                  {appStore.has_subscription == false &&
                     <React.Fragment>
                       <Text>Вы использовали {this.state.words.length} из 30 слов</Text>
                       <View style={{ marginTop: 8, marginBottom: 8, backgroundColor: '#eee', borderRadius: 8, height: 16, overflow: 'hidden' }}>
@@ -570,6 +570,9 @@ class DictionaryLearning extends Dictionary {
     );
   }
 }
+
+const ObservedDictionaryLearning = observer(DictionaryLearning);
+const ObservedDictionary = observer(Dictionary);
 
 
 

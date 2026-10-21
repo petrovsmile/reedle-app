@@ -141,7 +141,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     var pesponse;
     try {
-      pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
+      pesponse = await new Request('/api/v2/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
     } catch (error) {
       if (requestId !== this.voiceoverRequestId) return;
     }

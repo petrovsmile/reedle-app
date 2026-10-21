@@ -1,4 +1,4 @@
-class Bookmarks extends React.Component {
+const Bookmarks = observer(class Bookmarks extends React.Component {
   constructor(props) {
     super(props);
 
@@ -37,7 +37,7 @@ class Bookmarks extends React.Component {
   }
 
   async _getBookmarks() {
-    if (this.props.root.state.current_user != false) {
+    if (appStore.current_user != false) {
       this.setState({
         do_not_find: false,
         bookmarks: [],
@@ -55,7 +55,7 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarksFromServer() {
-    await SyncManager.syncBookmarks(this.props.root.state.current_user.id);
+    await SyncManager.syncBookmarks(appStore.current_user.id);
   }
 
   async getBookmarksFromStorage() {
@@ -87,7 +87,7 @@ class Bookmarks extends React.Component {
     await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
     await new Storage().remove('bookmark_' + data.book_id);
     await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
-    await SyncManager.flush(this.props.root.state.current_user.id);
+    await SyncManager.flush(appStore.current_user.id);
     await this.getBookmarks();
   }
 
@@ -116,7 +116,7 @@ class Bookmarks extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -127,7 +127,7 @@ class Bookmarks extends React.Component {
           />
         </Modal>
 
-        {this.props.root.state.current_user == false ? (
+        {appStore.current_user == false ? (
           <View style={{ margin: 16, marginTop: 32 }}>
             <Text style={bookmarksStyles.auth_into}>
               Для того чтобы воспользоваться закладками,
@@ -183,7 +183,7 @@ class Bookmarks extends React.Component {
 
     )
   }
-}
+});
 
 
 function PreviewBookmarks() {

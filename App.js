@@ -145,7 +145,7 @@ const AppErrorNotice = observer(function AppErrorNotice() {
   var safeAreaRight = Platform.OS === 'web' ? 0 : (insets.right || 0);
   var safeAreaLeft = Platform.OS === 'web' ? 0 : (insets.left || 0);
   return (
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => typeof root_app !== 'undefined' && root_app ? root_app.closeError() : appStore.closeError()} style={{ position: 'absolute', top: safeAreaTop + 8, left: safeAreaLeft + 16, right: safeAreaRight + 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Закрыть уведомление об ошибке" onPress={() => appStore.closeError()} style={{ position: 'absolute', top: safeAreaTop + 8, left: safeAreaLeft + 16, right: safeAreaRight + 16, maxWidth: 568, alignSelf: 'center', zIndex: 100000000, elevation: 24, backgroundColor: app_theme_colors.red, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ flex: 1, padding: 8, justifyContent: 'center' }}>
         <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_title}</Text>
         {!!appStore.error_description && <Text style={{ color: app_theme_colors.inverseText, fontSize: 14, lineHeight: 20, includeFontPadding: false }}>{appStore.error_description}</Text>}
@@ -327,11 +327,11 @@ class OAuthAuthorization {
     this.webAttempt = 0;
   }
 
-  async authorize(type, user_id) {
+  async authorize(type) {
     this.rememberWebLocation();
     this.open();
 
-    await this.startWait(type, user_id);
+    await this.startWait(type);
   }
 
   rememberWebLocation() {
@@ -346,29 +346,24 @@ class OAuthAuthorization {
   }
 
   open() {
-    this.root.setState({
-      oauth_modal_show: true,
-    });
+    appStore.setOAuthModalShow(true);
   }
 
   close() {
     this.cancel();
-    this.root.setState({
-      oauth_modal_show: false,
-    });
+    appStore.setOAuthModalShow(false);
   }
 
   cancel() {
     this.webAttempt += 1;
   }
 
-  async startWait(type, user_id) {
+  async startWait(type) {
     var attempt = ++this.webAttempt;
     var isWeb = Platform.OS === 'web';
     var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     var platform = isWeb ? 'pwa' : 'app';
-    var params = user_id == undefined ? {} : { user_id: user_id };
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, params, {
+    var oauthResponse = await new Request('/api/v2/oauth/redirect_url', { oauth_client: type, platform: platform }, {
       do_not_show_error: false,
     }).get();
 
@@ -402,7 +397,7 @@ class OAuthAuthorization {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
 
-      var user = await new Request('/api/v1/users/by_oauth_token', {
+      var user = await new Request('/api/v2/users/by_oauth_token', {
         token: oauthResponse.session_token,
       }, {
         do_not_show_error: true,
@@ -433,7 +428,7 @@ class OAuthAuthorization {
     }
     if (!token) return;
 
-    var user = await new Request('/api/v1/users/by_oauth_token', {
+    var user = await new Request('/api/v2/users/by_oauth_token', {
       token: token,
     }).get();
 
@@ -442,21 +437,20 @@ class OAuthAuthorization {
   }
 
   async loadPwaUser() {
-    var user = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    var user = await new Request('/api/v2/users/current', {}, { do_not_show_error: true }).get();
     if (!user || user.error != undefined) return;
     await this.setCurrentUser(user, false);
   }
 
   async setCurrentUser(user, closeModal = true) {
     appStore.setCurrentUser(user);
-    this.root.setState({
-      current_user: user,
-      ...(closeModal ? { oauth_modal_show: false } : {}),
-    });
-    await new Storage().set('current_user', JSON.stringify(user));
+    if (closeModal) appStore.setOAuthModalShow(false);
+    await persistCurrentUser(user);
     this.root.checkSubscription();
   }
 }
+
+let pwaCsrfToken = null;
 
 class Request {
   constructor(url, params, options) {
@@ -488,20 +482,22 @@ class Request {
   AbortSignal(timeoutMs) {
     const abortController = new AbortController();
     setTimeout(() => abortController.abort(), timeoutMs || 0);
-  
+
     return abortController.signal;
   }
 
   async makeRequest(method) {
     if (appStore.has_internet) {
       let url = HOST + this.url;
+      var headers = await this.authorizationHeaders();
 
       try {
         if (method == 'get') {
           var response = await axios.get(url, {
-            signal: this.AbortSignal(5000),
+            signal: this.AbortSignal(10_000),
             params: this.params,
-            headers: { Authorization: `Bearer ${API_TOKEN}` }
+            headers: headers,
+            withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
           });
         }
 
@@ -509,8 +505,9 @@ class Request {
           var response = await axios.post(url,
             this.params,
             {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` }
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
             }
           );
         }
@@ -519,8 +516,9 @@ class Request {
           var response = await axios.put(url,
             this.params,
             {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` }
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
             }
           );
         }
@@ -528,8 +526,9 @@ class Request {
         if (method == 'delete') {
           var response = await axios.delete(url,
             {
-              signal: this.AbortSignal(5000),
-              headers: { Authorization: `Bearer ${API_TOKEN}` },
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true,
               data: this.params
             },
           );
@@ -537,12 +536,16 @@ class Request {
 
 
         var data = response.data['response'] != undefined ? response.data['response'] : response.data;
+        this.captureCsrfToken(response);
+        await this.captureAccessToken(data);
         if (this.options.detailed_response == true) {
           return { ok: true, status: response.status, data: data };
         }
         return data;
 
       } catch (e) {
+        this.captureCsrfToken(e.response);
+        await this.handleAuthorizationError(e, headers);
         if (this.options.do_not_show_error != true) {
           appStore.showError('Нет подключения к серверу', this.options.desciption_error);
         }
@@ -565,6 +568,42 @@ class Request {
       }
       return false;
     }
+  }
+
+  async authorizationHeaders() {
+    var headers = { 'X-Client-Platform': Platform.OS };
+
+    if (Platform.OS === 'web') {
+      if (pwaCsrfToken) headers['X-CSRF-Token'] = pwaCsrfToken;
+      return headers;
+    }
+
+    var accessToken = await new Storage().get('access_token');
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return headers;
+  }
+
+  async captureAccessToken(data) {
+    if (!data || !data.access_token) return;
+
+    if (Platform.OS !== 'web') {
+      await new Storage().set('access_token', data.access_token);
+    }
+    delete data.access_token;
+  }
+
+  captureCsrfToken(response) {
+    if (Platform.OS !== 'web' || !response || !response.headers) return;
+
+    var token = response.headers['x-csrf-token'];
+    if (token) pwaCsrfToken = token;
+  }
+
+  async handleAuthorizationError(error, headers) {
+    if (!error.response || error.response.status != 401) return;
+    if (!headers.Authorization && Platform.OS !== 'web') return;
+
+    await clearAuthenticationState();
   }
 }
 
@@ -743,13 +782,31 @@ class Storage {
   }
 }
 
+async function persistCurrentUser(user) {
+  var storage = new Storage();
+  await storage.set('current_user', JSON.stringify(user));
+}
+
+async function clearAuthenticationState() {
+  var storage = new Storage();
+
+  await storage.remove('access_token');
+  await storage.remove('current_user');
+  await storage.set('has_subscription', 'false');
+  await storage.set('subscription_info', JSON.stringify({}));
+
+  appStore.setCurrentUser(false);
+  appStore.setSubscription(false);
+  appStore.setSubscriptionInfo({});
+}
+
 // ==================== AppStore ====================
 class AppStore {
   has_internet = true;
   has_subscription = false;
   subscription_info = {};
   current_user = false;
-  confirm_conditions = true;
+  confirm_conditions = null;
   books_percents = {};
   books_order = [];
   error_show = false;
@@ -757,6 +814,7 @@ class AppStore {
   error_description = '';
   type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
   show_subsription = false;
+  oauth_modal_show = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -772,13 +830,9 @@ class AppStore {
   setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
   setTypePayment(value) { this.type_payment = value; }
   setShowSubscription(value) { this.show_subsription = value; }
+  setOAuthModalShow(value) { this.oauth_modal_show = value; }
 
   showError(title, description) {
-    if (typeof root_app !== 'undefined' && root_app) {
-      root_app.showError(title, description);
-      return;
-    }
-
     this.error_show = true;
     this.error_title = title;
     this.error_description = description;
@@ -1008,7 +1062,7 @@ class DownloadStore {
     AppMetrica.reportEvent('loader', { status: 'start' });
 
     try {
-      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
+      var files = await new Request('/api/v2/books/download_list', { book_id: book.id }).get();
       if (!files || files.length === 0) throw new Error('download_list is empty');
 
       await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
@@ -1089,6 +1143,7 @@ class SyncManager {
     operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
     operations.push({
       operation_id: this.operationId(),
+      owner_id: appStore.current_user ? appStore.current_user.id : null,
       entity: entity,
       entity_key: key,
       action: action,
@@ -1104,23 +1159,29 @@ class SyncManager {
     return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
   }
 
-  static async flush(user_id) {
+  static async flush(owner_id) {
     if (this._flush_promise != null) return this._flush_promise;
-    this._flush_promise = this._flush(user_id).finally(() => { this._flush_promise = null; });
+    this._flush_promise = this._flush(owner_id).finally(() => { this._flush_promise = null; });
     return this._flush_promise;
   }
 
-  static async _flush(user_id) {
+  static async _flush(owner_id) {
     var operations = await this.operations();
     var startedOperationIds = operations.map(operation => operation.operation_id);
     var remaining = [];
 
     for (var operation of operations) {
-      var result = await this.send(operation, user_id);
+      var ownerId = operation.owner_id || owner_id;
+      if (String(ownerId) != String(owner_id)) {
+        remaining.push(operation);
+        continue;
+      }
+
+      var result = await this.send(operation);
       if (!result.ok && result.status == 409 && result.data && result.data.item) {
         operation.base_version = result.data.item.version;
         operation.operation_id = this.operationId();
-        result = await this.send(operation, user_id);
+        result = await this.send(operation);
       }
 
       if (result.ok) {
@@ -1149,10 +1210,9 @@ class SyncManager {
     return remaining.length == 0;
   }
 
-  static async send(operation, user_id) {
-    var url = operation.entity == 'bookmark' ? '/api/v1/bookmarks' : '/api/v1/dictionary/words';
+  static async send(operation) {
+    var url = operation.entity == 'bookmark' ? '/api/v2/bookmarks' : '/api/v2/dictionary/words';
     var params = Object.assign({}, operation.payload, {
-      user_id: user_id,
       operation_id: operation.operation_id
     });
     if (operation.base_version != undefined && operation.base_version != null) {
@@ -1176,11 +1236,10 @@ class SyncManager {
     await new Storage().set(key, JSON.stringify(stored));
   }
 
-  static async syncBookmarks(user_id) {
+  static async syncBookmarks(owner_id) {
     await this.migrateLegacyBookmarks();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/bookmarks', {
-      user_id: user_id,
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/bookmarks', {
       include_deleted: true
     }, { do_not_show_error: true, detailed_response: true }).get();
     if (!response.ok) return null;
@@ -1215,11 +1274,10 @@ class SyncManager {
     return keys;
   }
 
-  static async syncWords(user_id) {
+  static async syncWords(owner_id) {
     await this.migrateLegacyWords();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/dictionary/words', {
-      user_id: user_id,
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/dictionary/words', {
       include_deleted: true
     }, { do_not_show_error: true, detailed_response: true }).get();
     if (!response.ok) return null;
@@ -1443,14 +1501,13 @@ let adSizeMini = null;
 const AD_UNIT_BANNER = advertisingConfig.bannerUnitId;
 const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
 
-const CURRENT_IOS_VERSION = '2.0.0'
-const CURRENT_ANDROID_VERSION = '2.0.0'
+const CURRENT_IOS_VERSION = '2.0.1'
+const CURRENT_ANDROID_VERSION = '2.0.1'
 const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
 //const HOST = "https://reedle.ru"
-//const HOST="https://stage.reedle.ru" 
-const HOST = "http://localhost:3000"
-const API_TOKEN = 'yzniq0zn5ygrlg0i3gd1mdi41n3nyycza17dl6tpwdskfo9b50';
+const HOST = "https://stage.reedle.ru"
+//const HOST = "http://localhost:3000"
 
 const app_theme_colors = {
   background: "#FFF",
@@ -1736,7 +1793,7 @@ class Blog extends React.Component {
     this.setState(page > 1 ? { loadingMore: true } : (refreshing ? { refreshing: true } : { loading: true }));
 
     try {
-      var result = await new Request('/api/v1/articles', { page: page }, { do_not_show_error: true }).get();
+      var result = await new Request('/api/v2/articles', { page: page }, { do_not_show_error: true }).get();
       if (!result || !Array.isArray(result.items) || !result.pagination) throw new Error('Invalid articles response');
       this.setState({
         articles: page == 1 ? result.items : this.state.articles.concat(result.items),
@@ -1825,7 +1882,7 @@ class BlogArticle extends React.Component {
   }
 
   async componentDidMount() {
-    var article = await new Request('/api/v1/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
+    var article = await new Request('/api/v2/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
     this.setState({ article: article || null, loading: false });
   }
 
@@ -1948,7 +2005,7 @@ class BookmarkStack extends React.Component {
   }
 }
 
-class Bookmarks extends React.Component {
+const Bookmarks = observer(class Bookmarks extends React.Component {
   constructor(props) {
     super(props);
 
@@ -1987,7 +2044,7 @@ class Bookmarks extends React.Component {
   }
 
   async _getBookmarks() {
-    if (this.props.root.state.current_user != false) {
+    if (appStore.current_user != false) {
       this.setState({
         do_not_find: false,
         bookmarks: [],
@@ -2005,7 +2062,7 @@ class Bookmarks extends React.Component {
   }
 
   async getBookmarksFromServer() {
-    await SyncManager.syncBookmarks(this.props.root.state.current_user.id);
+    await SyncManager.syncBookmarks(appStore.current_user.id);
   }
 
   async getBookmarksFromStorage() {
@@ -2037,7 +2094,7 @@ class Bookmarks extends React.Component {
     await new Storage().set('bookmarks_keys', JSON.stringify(bookmarks_keys));
     await new Storage().remove('bookmark_' + data.book_id);
     await SyncManager.enqueue('bookmark', 'delete', { book_id: data.book_id }, data.version);
-    await SyncManager.flush(this.props.root.state.current_user.id);
+    await SyncManager.flush(appStore.current_user.id);
     await this.getBookmarks();
   }
 
@@ -2066,7 +2123,7 @@ class Bookmarks extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -2077,7 +2134,7 @@ class Bookmarks extends React.Component {
           />
         </Modal>
 
-        {this.props.root.state.current_user == false ? (
+        {appStore.current_user == false ? (
           <View style={{ margin: 16, marginTop: 32 }}>
             <Text style={bookmarksStyles.auth_into}>
               Для того чтобы воспользоваться закладками,
@@ -2133,7 +2190,7 @@ class Bookmarks extends React.Component {
 
     )
   }
-}
+});
 
 
 function PreviewBookmarks() {
@@ -2219,7 +2276,7 @@ class Dictionary extends React.Component {
   }
 
   openLearningFromHeader() {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({ auth_modal: true, auth_method: 'login' });
       return;
     }
@@ -2246,7 +2303,7 @@ class Dictionary extends React.Component {
   }
 
   async _getWords() {
-    if (this.props.root.state.current_user != false) {
+    if (appStore.current_user != false) {
       this.setState({
         do_not_find: false,
         words: [],
@@ -2283,7 +2340,7 @@ class Dictionary extends React.Component {
   }
 
   async getWordsFromServer() {
-    await SyncManager.syncWords(this.props.root.state.current_user.id);
+    await SyncManager.syncWords(appStore.current_user.id);
   }
 
   async deleteWord(data) {
@@ -2298,7 +2355,7 @@ class Dictionary extends React.Component {
     await new Storage().set('words_keys', JSON.stringify(words_keys));
     await new Storage().remove('word_' + data.original);
     await SyncManager.enqueue('word', 'delete', { original: data.original }, data.version);
-    await SyncManager.flush(this.props.root.state.current_user.id);
+    await SyncManager.flush(appStore.current_user.id);
     await this.getWords();
   }
 
@@ -2576,7 +2633,7 @@ class Dictionary extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -2587,7 +2644,7 @@ class Dictionary extends React.Component {
           />
         </Modal>
 
-        {this.props.root.state.current_user == false ? (
+        {appStore.current_user == false ? (
           <View style={{ margin: 16, marginTop: 32 }}>
             <Text style={dictionaryStyles.auth_into}>
               Для того чтобы воспользоваться
@@ -2620,7 +2677,7 @@ class Dictionary extends React.Component {
               <View style={{ flex: 1, flexDirection: 'column' }}>
                 <View style={{ padding: 8 }}>
 
-                  {this.props.root.state.has_subscription == false &&
+                  {appStore.has_subscription == false &&
                     <React.Fragment>
                       <Text>Вы использовали {this.state.words.length} из 30 слов</Text>
                       <View style={{ marginTop: 8, marginBottom: 8, backgroundColor: '#eee', borderRadius: 8, height: 16, overflow: 'hidden' }}>
@@ -2737,6 +2794,9 @@ class DictionaryLearning extends Dictionary {
     );
   }
 }
+
+const ObservedDictionaryLearning = observer(DictionaryLearning);
+const ObservedDictionary = observer(Dictionary);
 
 
 
@@ -3036,7 +3096,7 @@ const Home = observer(class Home extends React.Component {
       this.setState({
         books: books,
       }, async () => {
-        var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+        var server_books = await new Request('/api/v2/books', {}, { do_not_show_error: true }).get();
         if (server_books == false) {
           this.filter_books();
         } else {
@@ -3140,9 +3200,6 @@ const Home = observer(class Home extends React.Component {
         percents[book.id] = book.percent;
       });
 
-      this.props.root.setState({
-        books_percents: percents
-      });
       appStore.setBooksPercents(percents);
 
       this.setState({
@@ -3181,6 +3238,11 @@ const Home = observer(class Home extends React.Component {
   }
 
   goToSite() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.assign('https://reedle.ru');
+      return;
+    }
+
     Linking.openURL("https://reedle.ru");
   }
 
@@ -3279,12 +3341,16 @@ const Home = observer(class Home extends React.Component {
 
           <View style={homeStyles.header_empty_block} />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center', height: 32 }}>
+          <TouchableOpacity
+            accessibilityRole='link'
+            accessibilityLabel='Перейти на сайт Reedle'
+            onPress={() => this.goToSite()}
+            style={{ flexDirection: 'row', justifyContent: 'center', height: 32 }}>
             <Text style={[{ fontSize: 28, lineHeight: 32, fontFamily: 'LibreBaskerville-Regular', color: app_theme_colors.text }, { color: appThemeStore.colors.text }]}>Reedle</Text>
             <Text style={{ fontSize: 28, lineHeight: 32, color: app_theme_colors.red, fontFamily: 'LibreBaskerville-Regular' }}>.</Text>
-          </View>
+          </TouchableOpacity>
 
-          {(this.props.root.state.has_subscription == false) ? (
+          {(appStore.has_subscription == false) ? (
             <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('subscription', { backTitle: 'Книги' })}>
               <AppIcon icon={MegaphoneOffIcon} size={24} style={{ padding: 4 }} color={appThemeStore.colors.text} />
             </TouchableOpacity>
@@ -3404,7 +3470,7 @@ const Home = observer(class Home extends React.Component {
               contentContainerStyle={{ paddingBottom: 104 }}
               data={visibleBooks}
               renderItem={(book) => <Book
-                books_percents={this.props.root.state.books_percents}
+                books_percents={appStore.books_percents}
                 book={book}
                 onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
                   book_id: book_id,
@@ -3502,7 +3568,7 @@ class ChangePassword extends React.Component {
   }
 
   async update() {
-    var response = await new Request('/api/v1/users/' + this.props.current_user.id + '/update_password', {
+    var response = await new Request('/api/v2/users/current/password', {
       password: this.state.password,
       repeat_password: this.state.repeat_password
     }).put();
@@ -3615,7 +3681,7 @@ class UpdateProfile extends React.Component {
       error: false,
     });
 
-    var response = await new Request('/api/v1/users/' + this.props.current_user.id, {
+    var response = await new Request('/api/v2/users/current', {
       first_name: this.state.first_name,
       last_name: this.state.last_name,
       email: this.state.email,
@@ -3640,9 +3706,8 @@ class UpdateProfile extends React.Component {
           email: this.state.email.trim().toLowerCase(),
         };
 
-        this.props.root.setState({ current_user: updated_user });
         appStore.setCurrentUser(updated_user);
-        await new Storage().set('current_user', JSON.stringify(updated_user));
+        await persistCurrentUser(updated_user);
 
         this.setState({
           first_name: updated_user.first_name || '',
@@ -3785,10 +3850,10 @@ class Auth extends React.Component {
   }
 
   async login() {
-    var response = await new Request('/api/v1/users/login', {
+    var response = await new Request('/api/v2/users/login', {
       email: this.state.email,
       password: this.state.password
-    }).get();
+    }).post();
 
     this.setState({
       button_loader: false
@@ -3807,11 +3872,8 @@ class Auth extends React.Component {
         });
 
         appStore.setCurrentUser(response);
-        root_app.setState({
-          current_user: response
-        });
 
-        await new Storage().set('current_user', JSON.stringify(response));
+        await persistCurrentUser(response);
 
         await root_app.checkSubscription();
         if (this.props.onSuccess) await this.props.onSuccess(response);
@@ -3821,7 +3883,7 @@ class Auth extends React.Component {
   }
 
   async reg() {
-    var response = await new Request('/api/v1/users/registration', {
+    var response = await new Request('/api/v2/users/registration', {
       email: this.state.email,
       password: this.state.password,
       repeat_password: this.state.repeat_password
@@ -3844,11 +3906,8 @@ class Auth extends React.Component {
         });
 
         appStore.setCurrentUser(response);
-        root_app.setState({
-          current_user: response
-        });
 
-        await new Storage().set('current_user', JSON.stringify(response));
+        await persistCurrentUser(response);
 
         await root_app.checkSubscription();
         if (this.props.onSuccess) await this.props.onSuccess(response);
@@ -3857,7 +3916,7 @@ class Auth extends React.Component {
   }
 
   async remember_password() {
-    var response = await new Request('/api/v1/users/remember_password', {
+    var response = await new Request('/api/v2/users/remember_password', {
       email: this.state.email,
       password: this.state.password,
       repeat_password: this.state.repeat_password
@@ -4042,7 +4101,7 @@ class Auth extends React.Component {
   }
 }
 
-class Profile extends React.Component {
+const Profile = observer(class Profile extends React.Component {
   constructor(props) {
     super(props);
 
@@ -4064,7 +4123,7 @@ class Profile extends React.Component {
         this.setBookColors(cached_books);
       }
 
-      var server_books = await new Request('/api/v1/books', {}, { do_not_show_error: true }).get();
+      var server_books = await new Request('/api/v2/books', {}, { do_not_show_error: true }).get();
       if (server_books != false) this.setBookColors(server_books);
     } catch (error) {
       // У страницы всегда остаётся резервный цвет, даже если кэш книг повреждён.
@@ -4131,14 +4190,14 @@ class Profile extends React.Component {
   }
 
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
 
     return (
       <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
-          visible={this.state.auth_modal && current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth
@@ -4197,7 +4256,7 @@ class Profile extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});
 
 class ProfileMemory extends React.Component {
   constructor(props) {
@@ -4344,7 +4403,7 @@ class ProfileMemory extends React.Component {
   }
 }
 
-class ProfileDetails extends React.Component {
+const ProfileDetails = observer(class ProfileDetails extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -4357,15 +4416,12 @@ class ProfileDetails extends React.Component {
 
     this.setState({ social_loader: type });
     try {
-      var response = await new Request('/api/v1/users/social/' + type, {
-        user_id: this.props.root.state.current_user.id,
-      }).delete();
+      var response = await new Request('/api/v2/users/social/' + type, {}).delete();
 
       if (response == false || response.error != undefined) return;
 
       appStore.setCurrentUser(response);
-      this.props.root.setState({ current_user: response });
-      await new Storage().set('current_user', JSON.stringify(response));
+      await persistCurrentUser(response);
     } finally {
       this.setState({ social_loader: false });
     }
@@ -4375,7 +4431,7 @@ class ProfileDetails extends React.Component {
     if (connected) {
       this.disconnectSocial(type);
     } else {
-      this.props.root.oauthAuthorization.authorize(type, this.props.root.state.current_user.id);
+      this.props.root.oauthAuthorization.authorize(type);
     }
   }
 
@@ -4399,22 +4455,12 @@ class ProfileDetails extends React.Component {
   }
 
   async log_out() {
-    await new Storage().remove('current_user');
-    await new Storage().set('has_subscription', 'false');
-    await new Storage().set('subscription_info', JSON.stringify({}));
-
-    this.props.root.setState({
-      current_user: false,
-      has_subscription: false,
-      subscription_info: {},
-    });
-    appStore.setSubscription(false);
-    appStore.setSubscriptionInfo({});
-    appStore.setCurrentUser(false);
+    await new Request('/api/v2/users/logout', {}, { do_not_show_error: true }).delete();
+    await clearAuthenticationState();
   }
 
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
     if (current_user == false) return <Auth />;
 
     return (
@@ -4441,11 +4487,11 @@ class ProfileDetails extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});
 
-class ProfilePassword extends React.Component {
+const ProfilePassword = observer(class ProfilePassword extends React.Component {
   render() {
-    var current_user = this.props.root.state.current_user;
+    var current_user = appStore.current_user;
     if (current_user == false) return <Auth />;
 
     return (
@@ -4456,7 +4502,7 @@ class ProfilePassword extends React.Component {
       </AppSafeAreaView>
     );
   }
-}
+});
 
 class ProfileStack extends React.Component {
   render() {
@@ -4908,7 +4954,7 @@ const ModalTranslateWord = observer(class ModalTranslateWord extends React.Compo
 
     var pesponse;
     try {
-      pesponse = await new Request('/api/v1/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
+      pesponse = await new Request('/api/v2/books/voiceover_url_by_word', { original: original }, { do_not_show_error: true }).get();
     } catch (error) {
       if (requestId !== this.voiceoverRequestId) return;
     }
@@ -5732,7 +5778,7 @@ class ReaderSettings extends React.Component {
 var scroll_percent = 0;
 
 
-class Reader extends React.Component {
+const Reader = observer(class Reader extends React.Component {
   constructor(props) {
     super(props);
 
@@ -5935,7 +5981,7 @@ class Reader extends React.Component {
   async openPage(first_load) {
     var open_page = true;
 
-    if (this.have_file == false && this.props.root.state.has_internet == false) {
+    if (this.have_file == false && appStore.has_internet == false) {
       open_page = false;
       AppAlert.alert('Отсутствует подключение к интернету');
     }
@@ -5978,7 +6024,7 @@ class Reader extends React.Component {
       }
 
       if (paragraphs.length != 0) {
-        if (this.props.root.state.has_subscription == false) {
+        if (appStore.has_subscription == false) {
           if (paragraphs.length > 3) paragraphs.splice(3, 0, { _type: 'ad', _key: 'ad_3' });
           if (paragraphs.length > 8) paragraphs.splice(8, 0, { _type: 'ad', _key: 'ad_8' });
         }
@@ -6052,7 +6098,7 @@ class Reader extends React.Component {
   }
 
   async checkAd() {
-    if (this.props.root.state.has_internet == true && this.props.root.state.has_subscription == false) {
+    if (appStore.has_internet == true && appStore.has_subscription == false) {
       var time_ad = await new Storage().get('time_ad');
 
       if (time_ad == undefined) {
@@ -6245,12 +6291,9 @@ class Reader extends React.Component {
 
     await new Storage().set('percent_' + this.props.stack.route.params.book_id, percent.toString());
 
-    var percents = this.props.root.state.books_percents;
-    percents[this.props.stack.route.params.book_id] = percent;
-
-    this.props.root.setState({
-      books_percents: percents,
-    });
+    appStore.setBooksPercents(Object.assign({}, appStore.books_percents, {
+      [this.props.stack.route.params.book_id]: percent,
+    }));
 
     this.setState({
       percent: percent,
@@ -6542,14 +6585,14 @@ class Reader extends React.Component {
           openSubscription={() => this.openSubscription()}
           openAuthModal={() => this.openAuthModal()}
           setBookmark={(value) => this.setBookmark(value)}
-          current_user={this.props.root.state.current_user}
+          current_user={appStore.current_user}
           page={this.state.page}
           book_name={this.book_name}
           book_name_en={this.book_name_en}
           voiceover={this.book_voiceover}
           book_id={this.props.stack.route.params.book_id}
           percent={this.state.percent}
-          has_internet={this.props.root.state.has_internet}
+          has_internet={appStore.has_internet}
         />
       </View>
     );
@@ -6593,7 +6636,7 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+              visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
               onRequestClose={() => this.setState({ auth_modal: false })}
               onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth
@@ -6611,7 +6654,7 @@ class Reader extends React.Component {
               </View>
             }
 
-            {(this.state.showAdInfo && this.props.root.state.has_subscription == false) &&
+            {(this.state.showAdInfo && appStore.has_subscription == false) &&
               <TouchableOpacity style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '120%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 }} onPress={() => this.closeAdInfo()}>
                 <TouchableWithoutFeedback>
                   <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', paddingBottom: safeAreaBottom, backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
@@ -6640,21 +6683,21 @@ class Reader extends React.Component {
               close={() => this.closeTraining()} />
 
             <ModalTranslateSentence
-              has_subscription={this.props.root.state.has_subscription}
+              has_subscription={appStore.has_subscription}
               translate={this.modalTranslateSentence}
               visible={this.state.showTranslateSentence}
               close={() => this.closeTranslateSentence()} />
 
             <ModalTranslateWord
-              current_user={this.props.root.state.current_user}
-              has_subscription={this.props.root.state.has_subscription}
+              current_user={appStore.current_user}
+              has_subscription={appStore.has_subscription}
               original={this.modalTranslateWordOriginal}
               transcription={this.modalTranslateWordTranscription}
               translate={this.modalTranslateWordTranslate}
               word_in_dictionary={this.state.word_in_dictionary}
               visible={this.state.showTranslateWord}
               onDismiss={() => this.showPendingAuthModal()}
-              has_internet={this.props.root.state.has_internet}
+              has_internet={appStore.has_internet}
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
@@ -6765,7 +6808,7 @@ class Reader extends React.Component {
       </React.Fragment>
     )
   }
-};
+});
 
 const TargetVersion = observer(class TargetVersion extends React.Component {
   constructor(props) {
@@ -6780,7 +6823,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
   async componentDidMount() {
     if (appStore.has_internet == true) {
-      var response = await new Request('/api/v1/target_version', {}, { do_not_show_error: true }).get();
+      var response = await new Request('/api/v2/target_version', {}, { do_not_show_error: true }).get();
 
       if (response != false) {
         if (Platform.OS === 'ios') {
@@ -6982,7 +7025,7 @@ const appLinking = {
   },
 };
 
-class RootApp extends React.Component {
+const RootApp = observer(class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
@@ -6992,23 +7035,9 @@ class RootApp extends React.Component {
     this.restoreWebLocationAfterOAuth();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
-    this.state = {
-      has_internet: true,
-      has_subscription: false,
-      subscription_info: {},
-      current_user: false,
-      confirm_conditions: null, // null = ещё не загружено из Storage
-      books_percents: {},
-
-      error_show: false,
-      error_title: '',
-      error_description: '',
-      oauth_modal_show: false,
-      type_payment: Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa'
-    }
-
-    this.notification_timer;
     this._checkingSubscription = false;
+    this._webSessionRequest = null;
+    this._nativeSessionRequest = null;
   }
 
   restoreWebLocationAfterOAuth() {
@@ -7034,7 +7063,35 @@ class RootApp extends React.Component {
 
     var bookMatch = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
     if (bookMatch) {
-      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+      var params = { book_id: bookMatch[1] };
+      if (bookMatch[2]) {
+        var locationParams = new URLSearchParams(window.location.search);
+        var page = parseInt(locationParams.get('page'), 10);
+        var paragraphMatch = window.location.hash.match(/^#paragraph_(\d+)$/);
+        if (page > 0) {
+          params.bookmark = {
+            page: page,
+            paragraph: paragraphMatch ? parseInt(paragraphMatch[1], 10) : null,
+          };
+        }
+      }
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: params };
+    }
+
+    if (/^\/app\/bookmarks\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'bookmarks' } };
+    }
+
+    if (/^\/app\/dictionary\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'dictionary' } };
+    }
+
+    if (/^\/app\/subscription\/?$/.test(window.location.pathname)) {
+      return { screen: 'subscription', params: { backTitle: 'Книги' } };
+    }
+
+    if (/^\/app\/profile\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'profile' } };
     }
 
     var articleMatch = window.location.pathname.match(/^\/app\/blog\/([^/]+)\/?$/);
@@ -7076,11 +7133,15 @@ class RootApp extends React.Component {
     var current_user = await new Storage().get('current_user');
 
     if (current_user != undefined) {
-      var parsed_user = JSON.parse(current_user);
-      this.setState({
-        current_user: parsed_user,
-      });
-      appStore.setCurrentUser(parsed_user);
+      appStore.setCurrentUser(JSON.parse(current_user));
+      await this.migrateNativeAuthentication();
+    }
+
+    if (Platform.OS === 'web') {
+      var network_state = await NetInfo.fetch();
+      appStore.setInternet(network_state.isConnected);
+      if (network_state.isConnected) await this.refreshWebSession(false);
+      this.startWebSessionChecks();
     }
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -7097,20 +7158,15 @@ class RootApp extends React.Component {
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
-    this.setState({
-      confirm_conditions: confirm_val
-    });
     appStore.setConfirmConditions(confirm_val);
 
     this.checkSubscription();
 
-    this._unsubNet = NetInfo.addEventListener(state => {
-      this.setState({
-        has_internet: state.isConnected,
-      });
+    this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
-      if (state.isConnected && this.state.current_user != false) {
-        SyncManager.flush(this.state.current_user.id);
+      if (state.isConnected && appStore.current_user != false) {
+        await this.migrateNativeAuthentication();
+        if (appStore.current_user != false) SyncManager.flush(appStore.current_user.id);
       }
     });
 
@@ -7147,6 +7203,7 @@ class RootApp extends React.Component {
 
   componentWillUnmount() {
     this.oauthAuthorization.cancel();
+    this.stopWebSessionChecks();
     if (this._pwaUpdateHandler && typeof window !== 'undefined') {
       window.removeEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
     }
@@ -7156,7 +7213,7 @@ class RootApp extends React.Component {
     if (this._linkSub) {
       this._linkSub.remove();
     }
-    clearTimeout(this.notification_timer);
+    appStore.clearErrorTimer();
     this._subscriptionActivationCancelled = true;
     if (this._subscriptionActivationTimer) {
       clearTimeout(this._subscriptionActivationTimer);
@@ -7166,6 +7223,92 @@ class RootApp extends React.Component {
       this._subscriptionActivationTimerResolve();
       this._subscriptionActivationTimerResolve = null;
     }
+  }
+
+  async refreshWebSession(refreshSubscription = true) {
+    if (Platform.OS !== 'web') return false;
+    if (this._webSessionRequest) return this._webSessionRequest;
+
+    this._webSessionRequest = (async () => {
+      var previousUser = appStore.current_user;
+      var response = await new Request('/api/v2/users/current', {}, {
+        do_not_show_error: true,
+        detailed_response: true
+      }).get();
+
+      if (response.ok) {
+        appStore.setCurrentUser(response.data);
+        await persistCurrentUser(response.data);
+
+        if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
+          this.checkSubscription();
+        }
+        return true;
+      }
+
+      if (response.status == 401) await clearAuthenticationState();
+      return false;
+    })();
+
+    try {
+      return await this._webSessionRequest;
+    } finally {
+      this._webSessionRequest = null;
+    }
+  }
+
+  async migrateNativeAuthentication() {
+    if (Platform.OS === 'web' || appStore.current_user == false) return false;
+    if (await new Storage().get('access_token')) return true;
+    if (this._nativeSessionRequest) return this._nativeSessionRequest;
+
+    this._nativeSessionRequest = (async () => {
+      var response = await new Request('/api/v2/users/current', {}, {
+        do_not_show_error: true,
+        detailed_response: true,
+        with_credentials: true
+      }).get();
+
+      if (response.ok) {
+        appStore.setCurrentUser(response.data);
+        await persistCurrentUser(response.data);
+        return true;
+      }
+
+      if (response.status == 401) await clearAuthenticationState();
+      return false;
+    })();
+
+    try {
+      return await this._nativeSessionRequest;
+    } finally {
+      this._nativeSessionRequest = null;
+    }
+  }
+
+  startWebSessionChecks() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    this._webSessionHandler = () => this.refreshWebSession();
+    this._webVisibilityHandler = () => {
+      if (document.visibilityState === 'visible') this.refreshWebSession();
+    };
+
+    window.addEventListener('focus', this._webSessionHandler);
+    window.addEventListener('pageshow', this._webSessionHandler);
+    window.addEventListener('online', this._webSessionHandler);
+    document.addEventListener('visibilitychange', this._webVisibilityHandler);
+  }
+
+  stopWebSessionChecks() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    if (this._webSessionHandler) {
+      window.removeEventListener('focus', this._webSessionHandler);
+      window.removeEventListener('pageshow', this._webSessionHandler);
+      window.removeEventListener('online', this._webSessionHandler);
+    }
+    if (this._webVisibilityHandler) document.removeEventListener('visibilitychange', this._webVisibilityHandler);
   }
 
   showPwaUpdatePrompt() {
@@ -7200,24 +7343,20 @@ class RootApp extends React.Component {
   }
 
   async check_location() {
-    var response = await new Request('/api/v1/users/context', {
+    var response = await new Request('/api/v2/users/context', {
     }, {
       do_not_show_error: false
     }).get();
 
     if (response != false) {
       if (response['country'] == 'RU') {
-        this.setState({
-          type_payment: 'by_yoo_kassa'
-        });
         appStore.setTypePayment('by_yoo_kassa');
       }
     }
   }
 
-  async sync_subscription_with_server(user_id, subscription_id, end_date) {
-    return await new Request('/api/v1/payments/sync_subscription', {
-      user_id: user_id,
+  async sync_subscription_with_server(subscription_id, end_date) {
+    return await new Request('/api/v2/payments/sync_subscription', {
       subscription_id: subscription_id,
       end_date: end_date,
     }, {}).post();
@@ -7275,7 +7414,6 @@ class RootApp extends React.Component {
       ? JSON.parse(subscription_info_raw)
       : {};
 
-    this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
@@ -7284,9 +7422,7 @@ class RootApp extends React.Component {
     // 1. Сначала проверяем подписку на сайте
     const current_user = appStore.current_user;
     if (current_user) {
-      var response = await new Request('/api/v1/users/subscription', {
-        user_id: current_user.id
-      }, {
+      var response = await new Request('/api/v2/users/subscription', {}, {
         do_not_show_error: true
       }).get();
 
@@ -7335,7 +7471,6 @@ class RootApp extends React.Component {
 
           if (current_user) {
             sync_with_server = {
-              user_id: current_user.id,
               subscription_id,
               end_date: end_date.format('YYYY-MM-DD HH:mm'),
             };
@@ -7358,13 +7493,11 @@ class RootApp extends React.Component {
 
     await new Storage().set('has_subscription', has_subscription ? 'true' : 'false');
     await new Storage().set('subscription_info', JSON.stringify(subscription_info));
-    this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
     if (sync_with_server) {
       this.sync_subscription_with_server(
-        sync_with_server.user_id,
         sync_with_server.subscription_id,
         sync_with_server.end_date,
       );
@@ -7375,30 +7508,11 @@ class RootApp extends React.Component {
 
 
   showError(title, description) {
-    runInAction(() => {
-      appStore.error_show = true;
-      appStore.error_title = title;
-      appStore.error_description = description;
-    });
-    this.setState({
-      error_show: true,
-      error_title: title,
-      error_description: description,
-    });
-
-    console.log(title + ' ' + description);
-
-    clearTimeout(this.notification_timer);
-    this.notification_timer = setTimeout(() => {
-      this.closeError();
-    }, 3000);
+    appStore.showError(title, description);
   }
 
   closeError() {
     appStore.closeError();
-    this.setState({
-      error_show: false,
-    });
   }
 
   checkInternet() {
@@ -7406,9 +7520,6 @@ class RootApp extends React.Component {
       if (state.isConnected == false) {
         AppAlert.alert('', 'Интернета по-прежнему нет(');
       }
-      this.setState({
-        has_internet: state.isConnected,
-      });
       appStore.setInternet(state.isConnected);
     });
   }
@@ -7416,9 +7527,6 @@ class RootApp extends React.Component {
   async confirm_conditions() {
     await new Storage().set('confirm_conditions_' + POLICY_VERSION, 'true');
 
-    this.setState({
-      confirm_conditions: true
-    });
     appStore.setConfirmConditions(true);
   }
 
@@ -7446,9 +7554,9 @@ class RootApp extends React.Component {
           barStyle={themeColors.text == '#ffffff' ? 'light-content' : 'dark-content'}
         />
         <TargetVersion />
-        {this.state.confirm_conditions === null ? (
+        {appStore.confirm_conditions === null ? (
           <AppSafeAreaView style={{ backgroundColor: themeColors.background }} />
-        ) : this.state.confirm_conditions == false ? (
+        ) : appStore.confirm_conditions == false ? (
           <AppSafeAreaView style={{ justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: '300px', backgroundColor: themeColors.background }}>
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
@@ -7528,7 +7636,7 @@ class RootApp extends React.Component {
                     ...backButtonOptions(navigation, 'Словарь')
                   })}>
                   {(stack) => (
-                    <DictionaryLearning root={this} stack={stack} />
+                    <ObservedDictionaryLearning root={this} stack={stack} />
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="article" options={({ navigation }) => ({
@@ -7549,7 +7657,7 @@ class RootApp extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle="fullScreen"
-          visible={this.state.oauth_modal_show}
+          visible={appStore.oauth_modal_show}
           onRequestClose={() => this.oauthAuthorization.close()}>
           <AppSafeAreaView style={{ backgroundColor: themeColors.background }}>
             <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
@@ -7578,7 +7686,7 @@ class RootApp extends React.Component {
       </View>
     );
   }
-}
+});
 
 class TabStack extends React.Component {
   constructor(props) {
@@ -7656,7 +7764,7 @@ class TabStack extends React.Component {
             title: 'Словарь',
           })}>
           {(tabs) => (
-            <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <ObservedDictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="blog"
@@ -7885,8 +7993,6 @@ const Show = observer(class Show extends React.Component {
   async markAsRead() {
     var bookId = this.props.stack.route.params.book_id;
     await new Storage().set('percent_' + bookId, '100');
-    var percents = Object.assign({}, this.props.root.state.books_percents, { [bookId]: 100 });
-    this.props.root.setState({ books_percents: percents });
     appStore.setBooksPercents(Object.assign({}, appStore.books_percents, { [bookId]: 100 }));
     this.setState({ percent: 100, context_menu_visible: false });
   }
@@ -7954,12 +8060,12 @@ const Show = observer(class Show extends React.Component {
                 <View style={{ flexDirection: 'column', justifyContent: 'center' }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginRight: 15 }}>
                     <AppIcon icon={BookOpenIcon} size={20} color="#FFF" style={{ marginRight: 8 }} />
-                    <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{this.props.root.state.books_percents[this.props.stack.route.params.book_id]}%</Text>
+                    <Text style={{ lineHeight: 20, fontSize: 12, color: '#FFF' }}>{appStore.books_percents[this.props.stack.route.params.book_id]}%</Text>
                   </View>
                 </View>
 
                 <View style={{ height: 60, width: 60, borderRadius: 18, backgroundColor: '#FFF', flexDirection: 'row', overflow: 'hidden', marginRight: 15 }}>
-                  {this.props.root.state.has_internet == true || this.state.have_file == true ? (
+                  {appStore.has_internet == true || this.state.have_file == true ? (
                     <TouchableOpacity onPress={() => this.openBook(this.state.book.id)}>
                       <AppIcon icon={ChevronRightIcon} size={28} color="#000" style={{ margin: 16 }} />
                     </TouchableOpacity>
@@ -7970,7 +8076,7 @@ const Show = observer(class Show extends React.Component {
 
                 {this.state.have_file == false &&
                   <View style={{ marginRight: 15 }}>
-                    {this.props.root.state.has_subscription == true ? (
+                    {appStore.has_subscription == true ? (
                       <ButtonRead
                         set_have_file={() => this.set_have_file()}
                         book_id={this.state.book.id} color={this.state.book.color}
@@ -8031,7 +8137,7 @@ const Subscription = observer(class Subscription extends React.Component {
   async componentDidMount() {
     try {
       const result = await new Request(
-        '/api/v1/subscriptions/prices', {}, { do_not_show_error: true }
+        '/api/v2/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
       if (result) this.setState({ api_prices: result });
     } catch (e) { }
@@ -8093,7 +8199,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async payBySite(subscription_id) {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({
         auth_modal: true
       });
@@ -8102,8 +8208,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
       this.setState({ load_payment_button: true });
       try {
-        var response = await new Request('/api/v1/payments', {
-          user_id: this.props.root.state.current_user.id,
+        var response = await new Request('/api/v2/payments', {
           subscription_id: subscription_id,
           app_payment: 'true'
         }, {}).post();
@@ -8137,7 +8242,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async sync_subscription() {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({ auth_modal: true });
       return;
     }
@@ -8152,7 +8257,6 @@ const Subscription = observer(class Subscription extends React.Component {
 
     try {
       const result = await this.props.root.sync_subscription_with_server(
-        this.props.root.state.current_user.id,
         subscription_info.subscription_id,
         moment(subscription_info.end_date).format('YYYY-MM-DD'),
       );
@@ -8239,7 +8343,7 @@ const Subscription = observer(class Subscription extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth

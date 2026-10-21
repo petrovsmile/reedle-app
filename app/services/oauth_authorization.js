@@ -4,11 +4,11 @@ class OAuthAuthorization {
     this.webAttempt = 0;
   }
 
-  async authorize(type, user_id) {
+  async authorize(type) {
     this.rememberWebLocation();
     this.open();
 
-    await this.startWait(type, user_id);
+    await this.startWait(type);
   }
 
   rememberWebLocation() {
@@ -23,29 +23,24 @@ class OAuthAuthorization {
   }
 
   open() {
-    this.root.setState({
-      oauth_modal_show: true,
-    });
+    appStore.setOAuthModalShow(true);
   }
 
   close() {
     this.cancel();
-    this.root.setState({
-      oauth_modal_show: false,
-    });
+    appStore.setOAuthModalShow(false);
   }
 
   cancel() {
     this.webAttempt += 1;
   }
 
-  async startWait(type, user_id) {
+  async startWait(type) {
     var attempt = ++this.webAttempt;
     var isWeb = Platform.OS === 'web';
     var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
     var platform = isWeb ? 'pwa' : 'app';
-    var params = user_id == undefined ? {} : { user_id: user_id };
-    var oauthResponse = await new Request('/oauth_redirect/' + type + '/' + platform, params, {
+    var oauthResponse = await new Request('/api/v2/oauth/redirect_url', { oauth_client: type, platform: platform }, {
       do_not_show_error: false,
     }).get();
 
@@ -79,7 +74,7 @@ class OAuthAuthorization {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
 
-      var user = await new Request('/api/v1/users/by_oauth_token', {
+      var user = await new Request('/api/v2/users/by_oauth_token', {
         token: oauthResponse.session_token,
       }, {
         do_not_show_error: true,
@@ -110,7 +105,7 @@ class OAuthAuthorization {
     }
     if (!token) return;
 
-    var user = await new Request('/api/v1/users/by_oauth_token', {
+    var user = await new Request('/api/v2/users/by_oauth_token', {
       token: token,
     }).get();
 
@@ -119,18 +114,15 @@ class OAuthAuthorization {
   }
 
   async loadPwaUser() {
-    var user = await new Request('/api/v1/users/current', {}, { do_not_show_error: true }).get();
+    var user = await new Request('/api/v2/users/current', {}, { do_not_show_error: true }).get();
     if (!user || user.error != undefined) return;
     await this.setCurrentUser(user, false);
   }
 
   async setCurrentUser(user, closeModal = true) {
     appStore.setCurrentUser(user);
-    this.root.setState({
-      current_user: user,
-      ...(closeModal ? { oauth_modal_show: false } : {}),
-    });
-    await new Storage().set('current_user', JSON.stringify(user));
+    if (closeModal) appStore.setOAuthModalShow(false);
+    await persistCurrentUser(user);
     this.root.checkSubscription();
   }
 }

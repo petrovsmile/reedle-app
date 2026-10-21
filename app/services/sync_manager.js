@@ -25,6 +25,7 @@ class SyncManager {
     operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
     operations.push({
       operation_id: this.operationId(),
+      owner_id: appStore.current_user ? appStore.current_user.id : null,
       entity: entity,
       entity_key: key,
       action: action,
@@ -40,23 +41,29 @@ class SyncManager {
     return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
   }
 
-  static async flush(user_id) {
+  static async flush(owner_id) {
     if (this._flush_promise != null) return this._flush_promise;
-    this._flush_promise = this._flush(user_id).finally(() => { this._flush_promise = null; });
+    this._flush_promise = this._flush(owner_id).finally(() => { this._flush_promise = null; });
     return this._flush_promise;
   }
 
-  static async _flush(user_id) {
+  static async _flush(owner_id) {
     var operations = await this.operations();
     var startedOperationIds = operations.map(operation => operation.operation_id);
     var remaining = [];
 
     for (var operation of operations) {
-      var result = await this.send(operation, user_id);
+      var ownerId = operation.owner_id || owner_id;
+      if (String(ownerId) != String(owner_id)) {
+        remaining.push(operation);
+        continue;
+      }
+
+      var result = await this.send(operation);
       if (!result.ok && result.status == 409 && result.data && result.data.item) {
         operation.base_version = result.data.item.version;
         operation.operation_id = this.operationId();
-        result = await this.send(operation, user_id);
+        result = await this.send(operation);
       }
 
       if (result.ok) {
@@ -85,10 +92,9 @@ class SyncManager {
     return remaining.length == 0;
   }
 
-  static async send(operation, user_id) {
-    var url = operation.entity == 'bookmark' ? '/api/v1/bookmarks' : '/api/v1/dictionary/words';
+  static async send(operation) {
+    var url = operation.entity == 'bookmark' ? '/api/v2/bookmarks' : '/api/v2/dictionary/words';
     var params = Object.assign({}, operation.payload, {
-      user_id: user_id,
       operation_id: operation.operation_id
     });
     if (operation.base_version != undefined && operation.base_version != null) {
@@ -112,11 +118,10 @@ class SyncManager {
     await new Storage().set(key, JSON.stringify(stored));
   }
 
-  static async syncBookmarks(user_id) {
+  static async syncBookmarks(owner_id) {
     await this.migrateLegacyBookmarks();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/bookmarks', {
-      user_id: user_id,
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/bookmarks', {
       include_deleted: true
     }, { do_not_show_error: true, detailed_response: true }).get();
     if (!response.ok) return null;
@@ -151,11 +156,10 @@ class SyncManager {
     return keys;
   }
 
-  static async syncWords(user_id) {
+  static async syncWords(owner_id) {
     await this.migrateLegacyWords();
-    await this.flush(user_id);
-    var response = await new Request('/api/v1/dictionary/words', {
-      user_id: user_id,
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/dictionary/words', {
       include_deleted: true
     }, { do_not_show_error: true, detailed_response: true }).get();
     if (!response.ok) return null;

@@ -23,7 +23,7 @@ const Subscription = observer(class Subscription extends React.Component {
   async componentDidMount() {
     try {
       const result = await new Request(
-        '/api/v1/subscriptions/prices', {}, { do_not_show_error: true }
+        '/api/v2/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
       if (result) this.setState({ api_prices: result });
     } catch (e) { }
@@ -85,7 +85,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async payBySite(subscription_id) {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({
         auth_modal: true
       });
@@ -94,8 +94,7 @@ const Subscription = observer(class Subscription extends React.Component {
 
       this.setState({ load_payment_button: true });
       try {
-        var response = await new Request('/api/v1/payments', {
-          user_id: this.props.root.state.current_user.id,
+        var response = await new Request('/api/v2/payments', {
           subscription_id: subscription_id,
           app_payment: 'true'
         }, {}).post();
@@ -129,7 +128,7 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async sync_subscription() {
-    if (this.props.root.state.current_user == false) {
+    if (appStore.current_user == false) {
       this.setState({ auth_modal: true });
       return;
     }
@@ -144,7 +143,6 @@ const Subscription = observer(class Subscription extends React.Component {
 
     try {
       const result = await this.props.root.sync_subscription_with_server(
-        this.props.root.state.current_user.id,
         subscription_info.subscription_id,
         moment(subscription_info.end_date).format('YYYY-MM-DD'),
       );
@@ -231,7 +229,7 @@ const Subscription = observer(class Subscription extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
-          visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+          visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
           onRequestClose={() => this.setState({ auth_modal: false })}
           onDismiss={() => this.setState({ auth_modal: false })}>
           <Auth

@@ -11,7 +11,7 @@ const appLinking = {
   },
 };
 
-class RootApp extends React.Component {
+const RootApp = observer(class RootApp extends React.Component {
   constructor(props) {
     super(props);
     root_app = this;
@@ -21,23 +21,9 @@ class RootApp extends React.Component {
     this.restoreWebLocationAfterOAuth();
     this.pendingDeepLink = this.deepLinkFromWebLocation();
 
-    this.state = {
-      has_internet: true,
-      has_subscription: false,
-      subscription_info: {},
-      current_user: false,
-      confirm_conditions: null, // null = ещё не загружено из Storage
-      books_percents: {},
-
-      error_show: false,
-      error_title: '',
-      error_description: '',
-      oauth_modal_show: false,
-      type_payment: Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa'
-    }
-
-    this.notification_timer;
     this._checkingSubscription = false;
+    this._webSessionRequest = null;
+    this._nativeSessionRequest = null;
   }
 
   restoreWebLocationAfterOAuth() {
@@ -63,7 +49,35 @@ class RootApp extends React.Component {
 
     var bookMatch = window.location.pathname.match(/^\/app\/books\/(\d+)(\/reader)?\/?$/);
     if (bookMatch) {
-      return { screen: bookMatch[2] ? 'reader' : 'show', params: { book_id: bookMatch[1] } };
+      var params = { book_id: bookMatch[1] };
+      if (bookMatch[2]) {
+        var locationParams = new URLSearchParams(window.location.search);
+        var page = parseInt(locationParams.get('page'), 10);
+        var paragraphMatch = window.location.hash.match(/^#paragraph_(\d+)$/);
+        if (page > 0) {
+          params.bookmark = {
+            page: page,
+            paragraph: paragraphMatch ? parseInt(paragraphMatch[1], 10) : null,
+          };
+        }
+      }
+      return { screen: bookMatch[2] ? 'reader' : 'show', params: params };
+    }
+
+    if (/^\/app\/bookmarks\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'bookmarks' } };
+    }
+
+    if (/^\/app\/dictionary\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'dictionary' } };
+    }
+
+    if (/^\/app\/subscription\/?$/.test(window.location.pathname)) {
+      return { screen: 'subscription', params: { backTitle: 'Книги' } };
+    }
+
+    if (/^\/app\/profile\/?$/.test(window.location.pathname)) {
+      return { screen: 'home', params: { screen: 'profile' } };
     }
 
     var articleMatch = window.location.pathname.match(/^\/app\/blog\/([^/]+)\/?$/);
@@ -105,11 +119,15 @@ class RootApp extends React.Component {
     var current_user = await new Storage().get('current_user');
 
     if (current_user != undefined) {
-      var parsed_user = JSON.parse(current_user);
-      this.setState({
-        current_user: parsed_user,
-      });
-      appStore.setCurrentUser(parsed_user);
+      appStore.setCurrentUser(JSON.parse(current_user));
+      await this.migrateNativeAuthentication();
+    }
+
+    if (Platform.OS === 'web') {
+      var network_state = await NetInfo.fetch();
+      appStore.setInternet(network_state.isConnected);
+      if (network_state.isConnected) await this.refreshWebSession(false);
+      this.startWebSessionChecks();
     }
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -126,20 +144,15 @@ class RootApp extends React.Component {
 
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
-    this.setState({
-      confirm_conditions: confirm_val
-    });
     appStore.setConfirmConditions(confirm_val);
 
     this.checkSubscription();
 
-    this._unsubNet = NetInfo.addEventListener(state => {
-      this.setState({
-        has_internet: state.isConnected,
-      });
+    this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
-      if (state.isConnected && this.state.current_user != false) {
-        SyncManager.flush(this.state.current_user.id);
+      if (state.isConnected && appStore.current_user != false) {
+        await this.migrateNativeAuthentication();
+        if (appStore.current_user != false) SyncManager.flush(appStore.current_user.id);
       }
     });
 
@@ -176,6 +189,7 @@ class RootApp extends React.Component {
 
   componentWillUnmount() {
     this.oauthAuthorization.cancel();
+    this.stopWebSessionChecks();
     if (this._pwaUpdateHandler && typeof window !== 'undefined') {
       window.removeEventListener('reedle:pwa-update-available', this._pwaUpdateHandler);
     }
@@ -185,7 +199,7 @@ class RootApp extends React.Component {
     if (this._linkSub) {
       this._linkSub.remove();
     }
-    clearTimeout(this.notification_timer);
+    appStore.clearErrorTimer();
     this._subscriptionActivationCancelled = true;
     if (this._subscriptionActivationTimer) {
       clearTimeout(this._subscriptionActivationTimer);
@@ -195,6 +209,92 @@ class RootApp extends React.Component {
       this._subscriptionActivationTimerResolve();
       this._subscriptionActivationTimerResolve = null;
     }
+  }
+
+  async refreshWebSession(refreshSubscription = true) {
+    if (Platform.OS !== 'web') return false;
+    if (this._webSessionRequest) return this._webSessionRequest;
+
+    this._webSessionRequest = (async () => {
+      var previousUser = appStore.current_user;
+      var response = await new Request('/api/v2/users/current', {}, {
+        do_not_show_error: true,
+        detailed_response: true
+      }).get();
+
+      if (response.ok) {
+        appStore.setCurrentUser(response.data);
+        await persistCurrentUser(response.data);
+
+        if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
+          this.checkSubscription();
+        }
+        return true;
+      }
+
+      if (response.status == 401) await clearAuthenticationState();
+      return false;
+    })();
+
+    try {
+      return await this._webSessionRequest;
+    } finally {
+      this._webSessionRequest = null;
+    }
+  }
+
+  async migrateNativeAuthentication() {
+    if (Platform.OS === 'web' || appStore.current_user == false) return false;
+    if (await new Storage().get('access_token')) return true;
+    if (this._nativeSessionRequest) return this._nativeSessionRequest;
+
+    this._nativeSessionRequest = (async () => {
+      var response = await new Request('/api/v2/users/current', {}, {
+        do_not_show_error: true,
+        detailed_response: true,
+        with_credentials: true
+      }).get();
+
+      if (response.ok) {
+        appStore.setCurrentUser(response.data);
+        await persistCurrentUser(response.data);
+        return true;
+      }
+
+      if (response.status == 401) await clearAuthenticationState();
+      return false;
+    })();
+
+    try {
+      return await this._nativeSessionRequest;
+    } finally {
+      this._nativeSessionRequest = null;
+    }
+  }
+
+  startWebSessionChecks() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    this._webSessionHandler = () => this.refreshWebSession();
+    this._webVisibilityHandler = () => {
+      if (document.visibilityState === 'visible') this.refreshWebSession();
+    };
+
+    window.addEventListener('focus', this._webSessionHandler);
+    window.addEventListener('pageshow', this._webSessionHandler);
+    window.addEventListener('online', this._webSessionHandler);
+    document.addEventListener('visibilitychange', this._webVisibilityHandler);
+  }
+
+  stopWebSessionChecks() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    if (this._webSessionHandler) {
+      window.removeEventListener('focus', this._webSessionHandler);
+      window.removeEventListener('pageshow', this._webSessionHandler);
+      window.removeEventListener('online', this._webSessionHandler);
+    }
+    if (this._webVisibilityHandler) document.removeEventListener('visibilitychange', this._webVisibilityHandler);
   }
 
   showPwaUpdatePrompt() {
@@ -229,24 +329,20 @@ class RootApp extends React.Component {
   }
 
   async check_location() {
-    var response = await new Request('/api/v1/users/context', {
+    var response = await new Request('/api/v2/users/context', {
     }, {
       do_not_show_error: false
     }).get();
 
     if (response != false) {
       if (response['country'] == 'RU') {
-        this.setState({
-          type_payment: 'by_yoo_kassa'
-        });
         appStore.setTypePayment('by_yoo_kassa');
       }
     }
   }
 
-  async sync_subscription_with_server(user_id, subscription_id, end_date) {
-    return await new Request('/api/v1/payments/sync_subscription', {
-      user_id: user_id,
+  async sync_subscription_with_server(subscription_id, end_date) {
+    return await new Request('/api/v2/payments/sync_subscription', {
       subscription_id: subscription_id,
       end_date: end_date,
     }, {}).post();
@@ -304,7 +400,6 @@ class RootApp extends React.Component {
       ? JSON.parse(subscription_info_raw)
       : {};
 
-    this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
@@ -313,9 +408,7 @@ class RootApp extends React.Component {
     // 1. Сначала проверяем подписку на сайте
     const current_user = appStore.current_user;
     if (current_user) {
-      var response = await new Request('/api/v1/users/subscription', {
-        user_id: current_user.id
-      }, {
+      var response = await new Request('/api/v2/users/subscription', {}, {
         do_not_show_error: true
       }).get();
 
@@ -364,7 +457,6 @@ class RootApp extends React.Component {
 
           if (current_user) {
             sync_with_server = {
-              user_id: current_user.id,
               subscription_id,
               end_date: end_date.format('YYYY-MM-DD HH:mm'),
             };
@@ -387,13 +479,11 @@ class RootApp extends React.Component {
 
     await new Storage().set('has_subscription', has_subscription ? 'true' : 'false');
     await new Storage().set('subscription_info', JSON.stringify(subscription_info));
-    this.setState({ has_subscription, subscription_info });
     appStore.setSubscription(has_subscription);
     appStore.setSubscriptionInfo(subscription_info);
 
     if (sync_with_server) {
       this.sync_subscription_with_server(
-        sync_with_server.user_id,
         sync_with_server.subscription_id,
         sync_with_server.end_date,
       );
@@ -404,30 +494,11 @@ class RootApp extends React.Component {
 
 
   showError(title, description) {
-    runInAction(() => {
-      appStore.error_show = true;
-      appStore.error_title = title;
-      appStore.error_description = description;
-    });
-    this.setState({
-      error_show: true,
-      error_title: title,
-      error_description: description,
-    });
-
-    console.log(title + ' ' + description);
-
-    clearTimeout(this.notification_timer);
-    this.notification_timer = setTimeout(() => {
-      this.closeError();
-    }, 3000);
+    appStore.showError(title, description);
   }
 
   closeError() {
     appStore.closeError();
-    this.setState({
-      error_show: false,
-    });
   }
 
   checkInternet() {
@@ -435,9 +506,6 @@ class RootApp extends React.Component {
       if (state.isConnected == false) {
         AppAlert.alert('', 'Интернета по-прежнему нет(');
       }
-      this.setState({
-        has_internet: state.isConnected,
-      });
       appStore.setInternet(state.isConnected);
     });
   }
@@ -445,9 +513,6 @@ class RootApp extends React.Component {
   async confirm_conditions() {
     await new Storage().set('confirm_conditions_' + POLICY_VERSION, 'true');
 
-    this.setState({
-      confirm_conditions: true
-    });
     appStore.setConfirmConditions(true);
   }
 
@@ -475,9 +540,9 @@ class RootApp extends React.Component {
           barStyle={themeColors.text == '#ffffff' ? 'light-content' : 'dark-content'}
         />
         <TargetVersion />
-        {this.state.confirm_conditions === null ? (
+        {appStore.confirm_conditions === null ? (
           <AppSafeAreaView style={{ backgroundColor: themeColors.background }} />
-        ) : this.state.confirm_conditions == false ? (
+        ) : appStore.confirm_conditions == false ? (
           <AppSafeAreaView style={{ justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: '300px', backgroundColor: themeColors.background }}>
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
@@ -557,7 +622,7 @@ class RootApp extends React.Component {
                     ...backButtonOptions(navigation, 'Словарь')
                   })}>
                   {(stack) => (
-                    <DictionaryLearning root={this} stack={stack} />
+                    <ObservedDictionaryLearning root={this} stack={stack} />
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="article" options={({ navigation }) => ({
@@ -578,7 +643,7 @@ class RootApp extends React.Component {
         <Modal
           animationType="slide"
           presentationStyle="fullScreen"
-          visible={this.state.oauth_modal_show}
+          visible={appStore.oauth_modal_show}
           onRequestClose={() => this.oauthAuthorization.close()}>
           <AppSafeAreaView style={{ backgroundColor: themeColors.background }}>
             <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 16 }}>
@@ -607,4 +672,4 @@ class RootApp extends React.Component {
       </View>
     );
   }
-}
+});

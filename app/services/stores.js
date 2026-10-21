@@ -4,7 +4,7 @@ class AppStore {
   has_subscription = false;
   subscription_info = {};
   current_user = false;
-  confirm_conditions = true;
+  confirm_conditions = null;
   books_percents = {};
   books_order = [];
   error_show = false;
@@ -12,6 +12,7 @@ class AppStore {
   error_description = '';
   type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
   show_subsription = false;
+  oauth_modal_show = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -27,13 +28,9 @@ class AppStore {
   setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
   setTypePayment(value) { this.type_payment = value; }
   setShowSubscription(value) { this.show_subsription = value; }
+  setOAuthModalShow(value) { this.oauth_modal_show = value; }
 
   showError(title, description) {
-    if (typeof root_app !== 'undefined' && root_app) {
-      root_app.showError(title, description);
-      return;
-    }
-
     this.error_show = true;
     this.error_title = title;
     this.error_description = description;
@@ -263,7 +260,7 @@ class DownloadStore {
     AppMetrica.reportEvent('loader', { status: 'start' });
 
     try {
-      var files = await new Request('/api/v1/books/download_list', { book_id: book.id }).get();
+      var files = await new Request('/api/v2/books/download_list', { book_id: book.id }).get();
       if (!files || files.length === 0) throw new Error('download_list is empty');
 
       await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');

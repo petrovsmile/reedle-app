@@ -1,7 +1,7 @@
 var scroll_percent = 0;
 
 
-class Reader extends React.Component {
+const Reader = observer(class Reader extends React.Component {
   constructor(props) {
     super(props);
 
@@ -204,7 +204,7 @@ class Reader extends React.Component {
   async openPage(first_load) {
     var open_page = true;
 
-    if (this.have_file == false && this.props.root.state.has_internet == false) {
+    if (this.have_file == false && appStore.has_internet == false) {
       open_page = false;
       AppAlert.alert('Отсутствует подключение к интернету');
     }
@@ -247,7 +247,7 @@ class Reader extends React.Component {
       }
 
       if (paragraphs.length != 0) {
-        if (this.props.root.state.has_subscription == false) {
+        if (appStore.has_subscription == false) {
           if (paragraphs.length > 3) paragraphs.splice(3, 0, { _type: 'ad', _key: 'ad_3' });
           if (paragraphs.length > 8) paragraphs.splice(8, 0, { _type: 'ad', _key: 'ad_8' });
         }
@@ -321,7 +321,7 @@ class Reader extends React.Component {
   }
 
   async checkAd() {
-    if (this.props.root.state.has_internet == true && this.props.root.state.has_subscription == false) {
+    if (appStore.has_internet == true && appStore.has_subscription == false) {
       var time_ad = await new Storage().get('time_ad');
 
       if (time_ad == undefined) {
@@ -514,12 +514,9 @@ class Reader extends React.Component {
 
     await new Storage().set('percent_' + this.props.stack.route.params.book_id, percent.toString());
 
-    var percents = this.props.root.state.books_percents;
-    percents[this.props.stack.route.params.book_id] = percent;
-
-    this.props.root.setState({
-      books_percents: percents,
-    });
+    appStore.setBooksPercents(Object.assign({}, appStore.books_percents, {
+      [this.props.stack.route.params.book_id]: percent,
+    }));
 
     this.setState({
       percent: percent,
@@ -811,14 +808,14 @@ class Reader extends React.Component {
           openSubscription={() => this.openSubscription()}
           openAuthModal={() => this.openAuthModal()}
           setBookmark={(value) => this.setBookmark(value)}
-          current_user={this.props.root.state.current_user}
+          current_user={appStore.current_user}
           page={this.state.page}
           book_name={this.book_name}
           book_name_en={this.book_name_en}
           voiceover={this.book_voiceover}
           book_id={this.props.stack.route.params.book_id}
           percent={this.state.percent}
-          has_internet={this.props.root.state.has_internet}
+          has_internet={appStore.has_internet}
         />
       </View>
     );
@@ -862,7 +859,7 @@ class Reader extends React.Component {
             <Modal
               animationType="slide"
               presentationStyle={'overFullScreen'}
-              visible={this.state.auth_modal && this.props.root.state.current_user == false && !this.props.root.state.oauth_modal_show}
+              visible={this.state.auth_modal && appStore.current_user == false && !appStore.oauth_modal_show}
               onRequestClose={() => this.setState({ auth_modal: false })}
               onDismiss={() => this.setState({ auth_modal: false })}>
               <Auth
@@ -880,7 +877,7 @@ class Reader extends React.Component {
               </View>
             }
 
-            {(this.state.showAdInfo && this.props.root.state.has_subscription == false) &&
+            {(this.state.showAdInfo && appStore.has_subscription == false) &&
               <TouchableOpacity style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '120%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 }} onPress={() => this.closeAdInfo()}>
                 <TouchableWithoutFeedback>
                   <View style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', paddingBottom: safeAreaBottom, backgroundColor: "#FFF", borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
@@ -909,21 +906,21 @@ class Reader extends React.Component {
               close={() => this.closeTraining()} />
 
             <ModalTranslateSentence
-              has_subscription={this.props.root.state.has_subscription}
+              has_subscription={appStore.has_subscription}
               translate={this.modalTranslateSentence}
               visible={this.state.showTranslateSentence}
               close={() => this.closeTranslateSentence()} />
 
             <ModalTranslateWord
-              current_user={this.props.root.state.current_user}
-              has_subscription={this.props.root.state.has_subscription}
+              current_user={appStore.current_user}
+              has_subscription={appStore.has_subscription}
               original={this.modalTranslateWordOriginal}
               transcription={this.modalTranslateWordTranscription}
               translate={this.modalTranslateWordTranslate}
               word_in_dictionary={this.state.word_in_dictionary}
               visible={this.state.showTranslateWord}
               onDismiss={() => this.showPendingAuthModal()}
-              has_internet={this.props.root.state.has_internet}
+              has_internet={appStore.has_internet}
               close={() => this.closeTranslateWord()}
               openAuthModal={() => this.openAuthModal()}
               setWordInDictionary={(flag) => this.setWordInDictionary(flag)}
@@ -1034,4 +1031,4 @@ class Reader extends React.Component {
       </React.Fragment>
     )
   }
-};
+});

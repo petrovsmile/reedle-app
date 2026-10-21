@@ -74,7 +74,7 @@ class TabStack extends React.Component {
             title: 'Словарь',
           })}>
           {(tabs) => (
-            <Dictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
+            <ObservedDictionary ref={(ref) => this.dictionaryRef = ref} tabs={tabs} root={this.props.root} stack={this.props.stack} />
           )}
         </Tab.Screen>
         <Tab.Screen name="blog"

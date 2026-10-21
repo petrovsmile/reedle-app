@@ -11,7 +11,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
   async componentDidMount() {
     if (appStore.has_internet == true) {
-      var response = await new Request('/api/v1/target_version', {}, { do_not_show_error: true }).get();
+      var response = await new Request('/api/v2/target_version', {}, { do_not_show_error: true }).get();
 
       if (response != false) {
         if (Platform.OS === 'ios') {

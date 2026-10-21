@@ -22,7 +22,7 @@ class ChangePassword extends React.Component {
   }
 
   async update() {
-    var response = await new Request('/api/v1/users/' + this.props.current_user.id + '/update_password', {
+    var response = await new Request('/api/v2/users/current/password', {
       password: this.state.password,
       repeat_password: this.state.repeat_password
     }).put();

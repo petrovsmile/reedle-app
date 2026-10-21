@@ -35,7 +35,7 @@ class Blog extends React.Component {
     this.setState(page > 1 ? { loadingMore: true } : (refreshing ? { refreshing: true } : { loading: true }));
 
     try {
-      var result = await new Request('/api/v1/articles', { page: page }, { do_not_show_error: true }).get();
+      var result = await new Request('/api/v2/articles', { page: page }, { do_not_show_error: true }).get();
       if (!result || !Array.isArray(result.items) || !result.pagination) throw new Error('Invalid articles response');
       this.setState({
         articles: page == 1 ? result.items : this.state.articles.concat(result.items),
@@ -124,7 +124,7 @@ class BlogArticle extends React.Component {
   }
 
   async componentDidMount() {
-    var article = await new Request('/api/v1/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
+    var article = await new Request('/api/v2/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
     this.setState({ article: article || null, loading: false });
   }
 
