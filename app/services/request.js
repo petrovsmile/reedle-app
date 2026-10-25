@@ -101,7 +101,9 @@ class Request {
           return {
             ok: false,
             status: e.response ? e.response.status : 0,
-            data: e.response && e.response.data ? e.response.data.response : null
+            data: e.response && e.response.data
+              ? (e.response.data.response != undefined ? e.response.data.response : e.response.data)
+              : null
           };
         }
         return false;
@@ -126,7 +128,7 @@ class Request {
       return headers;
     }
 
-    var accessToken = await new Storage().get('access_token');
+    var accessToken = await storage.get('access_token');
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     return headers;
   }
@@ -135,7 +137,7 @@ class Request {
     if (!data || !data.access_token) return;
 
     if (Platform.OS !== 'web') {
-      await new Storage().set('access_token', data.access_token);
+      await storage.set('access_token', data.access_token);
     }
     delete data.access_token;
   }

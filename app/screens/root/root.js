@@ -142,6 +142,12 @@ const RootApp = observer(class RootApp extends React.Component {
       }
     }
 
+    await push_notification_service.initialize(this);
+    push_notification_service.syncDevice();
+    push_notification_service.requestPermissionOnStartup().catch((error) => {
+      console.warn('Unable to request notification permission:', error);
+    });
+
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
     appStore.setConfirmConditions(confirm_val);
@@ -150,9 +156,12 @@ const RootApp = observer(class RootApp extends React.Component {
 
     this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
+      if (state.isConnected) push_notification_service.syncDevice();
       if (state.isConnected && appStore.current_user != false) {
         await this.migrateNativeAuthentication();
-        if (appStore.current_user != false) SyncManager.flush(appStore.current_user.id);
+        if (appStore.current_user != false) {
+          SyncManager.flush(appStore.current_user.id);
+        }
       }
     });
 
@@ -188,6 +197,7 @@ const RootApp = observer(class RootApp extends React.Component {
   }
 
   componentWillUnmount() {
+    push_notification_service.dispose();
     this.oauthAuthorization.cancel();
     this.stopWebSessionChecks();
     if (this._pwaUpdateHandler && typeof window !== 'undefined') {
@@ -228,11 +238,15 @@ const RootApp = observer(class RootApp extends React.Component {
 
         if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
           this.checkSubscription();
+          push_notification_service.syncDevice();
         }
         return true;
       }
 
-      if (response.status == 401) await clearAuthenticationState();
+      if (response.status == 401) {
+        await clearAuthenticationState();
+        if (previousUser) push_notification_service.syncDevice();
+      }
       return false;
     })();
 
@@ -615,6 +629,12 @@ const RootApp = observer(class RootApp extends React.Component {
                   {() => (
                     <Subscription root={this} />
                   )}
+                </Stack.Screen>
+                <Stack.Screen name="notification_settings" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Профиль'),
+                  title: 'Уведомления'
+                })}>
+                  {(stack) => <NotificationSettings root={this} stack={stack} />}
                 </Stack.Screen>
                 <Stack.Screen
                   name="dictionary_learning"

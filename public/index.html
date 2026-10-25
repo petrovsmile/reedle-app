@@ -167,21 +167,6 @@
     <img src="icons/icon-192.png" alt="Reedle" />
   </div>
   <main id="root"></main>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        if (window.location.pathname.indexOf('/app/') === 0) {
-          navigator.serviceWorker.register('/app/sw.js', { scope: '/app/', updateViaCache: 'none' });
-        } else {
-          navigator.serviceWorker.getRegistrations().then(function (registrations) {
-            registrations.forEach(function (registration) {
-              registration.unregister();
-            });
-          });
-        }
-      });
-    }
-  </script>
 </body>
 
 </html>

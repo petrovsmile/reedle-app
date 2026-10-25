@@ -53,29 +53,6 @@ class AdvertisingConfig {
   }
 }
 
-class AppAlertService {
-  handler = null;
-
-  alert(title, message, buttons) {
-    if (this.handler) {
-      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
-      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
-      this.handler({
-        title: title || '',
-        message: message || '',
-        buttons: modalButtons
-      });
-    }
-  }
-
-  confirm(title, message, onConfirm, confirmText) {
-    this.alert(title, message, [
-      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
-      { text: 'Отмена', style: 'cancel' }
-    ]);
-  }
-}
-
 class AppAlertModal extends React.Component {
   constructor(props) {
     super(props);
@@ -83,7 +60,9 @@ class AppAlertModal extends React.Component {
   }
 
   componentDidMount() {
-    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options));
+    AppAlert.handler = (options) => this.setState(Object.assign({ visible: true }, options), () => {
+      if (options.on_shown) options.on_shown();
+    });
   }
 
   componentWillUnmount() {
@@ -135,6 +114,30 @@ class AppAlertModal extends React.Component {
         </AppSafeAreaView>
       </Modal>
     );
+  }
+}
+
+class AppAlertService {
+  handler = null;
+
+  alert(title, message, buttons, on_shown) {
+    if (this.handler) {
+      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
+      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: modalButtons,
+        on_shown: on_shown
+      });
+    }
+  }
+
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
+      { text: 'Отмена', style: 'cancel' }
+    ]);
   }
 }
 
@@ -321,6 +324,645 @@ function createThemedTextInput() {
   }));
 }
 
+class NotificationReceiptService {
+  constructor() {
+    this.queue = Promise.resolve();
+  }
+
+  record(data, event) {
+    if (!data || !data.notification_id || !data.receipt_token) return Promise.resolve();
+    const receipt = {
+      notification_id: String(data.notification_id),
+      receipt_token: data.receipt_token,
+      event: event,
+    };
+    return this.schedule(async () => {
+      const pending = await this.pendingReceipts();
+      const key = this.receiptKey(receipt);
+      if (!pending.some(item => this.receiptKey(item) === key)) pending.push(receipt);
+      await storage.set('notification_receipts', JSON.stringify(pending));
+      await this.sendPendingReceipts();
+    });
+  }
+
+  receiptKey(receipt) {
+    return receipt.notification_id + ':' + receipt.event;
+  }
+
+  async pendingReceipts() {
+    return JSON.parse(await storage.get('notification_receipts', '[]'));
+  }
+
+  schedule(work) {
+    this.queue = this.queue.catch(() => {}).then(work).catch(error => {
+      console.warn('Unable to synchronize notification events:', error.message);
+    });
+    return this.queue;
+  }
+
+  flush() {
+    return this.schedule(() => this.sendPendingReceipts());
+  }
+
+  async sendPendingReceipts() {
+    const pending = await this.pendingReceipts();
+    for (const receipt of pending.slice()) {
+      try {
+        if (Platform.OS === 'web') {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (!registration || !registration.active) break;
+          // Wait for durable storage in the worker before removing the page copy.
+          await new Promise((resolve, reject) => {
+            const channel = new MessageChannel();
+            const timeout = setTimeout(() => { channel.port1.close(); reject(new Error('Receipt storage timed out')); }, 10000);
+            channel.port1.onmessage = event => {
+              clearTimeout(timeout);
+              channel.port1.close();
+              if (event.data && event.data.saved) resolve();
+              else reject(new Error('Receipt storage failed'));
+            };
+            registration.active.postMessage({ type: 'REEDLE_NOTIFICATION_EVENT', receipt }, [channel.port2]);
+          });
+        } else {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          let response;
+          try {
+            response = await fetch(HOST + '/api/v2/notifications/' + encodeURIComponent(receipt.notification_id) + '/events', {
+              method: 'POST', credentials: 'omit', signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt),
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
+          if (!response.ok && ![400, 401, 404, 422].includes(response.status)) break;
+        }
+        pending.splice(pending.findIndex(item => this.receiptKey(item) === this.receiptKey(receipt)), 1);
+        await storage.set('notification_receipts', JSON.stringify(pending));
+      } catch (_) {
+        break;
+      }
+    }
+    if (Platform.OS === 'web') {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration && registration.active) registration.active.postMessage({ type: 'REEDLE_RETRY_NOTIFICATION_EVENTS' });
+    }
+  }
+}
+
+class PushNotificationService {
+  constructor(client, registration, receipts) {
+    this.client = client;
+    this.registration = registration;
+    this.receipts = receipts;
+    this.root = null;
+    this.subscriptions = [];
+  }
+
+  async initialize(root) {
+    this.root = root;
+    if (!this.client) return;
+    this.subscriptions = [
+      this.client.onMessage(message => this.showForegroundMessage(message).catch(error => {
+        console.warn('Unable to show foreground notification:', error);
+      })),
+      this.client.onNotificationOpenedApp(message => this.open(message)),
+      this.client.onTokenRefresh(token => this.sendToken(token)),
+    ];
+    if (this.subscribeForegroundNotificationOpened) {
+      this.subscriptions.push(this.subscribeForegroundNotificationOpened(message => this.open(message)));
+      const foreground_notification = await this.foreground_notifications.getInitialNotification();
+      if (foreground_notification) setTimeout(() => this.open(foreground_notification), 500);
+    }
+    const initial_notification = await this.client.getInitialNotification();
+    if (initial_notification)
+      setTimeout(() => this.open(initial_notification), 500);
+  }
+
+  async showForegroundMessage(message) {
+    // The web service worker already displays the browser notification and records delivery.
+    if (this.client && this.client.platform === 'web') return;
+    if (!message.notification) return;
+    const { title, body } = message.notification;
+    const data = message.data || {};
+    if (this.foreground_notifications) {
+      const shown = await this.foreground_notifications.showNotification(title || 'Reedle', body || '', data);
+      if (!shown) return;
+    }
+    // iOS presents remote notifications through the Firebase foreground options.
+    await this.receipts.record(data, 'delivered');
+  }
+
+  async requestPermissionOnStartup() {
+    if (!this.client) return;
+    if ((await storage.get('push_notifications_enabled')) === 'false')
+      return;
+    if (
+      (await storage.get('push_permission_prompt_shown', 'false')) ===
+      'true'
+    )
+      return;
+    if (this.client.platform === 'web') {
+      await this.requestWebPermissionOnStartup();
+      return;
+    }
+    await storage.set('push_permission_prompt_shown', 'true');
+    await this.enable();
+  }
+
+  async requestWebPermissionOnStartup() {
+    try {
+      this.client.ensureSupported();
+    } catch (_) {
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      await this.enable();
+      return;
+    }
+    if (Notification.permission !== 'default') return;
+    await storage.set('push_permission_prompt_shown', 'true');
+    // Browsers require a click to display the system permission prompt.
+    AppAlert.alert(
+      'Уведомления Reedle',
+      'Разрешить приложению отправлять уведомления?',
+      [
+        {
+          text: 'Не сейчас',
+          style: 'cancel',
+        },
+        {
+          text: 'Разрешить',
+          onPress: () => this.enable(),
+        },
+      ],
+    );
+  }
+
+  dispose() {
+    this.subscriptions.forEach(unsubscribe => unsubscribe());
+    this.subscriptions = [];
+    if (this.client && this.client.dispose) this.client.dispose();
+  }
+
+  async requestPermission() {
+    if (this.requestNotificationPermission && !(await this.requestNotificationPermission())) return 0;
+    if (this.client.platform !== 'web') {
+      await this.client.setAutoInitEnabled(true);
+    }
+    // On web this call must happen before any await, directly from the click.
+    return this.client.requestPermission();
+  }
+
+  async registerDevice() {
+    await this.client.registerDeviceForRemoteMessages();
+    const token = await this.client.getToken();
+    await this.sendToken(token);
+  }
+
+  async enable() {
+    if (!this.client) return false;
+    try {
+      const permission = await this.requestPermission();
+      const enabled = permission === 1 || permission === 2;
+      await storage.set('push_notifications_enabled', enabled.toString());
+      if (enabled) {
+        await this.registerDevice();
+      } else {
+        await this.client.setAutoInitEnabled(false);
+      }
+      return enabled;
+    } catch (error) {
+      console.warn('Unable to enable push notifications:', error);
+      return false;
+    }
+  }
+
+  async disable() {
+    await storage.set('push_notifications_enabled', 'false');
+    try {
+      await this.registration.disable();
+    } catch (_) { }
+    if (this.client) {
+      try {
+        await this.client.deleteToken();
+        await this.client.setAutoInitEnabled(false);
+      } catch (error) {
+        console.warn('Unable to disable push notifications:', error);
+      }
+    }
+    await this.registration.clearRegistration();
+  }
+
+  async syncDevice() {
+    await this.receipts.flush();
+    if (!this.client || !appStore.has_internet) {
+      return;
+    }
+    try {
+      const enabled = await storage.get('push_notifications_enabled');
+      const browser_permission_granted =
+        this.client.platform === 'web' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted';
+      if (enabled !== 'true' && (!browser_permission_granted || enabled === 'false')) {
+        return;
+      }
+
+      await this.client.setAutoInitEnabled(true);
+      await this.registerDevice();
+      await storage.set('push_notifications_enabled', 'true');
+    } catch (error) {
+      console.warn('Unable to synchronize push token:', error);
+    }
+  }
+
+  async sendToken(token) {
+    return this.registration.register(token);
+  }
+
+  async detachCurrentUser() {
+    const detached = await this.registration.detachUser();
+    // Do not leave account notifications attached to a device after logout.
+    if (!detached) await this.disable();
+  }
+
+  errorCode() {
+    return this.client && this.client.last_error_code;
+  }
+
+  notificationDestination(data) {
+    if (data.action === 'reader' && data.book_id)
+      return [
+        'reader',
+        {
+          book_id: data.book_id,
+        },
+      ];
+    if (data.action === 'book' && data.book_id)
+      return [
+        'show',
+        {
+          book_id: data.book_id,
+        },
+      ];
+    if (data.action === 'article' && data.article_code)
+      return [
+        'article',
+        {
+          code: data.article_code,
+        },
+      ];
+    if (data.action === 'subscription')
+      return [
+        'subscription',
+        {
+          backTitle: 'Книги',
+        },
+      ];
+    return ['home'];
+  }
+
+  open(message, attempt = 0) {
+    if (attempt === 0) this.receipts.record(message && message.data, 'opened');
+    if (!this.root || !this.root.navigationRef.current) {
+      if (attempt < 5) setTimeout(() => this.open(message, attempt + 1), 500);
+      return;
+    }
+    const data = message && message.data ? message.data : {};
+    this.root.navigationRef.current.navigate(
+      ...this.notificationDestination(data),
+    );
+  }
+}
+
+class UserDeviceRegistration {
+  constructor(client) {
+    this.client = client;
+    this.registration_queue = Promise.resolve();
+  }
+
+  platform() {
+    return (this.client && this.client.platform) || Platform.OS;
+  }
+
+  async subscriptionPayload() {
+    if (!this.client || !this.client.registrationPayload) return {};
+    return this.client.registrationPayload();
+  }
+
+  async register(token) {
+    if (!token) return;
+    // Startup, reconnect and token refresh must reuse the first registration key.
+    this.registration_queue = this.registration_queue
+      .catch(() => {})
+      .then(() => this.saveRegistration(token));
+    return this.registration_queue;
+  }
+
+  async saveRegistration(token) {
+    const response = await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: await storage.get(
+          'user_device_registration_key',
+        ),
+        platform: this.platform(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        app_version: APP_VERSION,
+        ...(await this.subscriptionPayload()),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).post();
+    if (response === false) {
+      if (this.client && this.client.platform === 'web')
+        this.client.last_error_code = 'registration_failed';
+      throw new Error('Unable to register notification device');
+    }
+    await storage.set('user_device_token', token);
+    await storage.set('user_device_id', response.id.toString());
+    if (response.registration_key) {
+      await storage.set(
+        'user_device_registration_key',
+        response.registration_key,
+      );
+    }
+    return true;
+  }
+
+  async disable() {
+    const token = await storage.get('user_device_token');
+    if (!token) return;
+    await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: await storage.get(
+          'user_device_registration_key',
+        ),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).delete();
+  }
+
+  async clearRegistration() {
+    await storage.remove('user_device_token');
+    await storage.remove('user_device_id');
+    // Keep the key so the same token can be enabled again after opting out.
+  }
+
+  async detachUser() {
+    await this.registration_queue.catch(() => {});
+    const token = await storage.get('user_device_token');
+    if (!token) return true;
+    const registration_key = await storage.get(
+      'user_device_registration_key',
+    );
+    if (!registration_key) return false;
+    const response = await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: registration_key,
+        platform: this.platform(),
+        detach: true,
+        ...(await this.subscriptionPayload()),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).post();
+    return response !== false;
+  }
+}
+
+class WebPushMessagingClient {
+  constructor() {
+    this.platform = 'web';
+    this.last_error_code = null;
+    this.message_handlers = new Set();
+    this.opened_handlers = new Set();
+    this.handleServiceWorkerMessage = event => {
+      const message = event.data || {};
+      if (message.type === 'REEDLE_NOTIFICATION_RECEIVED') {
+        if (document.visibilityState !== 'visible') return;
+        this.message_handlers.forEach(handler =>
+          handler({ notification: message.notification, data: message.data || {} }),
+        );
+        return;
+      }
+      if (message.type != 'REEDLE_NOTIFICATION_OPENED') return;
+      this.opened_handlers.forEach(handler =>
+        handler({
+          data: message.data || {},
+        }),
+      );
+    };
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener(
+        'message',
+        this.handleServiceWorkerMessage,
+      );
+    }
+  }
+
+  isIos() {
+    if (typeof navigator === 'undefined') return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  isStandalone() {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      navigator.standalone === true
+    );
+  }
+
+  ensureSupported() {
+    this.last_error_code = null;
+    if (
+      typeof window === 'undefined' ||
+      !window.isSecureContext ||
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window) ||
+      !('Notification' in window)
+    ) {
+      this.last_error_code = 'unsupported';
+      throw new Error('Web Push is not supported');
+    }
+    if (this.isIos() && !this.isStandalone()) {
+      this.last_error_code = 'install_required';
+      throw new Error('Install the PWA before enabling notifications');
+    }
+  }
+
+  onMessage(handler) {
+    this.message_handlers.add(handler);
+    return () => this.message_handlers.delete(handler);
+  }
+
+  onNotificationOpenedApp(handler) {
+    this.opened_handlers.add(handler);
+    return () => this.opened_handlers.delete(handler);
+  }
+
+  onTokenRefresh() {
+    return () => {};
+  }
+
+  async getInitialNotification() {
+    return null;
+  }
+
+  async setAutoInitEnabled() {}
+
+  async requestPermission() {
+    try {
+      this.ensureSupported();
+      let permission = Notification.permission;
+      if (permission === 'default')
+        permission = await Notification.requestPermission();
+      if (permission !== 'granted') this.last_error_code = 'permission_denied';
+      return permission === 'granted' ? 1 : 0;
+    } catch (error) {
+      if (!this.last_error_code) this.last_error_code = 'permission_error';
+      throw error;
+    }
+  }
+
+  async registerDeviceForRemoteMessages() {}
+
+  applicationServerKey(value) {
+    const padding = '='.repeat((4 - (value.length % 4)) % 4);
+    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = window.atob(base64);
+    return Uint8Array.from(bytes, character => character.charCodeAt(0));
+  }
+
+  workerScope() {
+    return (window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')) ? '/app/' : '/';
+  }
+
+  async getToken() {
+    this.ensureSupported();
+    const scope = this.workerScope();
+    const registration = await navigator.serviceWorker.register(scope + 'sw.js', {
+      scope: scope,
+      updateViaCache: 'none',
+    });
+    // ready may already be resolved to the website's worker at /sw.js.
+    // Subscribe to the registration returned for the application's exact scope.
+    if (!registration.active) {
+      const worker = registration.installing || registration.waiting;
+      if (!worker) throw new Error('Notification service worker is unavailable');
+      await new Promise((resolve, reject) => {
+        function handleStateChange() {
+          if (worker.state === 'activated') {
+            worker.removeEventListener('statechange', handleStateChange);
+            resolve();
+          } else if (worker.state === 'redundant') {
+            worker.removeEventListener('statechange', handleStateChange);
+            reject(new Error('Notification service worker installation failed'));
+          } else if (worker.state === 'installed') {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }
+        worker.addEventListener('statechange', handleStateChange);
+        handleStateChange();
+      });
+    }
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const public_key = await this.loadPublicKey();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.applicationServerKey(public_key),
+      });
+    }
+    this.subscription = subscription;
+    return subscription.endpoint;
+  }
+
+  async loadPublicKey() {
+    const result = await new Request(
+      '/api/v2/user_devices/vapid_public_key',
+      {},
+      {
+        do_not_show_error: true,
+        detailed_response: true,
+      },
+    ).get();
+    const response = result && result.data;
+    if (result && result.ok && response && response.public_key)
+      return response.public_key;
+    if (response && response.error === 'Web Push is not configured') {
+      this.last_error_code = 'server_not_configured';
+    } else if (result && result.status === 401) {
+      this.last_error_code = 'authentication_required';
+    } else {
+      this.last_error_code = 'public_key_failed';
+    }
+    console.warn('Unable to obtain Web Push public key:', {
+      status: result && result.status,
+      reason: this.last_error_code,
+    });
+    throw new Error(
+      'Unable to obtain VAPID public key: ' + this.last_error_code,
+    );
+  }
+
+  async registrationPayload() {
+    let subscription = this.subscription;
+    if (!subscription) {
+      const registration = await this.currentRegistration();
+      subscription = registration ? await registration.pushManager.getSubscription() : null;
+    }
+    return subscription
+      ? {
+          subscription: subscription.toJSON(),
+        }
+      : {};
+  }
+
+  async currentRegistration() {
+    const scope = this.workerScope();
+    const registration = await navigator.serviceWorker.getRegistration(scope);
+    return registration && registration.scope === new URL(scope, window.location.origin).href
+      ? registration
+      : null;
+  }
+
+  async deleteToken() {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await this.currentRegistration();
+    const subscription = registration
+      ? await registration.pushManager.getSubscription()
+      : null;
+    if (subscription) await subscription.unsubscribe();
+    this.subscription = null;
+  }
+
+  dispose() {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.removeEventListener(
+        'message',
+        this.handleServiceWorkerMessage,
+      );
+    }
+    this.message_handlers.clear();
+    this.opened_handlers.clear();
+  }
+}
+
 class OAuthAuthorization {
   constructor(root) {
     this.root = root;
@@ -447,6 +1089,7 @@ class OAuthAuthorization {
     if (closeModal) appStore.setOAuthModalShow(false);
     await persistCurrentUser(user);
     this.root.checkSubscription();
+    push_notification_service.syncDevice();
   }
 }
 
@@ -553,7 +1196,9 @@ class Request {
           return {
             ok: false,
             status: e.response ? e.response.status : 0,
-            data: e.response && e.response.data ? e.response.data.response : null
+            data: e.response && e.response.data
+              ? (e.response.data.response != undefined ? e.response.data.response : e.response.data)
+              : null
           };
         }
         return false;
@@ -578,7 +1223,7 @@ class Request {
       return headers;
     }
 
-    var accessToken = await new Storage().get('access_token');
+    var accessToken = await storage.get('access_token');
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     return headers;
   }
@@ -587,7 +1232,7 @@ class Request {
     if (!data || !data.access_token) return;
 
     if (Platform.OS !== 'web') {
-      await new Storage().set('access_token', data.access_token);
+      await storage.set('access_token', data.access_token);
     }
     delete data.access_token;
   }
@@ -783,12 +1428,10 @@ class Storage {
 }
 
 async function persistCurrentUser(user) {
-  var storage = new Storage();
   await storage.set('current_user', JSON.stringify(user));
 }
 
 async function clearAuthenticationState() {
-  var storage = new Storage();
 
   await storage.remove('access_token');
   await storage.remove('current_user');
@@ -1129,7 +1772,7 @@ class SyncManager {
   }
 
   static async operations() {
-    var value = await new Storage().get(this.queue_key, '[]');
+    var value = await storage.get(this.queue_key, '[]');
     try {
       return JSON.parse(value);
     } catch (_) {
@@ -1151,7 +1794,7 @@ class SyncManager {
       base_version: base_version,
       created_at: new Date().toISOString()
     });
-    await new Storage().set(this.queue_key, JSON.stringify(operations));
+    await storage.set(this.queue_key, JSON.stringify(operations));
   }
 
   static async pendingKeys(entity) {
@@ -1206,7 +1849,7 @@ class SyncManager {
     var currentOperations = await this.operations();
     var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
     remaining = remaining.concat(newlyQueued);
-    await new Storage().set(this.queue_key, JSON.stringify(remaining));
+    await storage.set(this.queue_key, JSON.stringify(remaining));
     return remaining.length == 0;
   }
 
@@ -1225,15 +1868,15 @@ class SyncManager {
   static async applyAcknowledgement(operation, data) {
     var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
     if (operation.action == 'delete') {
-      await new Storage().remove(key);
+      await storage.remove(key);
       return;
     }
-    var stored = await new Storage().get(key, '{}');
+    var stored = await storage.get(key, '{}');
     stored = JSON.parse(stored);
     stored.version = data.version;
     stored.updated_at = data.updated_at;
     stored.offline = false;
-    await new Storage().set(key, JSON.stringify(stored));
+    await storage.set(key, JSON.stringify(stored));
   }
 
   static async syncBookmarks(owner_id) {
@@ -1251,9 +1894,9 @@ class SyncManager {
       var storageKey = 'bookmark_' + entityKey;
       if (pending.indexOf(entityKey) > -1) continue;
       if (item.deleted_at) {
-        await new Storage().remove(storageKey);
+        await storage.remove(storageKey);
       } else {
-        await new Storage().set(storageKey, JSON.stringify({
+        await storage.set(storageKey, JSON.stringify({
           book_id: item.book.id,
           book_name: item.book.name,
           page: item.page,
@@ -1270,7 +1913,7 @@ class SyncManager {
       keys.push('bookmark_' + operation.payload.book_id);
     }
     keys = Array.from(new Set(keys));
-    await new Storage().set('bookmarks_keys', JSON.stringify(keys));
+    await storage.set('bookmarks_keys', JSON.stringify(keys));
     return keys;
   }
 
@@ -1289,11 +1932,11 @@ class SyncManager {
       var storageKey = 'word_' + entityKey;
       if (pending.indexOf(entityKey) > -1) continue;
       if (item.deleted_at) {
-        await new Storage().remove(storageKey);
+        await storage.remove(storageKey);
       } else {
-        var localWordValue = await new Storage().get(storageKey);
+        var localWordValue = await storage.get(storageKey);
         var localWord = localWordValue ? JSON.parse(localWordValue) : {};
-        await new Storage().set(storageKey, JSON.stringify({
+        await storage.set(storageKey, JSON.stringify({
           original: item.original,
           transcription: item.transcription,
           translate: item.translate,
@@ -1313,15 +1956,15 @@ class SyncManager {
       keys.push('word_' + operation.payload.original);
     }
     keys = Array.from(new Set(keys));
-    await new Storage().set('words_keys', JSON.stringify(keys));
+    await storage.set('words_keys', JSON.stringify(keys));
     return keys;
   }
 
   static async migrateLegacyBookmarks() {
-    var keys = JSON.parse(await new Storage().get('bookmarks_keys', '[]'));
+    var keys = JSON.parse(await storage.get('bookmarks_keys', '[]'));
     var pending = await this.pendingKeys('bookmark');
     for (var key of keys) {
-      var value = await new Storage().get(key);
+      var value = await storage.get(key);
       if (!value) continue;
       var bookmark = JSON.parse(value);
       if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
@@ -1335,10 +1978,10 @@ class SyncManager {
   }
 
   static async migrateLegacyWords() {
-    var keys = JSON.parse(await new Storage().get('words_keys', '[]'));
+    var keys = JSON.parse(await storage.get('words_keys', '[]'));
     var pending = await this.pendingKeys('word');
     for (var key of keys) {
-      var value = await new Storage().get(key);
+      var value = await storage.get(key);
       if (!value) continue;
       var word = JSON.parse(value);
       if (word.offline == true && pending.indexOf(word.original) == -1) {
@@ -1392,7 +2035,11 @@ import {
   Vibration,
   Linking,
   Animated,
-  Appearance
+  Appearance,
+  AppState,
+  NativeModules,
+  DeviceEventEmitter,
+  PermissionsAndroid
 } from 'react-native';
 
 import { WebView } from 'react-native-webview';
@@ -1416,6 +2063,7 @@ import AppMetrica from '@appmetrica/react-native-analytics';
 import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
+import messaging from '@react-native-firebase/messaging';
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 import {
   AlignCenter as AlignCenterIcon,
@@ -1475,6 +2123,7 @@ if (Platform.OS === 'ios') {
   Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
 }
 
+const storage = new Storage();
 const AppIcon = createAppIcon();
 const appThemeStore = new AppThemeStore();
 const Text = createThemedText();
@@ -1484,6 +2133,31 @@ const appStore = new AppStore();
 const readerStore = new ReaderStore();
 const downloadStore = new DownloadStore();
 const homeStore = new HomeStore();
+let push_messaging_client = null;
+if (Platform.OS === 'web') {
+  push_messaging_client = new WebPushMessagingClient();
+} else {
+  push_messaging_client = messaging();
+}
+const user_device_registration = new UserDeviceRegistration(push_messaging_client);
+const notification_receipt_service = new NotificationReceiptService();
+const push_notification_service = new PushNotificationService(push_messaging_client, user_device_registration, notification_receipt_service);
+if (Platform.OS === 'android') {
+  push_notification_service.foreground_notifications = NativeModules.ForegroundNotification;
+  push_notification_service.requestNotificationPermission = async () => {
+    if (Platform.Version < 33) return true;
+    const permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    return permission === PermissionsAndroid.RESULTS.GRANTED;
+  };
+  push_notification_service.subscribeForegroundNotificationOpened = handler => {
+    const subscription = DeviceEventEmitter.addListener('reedleNotificationOpened', handler);
+    return () => subscription.remove();
+  };
+}
+setInterval(() => notification_receipt_service.flush(), 30000);
+AppState.addEventListener('change', state => {
+  if (state === 'active') notification_receipt_service.flush();
+});
 
 // Modal content is rendered in a separate native host and therefore must own
 // its safe-area boundary instead of relying on the screen behind it.
@@ -1501,8 +2175,7 @@ let adSizeMini = null;
 const AD_UNIT_BANNER = advertisingConfig.bannerUnitId;
 const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
 
-const CURRENT_IOS_VERSION = '2.0.1'
-const CURRENT_ANDROID_VERSION = '2.0.1'
+const APP_VERSION = require('./package.json').version;
 const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
 //const HOST = "https://reedle.ru"
@@ -3876,6 +4549,7 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+        push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
@@ -3910,6 +4584,7 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+        push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
@@ -4101,6 +4776,195 @@ class Auth extends React.Component {
   }
 }
 
+class NotificationSettings extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      loaded: false,
+      saving: false,
+      notifications_enabled: false,
+    };
+  }
+
+  componentDidMount() {
+    this.is_screen_mounted = true;
+    this.load();
+  }
+
+  componentWillUnmount() {
+    this.is_screen_mounted = false;
+  }
+
+  async load() {
+    const enabled = await storage.get(
+      'push_notifications_enabled',
+      'false',
+    );
+    if (this.is_screen_mounted)
+      this.setState({
+        loaded: true,
+        notifications_enabled: enabled === 'true',
+      });
+  }
+
+  async saveNotifications(enabled) {
+    if (this.state.saving) return;
+    this.setState({
+      saving: true,
+    });
+    try {
+      if (enabled) {
+        if (!(await push_notification_service.enable())) {
+          this.showPermissionError();
+          if (this.is_screen_mounted)
+            this.setState({
+              notifications_enabled: false,
+            });
+          return;
+        }
+      } else {
+        await push_notification_service.disable();
+      }
+      if (this.is_screen_mounted)
+        this.setState({
+          notifications_enabled: enabled,
+        });
+    } finally {
+      if (this.is_screen_mounted)
+        this.setState({
+          saving: false,
+        });
+    }
+  }
+
+  showPermissionError() {
+    const error_code = push_notification_service.errorCode();
+    const messages = {
+      install_required:
+        'На iPhone и iPad сначала добавьте Reedle на экран «Домой», откройте приложение с иконки и попробуйте снова.',
+      unsupported: 'Этот браузер не поддерживает push-уведомления Reedle.',
+      server_not_configured: 'Web Push пока не настроен на сервере.',
+    };
+    const message =
+      messages[error_code] ||
+      'Разрешите уведомления для Reedle в настройках устройства и попробуйте снова.';
+    AppAlert.alert('Уведомления не включены', message);
+  }
+
+  render() {
+    if (!this.state.loaded) {
+      return (
+        <ActivityIndicator
+          style={{
+            flex: 1,
+          }}
+          color={appThemeStore.colors.mutedText}
+        />
+      );
+    }
+    return (
+      <AppSafeAreaView
+        style={{
+          backgroundColor: appThemeStore.colors.background,
+        }}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 48,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 640,
+              alignSelf: 'center',
+            }}
+          >
+            <Text
+              style={{
+                color: appThemeStore.colors.text,
+                fontSize: 20,
+                fontWeight: '700',
+              }}
+            >
+              Уведомления
+            </Text>
+
+            <View
+              style={{
+                marginTop: 24,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: appThemeStore.colors.border,
+                borderRadius: 12,
+                backgroundColor: appThemeStore.colors.surface,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    paddingRight: 16,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: appThemeStore.colors.text,
+                      fontSize: 16,
+                      fontWeight: '600',
+                    }}
+                  >
+                    Push-уведомления
+                  </Text>
+                  <Text
+                    style={{
+                      marginTop: 6,
+                      color: appThemeStore.colors.mutedText,
+                      fontSize: 14,
+                      lineHeight: 20,
+                    }}
+                  >
+                    Получайте уведомления Reedle на этом устройстве.
+                  </Text>
+                </View>
+                {this.state.saving ? (
+                  <ActivityIndicator color={app_theme_colors.red} />
+                ) : (
+                  <Switch
+                    value={this.state.notifications_enabled}
+                    onValueChange={value => this.saveNotifications(value)}
+                    trackColor={{
+                      false: appThemeStore.colors.backgroundLight,
+                      true: app_theme_colors.red,
+                    }}
+                  />
+                )}
+              </View>
+              <Text
+                style={{
+                  marginTop: 12,
+                  color: appThemeStore.colors.mutedText,
+                  fontSize: 12,
+                  lineHeight: 18,
+                }}
+              >
+                Вы можете отключить уведомления для этого устройства в любой
+                момент.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </AppSafeAreaView>
+    );
+  }
+}
+
 const Profile = observer(class Profile extends React.Component {
   constructor(props) {
     super(props);
@@ -4185,10 +5049,6 @@ const Profile = observer(class Profile extends React.Component {
     );
   }
 
-  appVersion() {
-    return Platform.OS == 'android' ? CURRENT_ANDROID_VERSION : CURRENT_IOS_VERSION;
-  }
-
   render() {
     var current_user = appStore.current_user;
 
@@ -4239,6 +5099,7 @@ const Profile = observer(class Profile extends React.Component {
                 {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               </React.Fragment>
             }
+            {this.renderMenuItem('Уведомления', () => this.props.root_stack.navigation.navigate('notification_settings', { backTitle: 'Профиль' }))}
             {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
             {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
           </View>
@@ -4250,7 +5111,7 @@ const Profile = observer(class Profile extends React.Component {
                 onPress={() => Linking.openURL('mailto:info@reedle.ru')}
                 style={{ color: app_theme_colors.red, textDecorationLine: 'underline' }}>info@reedle.ru</Text>
             </Text>
-            <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {this.appVersion()}</Text>
+            <Text style={[profileStyles.app_info_text, { color: appThemeStore.colors.mutedText }]}>Версия приложения: {APP_VERSION}</Text>
           </View>
         </ScrollView>
       </AppSafeAreaView>
@@ -4258,141 +5119,520 @@ const Profile = observer(class Profile extends React.Component {
   }
 });
 
+const ProfileDetails = observer(
+  class ProfileDetails extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        social_loader: false,
+      };
+    }
+    async disconnectSocial(type) {
+      if (this.state.social_loader) return;
+      this.setState({
+        social_loader: type,
+      });
+      try {
+        var response = await new Request(
+          '/api/v2/users/social/' + type,
+          {},
+        ).delete();
+        if (response == false || response.error != undefined) return;
+        appStore.setCurrentUser(response);
+        await persistCurrentUser(response);
+      } finally {
+        this.setState({
+          social_loader: false,
+        });
+      }
+    }
+    socialAction(type, connected) {
+      if (connected) {
+        this.disconnectSocial(type);
+      } else {
+        this.props.root.oauthAuthorization.authorize(type);
+      }
+    }
+    renderSocialRow(type, title, color, image, connected, last) {
+      return (
+        <TouchableOpacity
+          style={[
+            {
+              minHeight: 56,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderBottomWidth: 1,
+              borderBottomColor: app_theme_colors.backgroundLight,
+            },
+            {
+              borderBottomColor: appThemeStore.colors.border,
+            },
+            last && {
+              borderBottomWidth: 0,
+            },
+          ]}
+          disabled={this.state.social_loader != false}
+          onPress={() => this.socialAction(type, connected)}
+        >
+          <View
+            style={[
+              {
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              {
+                backgroundColor: connected
+                  ? color
+                  : appThemeStore.colors.backgroundLight,
+              },
+            ]}
+          >
+            <Image
+              style={{
+                width: 24,
+                height: 24,
+              }}
+              source={image}
+            />
+          </View>
+          <Text
+            style={[
+              {
+                flex: 1,
+                marginLeft: 16,
+                fontSize: 16,
+              },
+              {
+                color: appThemeStore.colors.text,
+              },
+            ]}
+          >
+            {title}
+          </Text>
+          {this.state.social_loader == type ? (
+            <ActivityIndicator
+              size="small"
+              color={appThemeStore.colors.mutedText}
+            />
+          ) : (
+            <Text
+              style={{
+                color: app_theme_colors.red,
+                fontSize: 14,
+              }}
+            >
+              {connected ? 'Отключить' : 'Подключить'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+    async logOut() {
+      await push_notification_service.detachCurrentUser();
+      await new Request(
+        '/api/v2/users/logout',
+        {},
+        {
+          do_not_show_error: true,
+        },
+      ).delete();
+      await clearAuthenticationState();
+    }
+    render() {
+      var current_user = appStore.current_user;
+      if (current_user == false) return <Auth />;
+      return (
+        <AppSafeAreaView
+          style={[
+            applicationStyles.save_area_view,
+            {
+              backgroundColor: appThemeStore.colors.background,
+            },
+          ]}
+        >
+          <ScrollView contentContainerStyle={profileStyles.section}>
+            <UpdateProfile current_user={current_user} root={this.props.root} />
+
+            <Text
+              style={[
+                {
+                  marginTop: 32,
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                },
+                {
+                  color: appThemeStore.colors.text,
+                },
+              ]}
+            >
+              Привязать соц. сети
+            </Text>
+            <Text
+              style={{
+                marginTop: 8,
+                marginBottom: 16,
+                color: '#777',
+              }}
+            >
+              Для быстрого входа в аккаунт
+            </Text>
+            <View
+              style={[
+                {
+                  borderWidth: 1,
+                  borderColor: app_theme_colors.backgroundLight,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                },
+                {
+                  borderColor: appThemeStore.colors.border,
+                },
+              ]}
+            >
+              {this.renderSocialRow(
+                'vk',
+                'VK',
+                '#0077FF',
+                require('./app/images/profile/auth/socials/vk.png'),
+                current_user.vk_connected,
+              )}
+              {this.renderSocialRow(
+                'yandex',
+                'Яндекс',
+                '#f9d657',
+                require('./app/images/profile/auth/socials/ya.png'),
+                current_user.yandex_connected,
+              )}
+              {this.renderSocialRow(
+                'google',
+                'Google',
+                '#df432f',
+                require('./app/images/profile/auth/socials/google.png'),
+                current_user.google_connected,
+                true,
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={{
+                height: 40,
+                backgroundColor: app_theme_colors.red,
+                borderRadius: 8,
+                marginTop: 32,
+              }}
+              onPress={() => this.logOut()}
+            >
+              <Text
+                style={{
+                  textAlign: 'center',
+                  flex: 1,
+                  color: app_theme_colors.inverseText,
+                  lineHeight: 40,
+                }}
+              >
+                Выйти из аккаунта
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                height: 40,
+                marginTop: 8,
+                justifyContent: 'center',
+              }}
+              onPress={() =>
+                Linking.openURL('https://reedle.ru/profile/delete')
+              }
+            >
+              <Text
+                style={{
+                  color: app_theme_colors.red,
+                  textAlign: 'center',
+                }}
+              >
+                Удалить аккаунт
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </AppSafeAreaView>
+      );
+    }
+  },
+);
+
 class ProfileMemory extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { books: [], loading: true, deleting: false };
+    this.state = {
+      books: [],
+      loading: true,
+      deleting: false,
+    };
   }
-
   componentDidMount() {
     this.loadBooks();
-    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.loadBooks());
+    this.unsubscribeFocus = this.props.stack.navigation.addListener(
+      'focus',
+      () => this.loadBooks(),
+    );
   }
-
   componentWillUnmount() {
-    if (this._unsubscribeFocus) this._unsubscribeFocus();
+    if (this.unsubscribeFocus) this.unsubscribeFocus();
   }
-
   async loadBooks() {
-    if (this._loadBooksPromise) return this._loadBooksPromise;
-    this._loadBooksPromise = this._loadBooks().finally(() => { this._loadBooksPromise = null; });
-    return this._loadBooksPromise;
+    if (this.loading_books_request) return this.loading_books_request;
+    this.loading_books_request = this.readBookFiles().finally(() => {
+      this.loading_books_request = null;
+    });
+    return this.loading_books_request;
   }
-
-  async _loadBooks() {
+  async readBookFiles() {
     try {
-      var booksPath = file_root + '/' + BOOKS_FILENAME;
-      if (!(await RNFS.exists(booksPath))) {
-        this.setState({ books: [], loading: false });
+      var books_path = file_root + '/' + BOOKS_FILENAME;
+      if (!(await RNFS.exists(books_path))) {
+        this.setState({
+          books: [],
+          loading: false,
+        });
         return;
       }
-
-      var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
-      var downloaded = await Promise.all(books.map(async (book) => {
-        var haveFile = await AsyncStorage.getItem('have_file_' + book.id);
-        return haveFile == 'true' ? book : null;
-      }));
+      var books = JSON.parse(await RNFS.readFile(books_path, 'utf8'));
+      var downloaded = await Promise.all(
+        books.map(async book => {
+          var have_file = await AsyncStorage.getItem('have_file_' + book.id);
+          return have_file == 'true' ? book : null;
+        }),
+      );
       downloaded = downloaded.filter(Boolean);
-
-      var calculatedSizes = {};
+      var calculated_sizes = {};
       for (var index = 0; index < downloaded.length; index++) {
         var book = downloaded[index];
         if (book.downloaded_size != null) continue;
-
         try {
           var size = await downloadStore.calculateBookSize(book.id);
-          book = Object.assign({}, book, { downloaded_size: size });
+          book = Object.assign({}, book, {
+            downloaded_size: size,
+          });
           downloaded[index] = book;
-          calculatedSizes[book.id] = size;
+          calculated_sizes[book.id] = size;
         } catch (_) {
           // Если старая загрузка повреждена, оставляем размер неизвестным.
         }
       }
-
-      if (Object.keys(calculatedSizes).length > 0) {
-        await downloadStore.updateBookSizes(calculatedSizes);
+      if (Object.keys(calculated_sizes).length > 0) {
+        await downloadStore.updateBookSizes(calculated_sizes);
       }
-      this.setState({ books: downloaded, loading: false });
+      this.setState({
+        books: downloaded,
+        loading: false,
+      });
     } catch (_) {
-      this.setState({ books: [], loading: false });
+      this.setState({
+        books: [],
+        loading: false,
+      });
     }
   }
-
   formatSize(size) {
     var bytes = Number(size || 0);
     if (bytes < 1024) return bytes + ' Б';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
     return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
   }
-
   totalSize() {
-    return this.state.books.reduce((total, book) => total + Number(book.downloaded_size || 0), 0);
+    return this.state.books.reduce(
+      (total, book) => total + Number(book.downloaded_size || 0),
+      0,
+    );
   }
-
   confirmDelete(book) {
     AppAlert.confirm(
       'Удалить книгу?',
       '«' + (book.name_en || book.name) + '» будет удалена с устройства.',
       () => this.deleteBooks([book.id]),
-      'Удалить'
+      'Удалить',
     );
   }
-
   confirmClear() {
     if (this.state.books.length == 0) return;
     AppAlert.confirm(
       'Очистить память?',
       'Все скачанные книги будут удалены с устройства.',
-      () => this.deleteBooks(this.state.books.map((book) => book.id)),
-      'Очистить'
+      () => this.deleteBooks(this.state.books.map(book => book.id)),
+      'Очистить',
     );
   }
-
-  async deleteBooks(bookIds) {
+  async deleteBooks(book_ids) {
     if (this.state.deleting) return;
-    this.setState({ deleting: true });
+    this.setState({
+      deleting: true,
+    });
     try {
-      await downloadStore.removeBooks(bookIds);
+      await downloadStore.removeBooks(book_ids);
       await this.loadBooks();
     } catch (_) {
       AppAlert.alert('Ошибка', 'Не удалось удалить скачанные книги.');
     } finally {
-      this.setState({ deleting: false });
+      this.setState({
+        deleting: false,
+      });
     }
   }
-
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        <View style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
-          <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: appThemeStore.colors.text }]}>
+      <AppSafeAreaView
+        style={[
+          applicationStyles.save_area_view,
+          {
+            backgroundColor: appThemeStore.colors.background,
+          },
+        ]}
+      >
+        <View
+          style={[
+            {
+              minHeight: 56,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottomWidth: 1,
+            },
+            {
+              borderBottomColor: appThemeStore.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              {
+                fontSize: 16,
+                fontWeight: '600',
+              },
+              {
+                color: appThemeStore.colors.text,
+              },
+            ]}
+          >
             {'Занято: ' + this.formatSize(this.totalSize())}
           </Text>
           <TouchableOpacity
             disabled={this.state.books.length == 0 || this.state.deleting}
-            onPress={() => this.confirmClear()}>
-            <Text style={[{ color: app_theme_colors.red, fontSize: 16, fontWeight: '600' }, (this.state.books.length == 0 || this.state.deleting) && profileStyles.memoryActionDisabled]}>Очистить</Text>
+            onPress={() => this.confirmClear()}
+          >
+            <Text
+              style={[
+                {
+                  color: app_theme_colors.red,
+                  fontSize: 16,
+                  fontWeight: '600',
+                },
+                (this.state.books.length == 0 || this.state.deleting) &&
+                  profileStyles.memoryActionDisabled,
+              ]}
+            >
+              Очистить
+            </Text>
           </TouchableOpacity>
         </View>
 
         {this.state.loading ? (
-          <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />
+          <ActivityIndicator
+            style={{
+              flex: 1,
+            }}
+            size="large"
+            color={appThemeStore.colors.mutedText}
+          />
         ) : (
-          <ScrollView contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: 32,
-          }}>
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingBottom: 32,
+            }}
+          >
             {this.state.books.length == 0 && (
-              <Text style={[{ paddingTop: 64, textAlign: 'center', fontSize: 16 }, { color: appThemeStore.colors.mutedText }]}>Скачанных книг нет</Text>
+              <Text
+                style={[
+                  {
+                    paddingTop: 64,
+                    textAlign: 'center',
+                    fontSize: 16,
+                  },
+                  {
+                    color: appThemeStore.colors.mutedText,
+                  },
+                ]}
+              >
+                Скачанных книг нет
+              </Text>
             )}
-            {this.state.books.map((book) => (
-              <View key={book.id} style={[{ minHeight: 64, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1 }, { borderBottomColor: appThemeStore.colors.border }]}>
-                <View style={{ flex: 1, minWidth: 0, paddingRight: 16 }}>
-                  <Text numberOfLines={1} style={[{ fontSize: 16 }, { color: appThemeStore.colors.text }]}>{book.name_en || book.name}</Text>
-                  <Text style={[{ marginTop: 8, fontSize: 14 }, { color: appThemeStore.colors.mutedText }]}>{this.formatSize(book.downloaded_size)}</Text>
+            {this.state.books.map(book => (
+              <View
+                key={book.id}
+                style={[
+                  {
+                    minHeight: 64,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderBottomWidth: 1,
+                  },
+                  {
+                    borderBottomColor: appThemeStore.colors.border,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    paddingRight: 16,
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      {
+                        fontSize: 16,
+                      },
+                      {
+                        color: appThemeStore.colors.text,
+                      },
+                    ]}
+                  >
+                    {book.name_en || book.name}
+                  </Text>
+                  <Text
+                    style={[
+                      {
+                        marginTop: 8,
+                        fontSize: 14,
+                      },
+                      {
+                        color: appThemeStore.colors.mutedText,
+                      },
+                    ]}
+                  >
+                    {this.formatSize(book.downloaded_size)}
+                  </Text>
                 </View>
-                <TouchableOpacity accessibilityLabel="Удалить книгу" disabled={this.state.deleting} onPress={() => this.confirmDelete(book)} style={this.state.deleting && profileStyles.memoryActionDisabled}>
-                  <AppIcon icon={TrashIcon} size={24} color={app_theme_colors.red} />
+                <TouchableOpacity
+                  accessibilityLabel="Удалить книгу"
+                  disabled={this.state.deleting}
+                  onPress={() => this.confirmDelete(book)}
+                  style={
+                    this.state.deleting && profileStyles.memoryActionDisabled
+                  }
+                >
+                  <AppIcon
+                    icon={TrashIcon}
+                    size={24}
+                    color={app_theme_colors.red}
+                  />
                 </TouchableOpacity>
               </View>
             ))}
@@ -4403,106 +5643,28 @@ class ProfileMemory extends React.Component {
   }
 }
 
-const ProfileDetails = observer(class ProfileDetails extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      social_loader: false,
-    };
-  }
-
-  async disconnectSocial(type) {
-    if (this.state.social_loader) return;
-
-    this.setState({ social_loader: type });
-    try {
-      var response = await new Request('/api/v2/users/social/' + type, {}).delete();
-
-      if (response == false || response.error != undefined) return;
-
-      appStore.setCurrentUser(response);
-      await persistCurrentUser(response);
-    } finally {
-      this.setState({ social_loader: false });
+const ProfilePassword = observer(
+  class ProfilePassword extends React.Component {
+    render() {
+      var current_user = appStore.current_user;
+      if (current_user == false) return <Auth />;
+      return (
+        <AppSafeAreaView
+          style={[
+            applicationStyles.save_area_view,
+            {
+              backgroundColor: appThemeStore.colors.background,
+            },
+          ]}
+        >
+          <ScrollView contentContainerStyle={profileStyles.section}>
+            <ChangePassword current_user={current_user} />
+          </ScrollView>
+        </AppSafeAreaView>
+      );
     }
-  }
-
-  socialAction(type, connected) {
-    if (connected) {
-      this.disconnectSocial(type);
-    } else {
-      this.props.root.oauthAuthorization.authorize(type);
-    }
-  }
-
-  renderSocialRow(type, title, color, image, connected, last) {
-    return (
-      <TouchableOpacity
-        style={[{ minHeight: 56, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: app_theme_colors.backgroundLight }, { borderBottomColor: appThemeStore.colors.border }, last && { borderBottomWidth: 0 }]}
-        disabled={this.state.social_loader != false}
-        onPress={() => this.socialAction(type, connected)}>
-        <View style={[{ width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, { backgroundColor: connected ? color : appThemeStore.colors.backgroundLight }]}>
-          <Image style={{ width: 24, height: 24 }} source={image} />
-        </View>
-        <Text style={[{ flex: 1, marginLeft: 16, fontSize: 16 }, { color: appThemeStore.colors.text }]}>{title}</Text>
-        {this.state.social_loader == type ? (
-          <ActivityIndicator size="small" color={appThemeStore.colors.mutedText} />
-        ) : (
-          <Text style={{ color: app_theme_colors.red, fontSize: 14 }}>{connected ? 'Отключить' : 'Подключить'}</Text>
-        )}
-      </TouchableOpacity>
-    );
-  }
-
-  async log_out() {
-    await new Request('/api/v2/users/logout', {}, { do_not_show_error: true }).delete();
-    await clearAuthenticationState();
-  }
-
-  render() {
-    var current_user = appStore.current_user;
-    if (current_user == false) return <Auth />;
-
-    return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        <ScrollView contentContainerStyle={profileStyles.section}>
-          <UpdateProfile current_user={current_user} root={this.props.root} />
-
-          <Text style={[{ marginTop: 32, fontSize: 18, fontWeight: 'bold' }, { color: appThemeStore.colors.text }]}>Привязать соц. сети</Text>
-          <Text style={{ marginTop: 8, marginBottom: 16, color: '#777' }}>Для быстрого входа в аккаунт</Text>
-          <View style={[{ borderWidth: 1, borderColor: app_theme_colors.backgroundLight, borderRadius: 8, overflow: 'hidden' }, { borderColor: appThemeStore.colors.border }]}>
-            {this.renderSocialRow('vk', 'VK', '#0077FF', require('./app/images/profile/auth/socials/vk.png'), current_user.vk_connected)}
-            {this.renderSocialRow('yandex', 'Яндекс', '#f9d657', require('./app/images/profile/auth/socials/ya.png'), current_user.yandex_connected)}
-            {this.renderSocialRow('google', 'Google', '#df432f', require('./app/images/profile/auth/socials/google.png'), current_user.google_connected, true)}
-          </View>
-
-          <TouchableOpacity style={{ height: 40, backgroundColor: app_theme_colors.red, borderRadius: 8, marginTop: 32 }} onPress={() => this.log_out()}>
-            <Text style={{ textAlign: 'center', flex: 1, color: app_theme_colors.inverseText, lineHeight: 40 }}>Выйти из аккаунта</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={{ height: 40, marginTop: 8, justifyContent: 'center' }} onPress={() => Linking.openURL('https://reedle.ru/profile/delete')}>
-            <Text style={{ color: app_theme_colors.red, textAlign: 'center' }}>Удалить аккаунт</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </AppSafeAreaView>
-    );
-  }
-});
-
-const ProfilePassword = observer(class ProfilePassword extends React.Component {
-  render() {
-    var current_user = appStore.current_user;
-    if (current_user == false) return <Auth />;
-
-    return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
-        <ScrollView contentContainerStyle={profileStyles.section}>
-          <ChangePassword current_user={current_user} />
-        </ScrollView>
-      </AppSafeAreaView>
-    );
-  }
-});
+  },
+);
 
 class ProfileStack extends React.Component {
   render() {
@@ -6817,7 +7979,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
     this.state = {
       visible: false,
     }
-    this.current_version = '1';
+    this.current_version = APP_VERSION;
     this.target_version = null;
   }
 
@@ -6827,11 +7989,9 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
       if (response != false) {
         if (Platform.OS === 'ios') {
-          this.current_version = CURRENT_IOS_VERSION;
           this.target_version = response.ios_version;
         }
         if (Platform.OS === 'android') {
-          this.current_version = CURRENT_ANDROID_VERSION;
           this.target_version = response.android_version;
         }
 
@@ -7156,6 +8316,12 @@ const RootApp = observer(class RootApp extends React.Component {
       }
     }
 
+    await push_notification_service.initialize(this);
+    push_notification_service.syncDevice();
+    push_notification_service.requestPermissionOnStartup().catch((error) => {
+      console.warn('Unable to request notification permission:', error);
+    });
+
     var confirm_conditions = await new Storage().get('confirm_conditions_' + POLICY_VERSION);
     var confirm_val = confirm_conditions == 'true';
     appStore.setConfirmConditions(confirm_val);
@@ -7164,9 +8330,12 @@ const RootApp = observer(class RootApp extends React.Component {
 
     this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
+      if (state.isConnected) push_notification_service.syncDevice();
       if (state.isConnected && appStore.current_user != false) {
         await this.migrateNativeAuthentication();
-        if (appStore.current_user != false) SyncManager.flush(appStore.current_user.id);
+        if (appStore.current_user != false) {
+          SyncManager.flush(appStore.current_user.id);
+        }
       }
     });
 
@@ -7202,6 +8371,7 @@ const RootApp = observer(class RootApp extends React.Component {
   }
 
   componentWillUnmount() {
+    push_notification_service.dispose();
     this.oauthAuthorization.cancel();
     this.stopWebSessionChecks();
     if (this._pwaUpdateHandler && typeof window !== 'undefined') {
@@ -7242,11 +8412,15 @@ const RootApp = observer(class RootApp extends React.Component {
 
         if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
           this.checkSubscription();
+          push_notification_service.syncDevice();
         }
         return true;
       }
 
-      if (response.status == 401) await clearAuthenticationState();
+      if (response.status == 401) {
+        await clearAuthenticationState();
+        if (previousUser) push_notification_service.syncDevice();
+      }
       return false;
     })();
 
@@ -7629,6 +8803,12 @@ const RootApp = observer(class RootApp extends React.Component {
                   {() => (
                     <Subscription root={this} />
                   )}
+                </Stack.Screen>
+                <Stack.Screen name="notification_settings" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Профиль'),
+                  title: 'Уведомления'
+                })}>
+                  {(stack) => <NotificationSettings root={this} stack={stack} />}
                 </Stack.Screen>
                 <Stack.Screen
                   name="dictionary_learning"

@@ -31,7 +31,9 @@ class EmitPwaAssetsPlugin {
                     };
 
                     Object.entries(assets).forEach(([outputPath, sourcePath]) => {
-                        let source = compiler.inputFileSystem.readFileSync(path.resolve(__dirname, sourcePath));
+                        const source_file = path.resolve(__dirname, sourcePath);
+                        compilation.fileDependencies.add(source_file);
+                        let source = compiler.inputFileSystem.readFileSync(source_file);
                         if (outputPath === 'sw.js') {
                             const entryAssets = Array.from(compilation.entrypoints.values())
                                 .flatMap((entrypoint) => entrypoint.getFiles())
@@ -46,6 +48,7 @@ class EmitPwaAssetsPlugin {
                                     .update(source)
                                     .digest('hex').slice(0, 12))
                                 .replaceAll('__PUBLIC_PATH__', compilation.outputOptions.publicPath)
+                                .replace('__PWA_CACHE_ENABLED__', String(isProduction))
                                 .replace('__APP_SHELL_ASSETS__', entryAssets);
                         }
                         compilation.emitAsset(
@@ -159,6 +162,8 @@ module.exports = {
             '@react-native-async-storage/async-storage': path.resolve(__dirname, 'web-stubs/async-storage.js'),
             '@react-native-community/netinfo': path.resolve(__dirname, 'web-stubs/netinfo.js'),
             '@react-native-community/slider': path.resolve(__dirname, 'web-stubs/slider.js'),
+            '@react-native-firebase/messaging': path.resolve(__dirname, 'web-stubs/firebase-messaging.js'),
+            '@react-native-firebase/app': path.resolve(__dirname, 'web-stubs/firebase-messaging.js'),
             'yandex-mobile-ads': path.resolve(__dirname, 'web-stubs/yandex-ads.js'),
             'YandexMobileAdsSample': path.resolve(__dirname, 'web-stubs/yandex-ads.js'),
         },

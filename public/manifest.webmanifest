@@ -3,6 +3,7 @@
   "short_name": "ReedleWeb",
   "description": "Читайте книги на английском языке с Reedle",
   "lang": "ru",
+  "id": "/app/",
   "start_url": "/app/",
   "scope": "/app/",
   "display": "standalone",

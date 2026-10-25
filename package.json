@@ -1,6 +1,6 @@
 {
   "name": "reedle",
-  "version": "0.0.1",
+  "version": "2.0.1",
   "private": true,
   "scripts": {
     "dev": "npm run web:local",
@@ -26,6 +26,8 @@
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@react-native-community/netinfo": "^12.0.1",
     "@react-native-community/slider": "^5.2.0",
+    "@react-native-firebase/app": "^26.4.0",
+    "@react-native-firebase/messaging": "^26.4.0",
     "@react-native-picker/picker": "^2.11.4",
     "@react-native/new-app-screen": "0.87.1",
     "@react-navigation/bottom-tabs": "^7.15.9",
@@ -88,6 +90,7 @@
     "process": "^0.11.10",
     "react-test-renderer": "19.2.3",
     "stream-browserify": "^3.0.0",
+    "terser-webpack-plugin": "^5.6.1",
     "typescript": "^5.8.3",
     "util": "^0.12.5",
     "webpack-cli": "^7.0.2"

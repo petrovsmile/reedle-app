@@ -81,6 +81,7 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+        push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }
@@ -115,6 +116,7 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+        push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
     }

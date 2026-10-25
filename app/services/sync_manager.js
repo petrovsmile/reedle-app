@@ -11,7 +11,7 @@ class SyncManager {
   }
 
   static async operations() {
-    var value = await new Storage().get(this.queue_key, '[]');
+    var value = await storage.get(this.queue_key, '[]');
     try {
       return JSON.parse(value);
     } catch (_) {
@@ -33,7 +33,7 @@ class SyncManager {
       base_version: base_version,
       created_at: new Date().toISOString()
     });
-    await new Storage().set(this.queue_key, JSON.stringify(operations));
+    await storage.set(this.queue_key, JSON.stringify(operations));
   }
 
   static async pendingKeys(entity) {
@@ -88,7 +88,7 @@ class SyncManager {
     var currentOperations = await this.operations();
     var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
     remaining = remaining.concat(newlyQueued);
-    await new Storage().set(this.queue_key, JSON.stringify(remaining));
+    await storage.set(this.queue_key, JSON.stringify(remaining));
     return remaining.length == 0;
   }
 
@@ -107,15 +107,15 @@ class SyncManager {
   static async applyAcknowledgement(operation, data) {
     var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
     if (operation.action == 'delete') {
-      await new Storage().remove(key);
+      await storage.remove(key);
       return;
     }
-    var stored = await new Storage().get(key, '{}');
+    var stored = await storage.get(key, '{}');
     stored = JSON.parse(stored);
     stored.version = data.version;
     stored.updated_at = data.updated_at;
     stored.offline = false;
-    await new Storage().set(key, JSON.stringify(stored));
+    await storage.set(key, JSON.stringify(stored));
   }
 
   static async syncBookmarks(owner_id) {
@@ -133,9 +133,9 @@ class SyncManager {
       var storageKey = 'bookmark_' + entityKey;
       if (pending.indexOf(entityKey) > -1) continue;
       if (item.deleted_at) {
-        await new Storage().remove(storageKey);
+        await storage.remove(storageKey);
       } else {
-        await new Storage().set(storageKey, JSON.stringify({
+        await storage.set(storageKey, JSON.stringify({
           book_id: item.book.id,
           book_name: item.book.name,
           page: item.page,
@@ -152,7 +152,7 @@ class SyncManager {
       keys.push('bookmark_' + operation.payload.book_id);
     }
     keys = Array.from(new Set(keys));
-    await new Storage().set('bookmarks_keys', JSON.stringify(keys));
+    await storage.set('bookmarks_keys', JSON.stringify(keys));
     return keys;
   }
 
@@ -171,11 +171,11 @@ class SyncManager {
       var storageKey = 'word_' + entityKey;
       if (pending.indexOf(entityKey) > -1) continue;
       if (item.deleted_at) {
-        await new Storage().remove(storageKey);
+        await storage.remove(storageKey);
       } else {
-        var localWordValue = await new Storage().get(storageKey);
+        var localWordValue = await storage.get(storageKey);
         var localWord = localWordValue ? JSON.parse(localWordValue) : {};
-        await new Storage().set(storageKey, JSON.stringify({
+        await storage.set(storageKey, JSON.stringify({
           original: item.original,
           transcription: item.transcription,
           translate: item.translate,
@@ -195,15 +195,15 @@ class SyncManager {
       keys.push('word_' + operation.payload.original);
     }
     keys = Array.from(new Set(keys));
-    await new Storage().set('words_keys', JSON.stringify(keys));
+    await storage.set('words_keys', JSON.stringify(keys));
     return keys;
   }
 
   static async migrateLegacyBookmarks() {
-    var keys = JSON.parse(await new Storage().get('bookmarks_keys', '[]'));
+    var keys = JSON.parse(await storage.get('bookmarks_keys', '[]'));
     var pending = await this.pendingKeys('bookmark');
     for (var key of keys) {
-      var value = await new Storage().get(key);
+      var value = await storage.get(key);
       if (!value) continue;
       var bookmark = JSON.parse(value);
       if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
@@ -217,10 +217,10 @@ class SyncManager {
   }
 
   static async migrateLegacyWords() {
-    var keys = JSON.parse(await new Storage().get('words_keys', '[]'));
+    var keys = JSON.parse(await storage.get('words_keys', '[]'));
     var pending = await this.pendingKeys('word');
     for (var key of keys) {
-      var value = await new Storage().get(key);
+      var value = await storage.get(key);
       if (!value) continue;
       var word = JSON.parse(value);
       if (word.offline == true && pending.indexOf(word.original) == -1) {

@@ -5,7 +5,7 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
     this.state = {
       visible: false,
     }
-    this.current_version = '1';
+    this.current_version = APP_VERSION;
     this.target_version = null;
   }
 
@@ -15,11 +15,9 @@ const TargetVersion = observer(class TargetVersion extends React.Component {
 
       if (response != false) {
         if (Platform.OS === 'ios') {
-          this.current_version = CURRENT_IOS_VERSION;
           this.target_version = response.ios_version;
         }
         if (Platform.OS === 'android') {
-          this.current_version = CURRENT_ANDROID_VERSION;
           this.target_version = response.android_version;
         }
 

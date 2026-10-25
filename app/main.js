@@ -24,7 +24,11 @@ import {
   Vibration,
   Linking,
   Animated,
-  Appearance
+  Appearance,
+  AppState,
+  NativeModules,
+  DeviceEventEmitter,
+  PermissionsAndroid
 } from 'react-native';
 
 import { WebView } from 'react-native-webview';
@@ -48,6 +52,7 @@ import AppMetrica from '@appmetrica/react-native-analytics';
 import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
+import messaging from '@react-native-firebase/messaging';
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 import {
   AlignCenter as AlignCenterIcon,
@@ -107,6 +112,7 @@ if (Platform.OS === 'ios') {
   Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
 }
 
+const storage = new Storage();
 const AppIcon = createAppIcon();
 const appThemeStore = new AppThemeStore();
 const Text = createThemedText();
@@ -116,6 +122,31 @@ const appStore = new AppStore();
 const readerStore = new ReaderStore();
 const downloadStore = new DownloadStore();
 const homeStore = new HomeStore();
+let push_messaging_client = null;
+if (Platform.OS === 'web') {
+  push_messaging_client = new WebPushMessagingClient();
+} else {
+  push_messaging_client = messaging();
+}
+const user_device_registration = new UserDeviceRegistration(push_messaging_client);
+const notification_receipt_service = new NotificationReceiptService();
+const push_notification_service = new PushNotificationService(push_messaging_client, user_device_registration, notification_receipt_service);
+if (Platform.OS === 'android') {
+  push_notification_service.foreground_notifications = NativeModules.ForegroundNotification;
+  push_notification_service.requestNotificationPermission = async () => {
+    if (Platform.Version < 33) return true;
+    const permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    return permission === PermissionsAndroid.RESULTS.GRANTED;
+  };
+  push_notification_service.subscribeForegroundNotificationOpened = handler => {
+    const subscription = DeviceEventEmitter.addListener('reedleNotificationOpened', handler);
+    return () => subscription.remove();
+  };
+}
+setInterval(() => notification_receipt_service.flush(), 30000);
+AppState.addEventListener('change', state => {
+  if (state === 'active') notification_receipt_service.flush();
+});
 
 // Modal content is rendered in a separate native host and therefore must own
 // its safe-area boundary instead of relying on the screen behind it.

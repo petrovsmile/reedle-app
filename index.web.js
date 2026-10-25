@@ -23,7 +23,6 @@ if (typeof document !== 'undefined') {
 }
 
 if (
-  process.env.NODE_ENV === 'production' &&
   typeof window !== 'undefined' &&
   'serviceWorker' in navigator
 ) {
@@ -37,6 +36,7 @@ if (
   };
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (process.env.NODE_ENV !== 'production') return;
     if (!hadController) {
       hadController = true;
       return;
@@ -47,7 +47,8 @@ if (
   });
 
   const registerWorker = () => {
-    navigator.serviceWorker.register('/app/sw.js', { scope: '/app/', updateViaCache: 'none' })
+    const scope = (window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')) ? '/app/' : '/';
+    navigator.serviceWorker.register(scope + 'sw.js', { scope, updateViaCache: 'none' })
       .then((registration) => {
         applyWaitingUpdate(registration);
 

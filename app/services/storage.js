@@ -25,12 +25,10 @@ class Storage {
 }
 
 async function persistCurrentUser(user) {
-  var storage = new Storage();
   await storage.set('current_user', JSON.stringify(user));
 }
 
 async function clearAuthenticationState() {
-  var storage = new Storage();
 
   await storage.remove('access_token');
   await storage.remove('current_user');

@@ -124,5 +124,6 @@ class OAuthAuthorization {
     if (closeModal) appStore.setOAuthModalShow(false);
     await persistCurrentUser(user);
     this.root.checkSubscription();
+    push_notification_service.syncDevice();
   }
 }

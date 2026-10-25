@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447265294646",
+    "project_id": "reedle-c1ec3",
+    "storage_bucket": "reedle-c1ec3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447265294646:android:bbb01eef194ee149b4cb97",
+        "android_client_info": {
+          "package_name": "com.read_en"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNcbh7os7hs5WsEcw0mRpVILUo1bcg8xQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
