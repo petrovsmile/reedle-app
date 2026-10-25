@@ -8,7 +8,19 @@ platform :ios do
     profile_uuid = ENV["PROVISIONING_PROFILE_SPECIFIER"]
     bundle_id = "read-en.ru"
 
-    xcargs_string = "-allowProvisioningUpdates CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE='#{profile_uuid}'"
+    UI.user_error!("PROVISIONING_PROFILE_SPECIFIER is missing") if profile_uuid.to_s.strip.empty?
+
+    # Apply the app profile only to the app target, never to Pods.
+    update_code_signing_settings(
+      path: "reedle.xcodeproj",
+      targets: ["reedle"],
+      build_configurations: ["Release"],
+      use_automatic_signing: false,
+      team_id: "244U6W36E7",
+      code_sign_identity: "Apple Distribution",
+      profile_uuid: profile_uuid,
+      profile_name: profile_uuid
+    )
 
     increment_build_number(
       build_number: ENV["BUILD_NUMBER"].to_i,
@@ -21,7 +33,6 @@ platform :ios do
       configuration: "Release",
       derived_data_path: "build",
       export_method: "app-store",
-      xcargs: xcargs_string,
       export_options: {
         method: "app-store",
         signingStyle: "manual",

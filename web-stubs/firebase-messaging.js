@@ -13,3 +13,7 @@ const messagingClient = {
 export default function messaging() {
   return messagingClient;
 }
+
+export function getMessaging() {
+  return messagingClient;
+}

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "npm run web:local",
     "android": "node scripts/run-android.js",
-    "ios": "react-native run-ios",
+    "ios": "react-native run-ios --terminal Terminal",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
@@ -16,7 +16,7 @@
     "build:web:rails": "WEB_OUTPUT_PATH=../../ruby/read/public/app NODE_ENV=production webpack --config webpack.config.js",
     "serve:web": "node scripts/serve-web.js",
     "babel-config": "cross-env BABEL_SHOW_CONFIG_FOR=./node_modules/react-native/index.js babel ./node_modules/react-native/index.js --out-file /dev/null",
-    "postinstall": "node scripts/patch-yandex-ads-podspec.js && node scripts/patch-appmetrica-podspec.js"
+    "postinstall": "node scripts/patch-yandex-ads-podspec.js && node scripts/patch-appmetrica-podspec.js && node scripts/patch-store-review.js"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "4.2.0",

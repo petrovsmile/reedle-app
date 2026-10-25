@@ -27,7 +27,7 @@
 		5709B34CF0A7D63546082F79 /* Pods-reedle.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-reedle.release.xcconfig"; path = "Target Support Files/Pods-reedle/Pods-reedle.release.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = reedle/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = reedle/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		A7F1C2D3E4F5061728394A5B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = GoogleService-Info.plist; path = reedle/GoogleService-Info.plist; sourceTree = "<group>"; };
+		A7F1C2D3E4F5061728394A5B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "reedle/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* LibreBaskerville-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "LibreBaskerville-Regular.ttf"; path = "reedle/LibreBaskerville-Regular.ttf"; sourceTree = "<group>"; };
 		C1D2E3F40516273849A5B6C7 /* reedle.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = reedle.entitlements; path = reedle/reedle.entitlements; sourceTree = "<group>"; };
 		E908D2677CEB2D3D7DE2522B /* Pods_reedle.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_reedle.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -124,7 +124,7 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
-				603876F539450CBFE81BC2FA /* [CP-User] [RNFB] Core Configuration */,
+				C29709D77469A1ABCC026AF8 /* [CP-User] [RNFB] Core Configuration */,
 			);
 			buildRules = (
 			);
@@ -223,7 +223,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-reedle/Pods-reedle-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		603876F539450CBFE81BC2FA /* [CP-User] [RNFB] Core Configuration */ = {
+		C29709D77469A1ABCC026AF8 /* [CP-User] [RNFB] Core Configuration */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (

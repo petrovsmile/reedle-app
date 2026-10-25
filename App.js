@@ -2265,7 +2265,7 @@ import AppMetrica from '@appmetrica/react-native-analytics';
 import * as StoreReview from 'react-native-store-review';
 import { makeAutoObservable, runInAction } from 'mobx';
 import { observer } from 'mobx-react';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging } from '@react-native-firebase/messaging';
 import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
 import {
   AlignCenter as AlignCenterIcon,
@@ -2341,7 +2341,7 @@ let push_messaging_client = null;
 if (Platform.OS === 'web') {
   push_messaging_client = new WebPushMessagingClient();
 } else {
-  push_messaging_client = messaging();
+  push_messaging_client = getMessaging();
 }
 const user_device_registration = new UserDeviceRegistration(push_messaging_client);
 const notification_receipt_service = new NotificationReceiptService();
