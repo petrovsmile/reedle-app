@@ -50,6 +50,7 @@ class AppStore {
   }
 }
 
+
 function normalizeReaderFontSize(value) {
   var fontSize = Number(value);
   if (fontSize <= 14) return 14;
@@ -62,6 +63,8 @@ function readerLineHeight(value) {
 }
 
 // ==================== ReaderStore ====================
+
+
 class ReaderStore {
   fontSize = 18;
   fontFamily = 'LibreBaskerville-Regular';
@@ -70,6 +73,10 @@ class ReaderStore {
   backgroundColorTheme = '#ffffff';
   textColorTheme = '#000000';
   secondColorTheme = '#bbb';
+  hideWordTranslationUnderline = false;
+  hideTranslationIcons = false;
+  hideBookmarkIcons = false;
+  hideSentenceVoiceoverIcons = false;
   bookmark = false;
   page = '';
   list_words = null;
@@ -90,6 +97,10 @@ class ReaderStore {
     if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
     if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
     if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
+    if (settings.hideWordTranslationUnderline !== undefined) this.hideWordTranslationUnderline = settings.hideWordTranslationUnderline === true;
+    if (settings.hideTranslationIcons !== undefined) this.hideTranslationIcons = settings.hideTranslationIcons === true;
+    if (settings.hideBookmarkIcons !== undefined) this.hideBookmarkIcons = settings.hideBookmarkIcons === true;
+    if (settings.hideSentenceVoiceoverIcons !== undefined) this.hideSentenceVoiceoverIcons = settings.hideSentenceVoiceoverIcons === true;
   }
 
   setBookmark(value) { this.bookmark = value; }

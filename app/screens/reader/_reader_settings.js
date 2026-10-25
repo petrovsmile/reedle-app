@@ -1,4 +1,19 @@
 class ReaderSettingsPanel extends React.Component {
+  renderVisibilitySetting(title, settingName) {
+    var selected = this.props[settingName] === true;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => this.props.changeVisibilitySetting(settingName, !selected)}
+        style={{ minHeight: 48, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ width: 22, height: 22, borderRadius: 4, borderWidth: 1, borderColor: selected ? app_theme_colors.red : this.props.secondColorTheme, backgroundColor: selected ? app_theme_colors.red : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+          {selected && <AppIcon icon={CheckIcon} size={16} color="#ffffff" />}
+        </View>
+        <Text style={{ flex: 1, paddingLeft: 8, fontSize: 14, lineHeight: 18, color: this.props.textColorTheme }}>{title}</Text>
+      </TouchableOpacity>
+    );
+  }
+
   renderColorButton(backgroundColor, textColor, secondColor) {
     var selected = this.props.backgroundColorTheme == backgroundColor;
     return (
@@ -24,7 +39,7 @@ class ReaderSettingsPanel extends React.Component {
   render() {
     var borderColor = this.props.secondColorTheme;
     return (
-      <View style={{ width: '210px', alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
+      <View style={{ width: 210, alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
           <View style={{ flex: 2, height: 56, flexDirection: 'row', position: 'relative', borderRightWidth: 1, borderRightColor: borderColor }}>
             <TouchableOpacity
@@ -66,6 +81,13 @@ class ReaderSettingsPanel extends React.Component {
           {this.renderFontButton('Arial', 'Arial')}
           {this.renderFontButton('Verdana', 'Verdana')}
         </View>
+
+        <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderTopWidth: 1, borderTopColor: borderColor }}>
+          {this.renderVisibilitySetting('Скрыть подчеркивание слов с переводом', 'hideWordTranslationUnderline')}
+          {this.renderVisibilitySetting('Скрыть иконки перевода предложений и абзацев', 'hideTranslationIcons')}
+          {this.renderVisibilitySetting('Скрыть иконки закладок', 'hideBookmarkIcons')}
+          {this.renderVisibilitySetting('Скрыть иконки озвучки предложений', 'hideSentenceVoiceoverIcons')}
+        </View>
       </View>
     );
   }
@@ -81,16 +103,19 @@ class ReaderSettings extends React.Component {
         onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
         statusBarTranslucent={true}>
         <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}>
-        <TouchableOpacity
-          activeOpacity={1}
-          style={{ flex: 1 }}
-          onPress={() => this.props.closeSettings && this.props.closeSettings()}>
-          <TouchableWithoutFeedback onPress={() => { }}>
-            <View style={{ position: 'absolute', right: 8, top: 40, width: 216 }}>
-              <ReaderSettingsPanel {...this.props} />
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'flex-end' }}
+            onPress={() => this.props.closeSettings && this.props.closeSettings()}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <ScrollView
+                style={{ width: 226, maxHeight: '100%' }}
+                contentContainerStyle={{ paddingHorizontal: 8 }}
+                showsVerticalScrollIndicator={true}>
+                <ReaderSettingsPanel {...this.props} />
+              </ScrollView>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
         </AppSafeAreaView>
       </Modal>
     );

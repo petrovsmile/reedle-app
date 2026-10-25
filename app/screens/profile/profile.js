@@ -132,6 +132,7 @@ const Profile = observer(class Profile extends React.Component {
                 {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               </React.Fragment>
             }
+            {current_user != false && this.renderMenuItem('Статистика и цели', () => this.props.root_stack.navigation.navigate('statistics', { backTitle: 'Профиль' }))}
             {this.renderMenuItem('Уведомления', () => this.props.root_stack.navigation.navigate('notification_settings', { backTitle: 'Профиль' }))}
             {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
             {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}

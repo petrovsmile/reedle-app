@@ -28,6 +28,10 @@ const Reader = observer(class Reader extends React.Component {
       backgroundColorTheme: false,
       textColorTheme: false,
       secondColorTheme: false,
+      hideWordTranslationUnderline: false,
+      hideTranslationIcons: false,
+      hideBookmarkIcons: false,
+      hideSentenceVoiceoverIcons: false,
 
       showTraining: false,
 
@@ -95,6 +99,10 @@ const Reader = observer(class Reader extends React.Component {
         textColorTheme: '#000000',
         secondColorTheme: '#bbb',
         fontFamily: 'LibreBaskerville-Regular',
+        hideWordTranslationUnderline: false,
+        hideTranslationIcons: false,
+        hideBookmarkIcons: false,
+        hideSentenceVoiceoverIcons: false,
       }
       new Storage().set('themeReaderSettings', JSON.stringify(settings));
     } else {
@@ -104,6 +112,10 @@ const Reader = observer(class Reader extends React.Component {
     settings['backgroundColorTheme'] = appThemeStore.colors.background;
     settings['textColorTheme'] = appThemeStore.colors.text;
     settings['secondColorTheme'] = appThemeStore.colors.second;
+    settings['hideWordTranslationUnderline'] = settings['hideWordTranslationUnderline'] === true;
+    settings['hideTranslationIcons'] = settings['hideTranslationIcons'] === true;
+    settings['hideBookmarkIcons'] = settings['hideBookmarkIcons'] === true;
+    settings['hideSentenceVoiceoverIcons'] = settings['hideSentenceVoiceoverIcons'] === true;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -124,6 +136,10 @@ const Reader = observer(class Reader extends React.Component {
       textColorTheme: settings['textColorTheme'],
       secondColorTheme: settings['secondColorTheme'],
       fontFamily: settings['fontFamily'],
+      hideWordTranslationUnderline: settings['hideWordTranslationUnderline'] === true,
+      hideTranslationIcons: settings['hideTranslationIcons'] === true,
+      hideBookmarkIcons: settings['hideBookmarkIcons'] === true,
+      hideSentenceVoiceoverIcons: settings['hideSentenceVoiceoverIcons'] === true,
     });
 
     readerStore.setThemeSettings(settings);
@@ -174,7 +190,20 @@ const Reader = observer(class Reader extends React.Component {
       page: parseInt(page),
       pages: Object.keys(pagination).length,
     }, () => {
+      this.startProgressSession();
       this.openPage(true);
+    });
+
+    this._progressHeartbeat = setInterval(() => {
+      progressService.touch(this.state.page, this.calculatePercent());
+    }, 30000);
+
+    this._appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState == 'active') {
+        this.startProgressSession();
+      } else {
+        progressService.finish('app_background');
+      }
     });
 
     var haveTraining = await new Storage().get('haveTraining') == 'true';
@@ -186,6 +215,9 @@ const Reader = observer(class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    progressService.finish('reader_closed');
+    if (this._appStateSubscription) this._appStateSubscription.remove();
+    clearInterval(this._progressHeartbeat);
     if (this._appearanceThemeSubscription) this._appearanceThemeSubscription.remove();
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
@@ -517,9 +549,22 @@ const Reader = observer(class Reader extends React.Component {
     appStore.setBooksPercents(Object.assign({}, appStore.books_percents, {
       [this.props.stack.route.params.book_id]: percent,
     }));
+    progressService.touch(this.state.page, percent);
 
     this.setState({
       percent: percent,
+    });
+  }
+
+  startProgressSession() {
+    var user = appStore.current_user;
+    if (!user) return;
+    progressService.start({
+      owner_id: user.id,
+      book_id: this.props.stack.route.params.book_id,
+      book_name: this.book_name_en || this.book_name,
+      page: this.state.page,
+      percent: this.calculatePercent()
     });
   }
 
@@ -742,6 +787,27 @@ const Reader = observer(class Reader extends React.Component {
     });
   }
 
+  async changeVisibilitySetting(settingName, value) {
+    var supportedSettings = [
+      'hideWordTranslationUnderline',
+      'hideTranslationIcons',
+      'hideBookmarkIcons',
+      'hideSentenceVoiceoverIcons'
+    ];
+    if (supportedSettings.indexOf(settingName) == -1) return;
+
+    var storedSettings = await new Storage().get('themeReaderSettings', '{}');
+    var settings = JSON.parse(storedSettings || '{}');
+    settings[settingName] = value === true;
+    await new Storage().set('themeReaderSettings', JSON.stringify(settings));
+
+    var changes = {};
+    changes[settingName] = value === true;
+    this.setState(changes);
+    readerStore.setThemeSettings(changes);
+    AppMetrica.reportEvent('changeProperty', changes);
+  }
+
 
   async goBookUp(book_id) {
     var sort_new_book = await new Storage().get('sort_new_book');
@@ -867,7 +933,7 @@ const Reader = observer(class Reader extends React.Component {
                 modal={true}
                 bookmark_info={true}
                 close={() => this.setState({ auth_modal: false })}
-                onSuccess={() => this.setState({ auth_modal: false })}
+                onSuccess={() => this.setState({ auth_modal: false }, () => this.startProgressSession())}
               />
             </Modal>
 
@@ -973,6 +1039,12 @@ const Reader = observer(class Reader extends React.Component {
 
                   fontFamily={this.state.fontFamily}
                   chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
+
+                  hideWordTranslationUnderline={this.state.hideWordTranslationUnderline}
+                  hideTranslationIcons={this.state.hideTranslationIcons}
+                  hideBookmarkIcons={this.state.hideBookmarkIcons}
+                  hideSentenceVoiceoverIcons={this.state.hideSentenceVoiceoverIcons}
+                  changeVisibilitySetting={(settingName, value) => this.changeVisibilitySetting(settingName, value)}
                 />
 
               </View>

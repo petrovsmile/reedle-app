@@ -31,6 +31,44 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   );
 });
 
+const HomeProgressPanel = observer(function HomeProgressPanel(props) {
+  var user = appStore.current_user;
+  var summary = progressStore.summary || {};
+  var today = summary.today || {};
+  var goal = summary.goal || {};
+  var goalMinutes = Number(goal.reading_minutes_per_day || 15);
+  var minutes = Number(today.minutes || 0);
+  var progress = Math.min(100, Math.round(minutes / Math.max(1, goalMinutes) * 100));
+  var notice = progressStore.notification || summary.notification;
+
+  if (!user) {
+    return (
+      <TouchableOpacity onPress={() => props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сохраняйте свой прогресс</Text>
+        <Text style={{ marginTop: 6, color: appThemeStore.colors.mutedText, lineHeight: 20 }}>Войдите, чтобы видеть время чтения, серии дней и персональные цели.</Text>
+        <Text style={{ marginTop: 10, color: app_theme_colors.red, fontWeight: '600' }}>Открыть статистику →</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сегодня</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
+      </View>
+      <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
+      </View>
+      {notice ? (
+        <Text style={{ marginTop: 12, color: appThemeStore.colors.text, lineHeight: 20 }}>{notice.message || notice.title}</Text>
+      ) : (
+        <Text style={{ marginTop: 12, color: appThemeStore.colors.mutedText }}>{progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.'}</Text>
+      )}
+    </TouchableOpacity>
+  );
+});
+
 const Home = observer(class Home extends React.Component {
   constructor(props) {
     super(props);
@@ -44,6 +82,7 @@ const Home = observer(class Home extends React.Component {
       not_show_read: true,
       sort_new_book: true,
       show_only_loaded: false,
+      show_statistics: true,
       open_property: false,
       search_value: '',
     };
@@ -52,8 +91,12 @@ const Home = observer(class Home extends React.Component {
   }
 
   async componentDidMount() {
-    this._unsubscribeTabPress = this.props.tabs.navigation.addListener('tabPress', () => this.getBooks());
+    this._unsubscribeTabPress = this.props.tabs.navigation.addListener('tabPress', () => {
+      this.getBooks();
+      if (appStore.current_user) progressService.loadSummary();
+    });
     this._unsubscribeDownloadCompleted = downloadStore.onCompleted(() => this.filter_books());
+    if (appStore.current_user) progressService.loadSummary();
 
     var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
     if (sort_new_book_default_migrated != 'true') {
@@ -64,10 +107,12 @@ const Home = observer(class Home extends React.Component {
     var not_show_read = await new Storage().get('not_show_read', 'false')
     var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
+    var show_statistics = await new Storage().get('show_statistics', 'true');
     this.setState({
       not_show_read: not_show_read === 'true',
       sort_new_book: sort_new_book === 'true',
       show_only_loaded: show_only_loaded === 'true',
+      show_statistics: show_statistics === 'true',
     }, () => {
       this.getBooks();
     });
@@ -302,6 +347,11 @@ const Home = observer(class Home extends React.Component {
     });
   }
 
+  setPropertyShowStatistics(value) {
+    this.setState({ show_statistics: value });
+    AsyncStorage.setItem('show_statistics', value.toString());
+  }
+
   setPropertyShowOnlyLoaded() {
 
     AppMetrica.reportEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
@@ -436,7 +486,7 @@ const Home = observer(class Home extends React.Component {
 
               </View>
 
-              <View style={[homeStyles.properties_point, { marginBottom: 0 }]}>
+              <View style={homeStyles.properties_point}>
 
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Показать только скачанные</Text>
 
@@ -451,44 +501,53 @@ const Home = observer(class Home extends React.Component {
 
               </View>
 
+              <View style={[homeStyles.properties_point, { marginBottom: 0 }]}>
+                <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Отображать статистику</Text>
+                <Switch
+                  accessibilityLabel="Отображать статистику"
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
+                  onValueChange={(value) => this.setPropertyShowStatistics(value)}
+                  value={this.state.show_statistics}
+                />
+              </View>
+
             </View>
           }
 
         </View>
 
-        <React.Fragment>
-          {this.state.do_not_find == true &&
-            <View style={{ marginTop: 104 }}>
+        <FlatList
+          style={{ flex: 1, marginTop: -8, zIndex: 0, paddingTop: 8 }}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
+          }
+          showsHorizontalScrollIndicator={false}
+          scrollIndicatorInsets={{ right: 1 }}
+          removeClippedSubviews={true}
+          contentContainerStyle={{ paddingBottom: 104 }}
+          data={visibleBooks}
+          ListHeaderComponent={this.state.show_statistics ? () => <HomeProgressPanel navigation={this.props.stack.navigation} /> : null}
+          renderItem={(book) => <Book
+            books_percents={appStore.books_percents}
+            book={book}
+            onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
+              book_id: book_id,
+              color: color,
+            })}
+          />}
+          keyExtractor={(book) => String(book.id)}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
+          )}
+          ListEmptyComponent={() => this.state.do_not_find ? (
+            <View style={{ marginTop: 72 }}>
               <Text style={{ textAlign: 'center', fontSize: 18, color: '#aaa' }}>Книги не найдены :(</Text>
             </View>
-          }
-          {this.state.do_not_find == false &&
-            <FlatList
-              style={{ flex: 1, marginTop: -8, zIndex: 0, paddingTop: 8 }}
-              refreshControl={
-                <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
-              }
-              showsHorizontalScrollIndicator={false}
-              scrollIndicatorInsets={{ right: 1 }}
-              removeClippedSubviews={true}
-              contentContainerStyle={{ paddingBottom: 104 }}
-              data={visibleBooks}
-              renderItem={(book) => <Book
-                books_percents={appStore.books_percents}
-                book={book}
-                onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
-                  book_id: book_id,
-                  color: color,
-                })}
-              />}
-              keyExtractor={(book) => String(book.id)}
-              ItemSeparatorComponent={() => (
-                <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
-              )}
-              ListEmptyComponent={() => <PreviewBooks />}
-            />
-          }
-        </React.Fragment>
+          ) : <PreviewBooks />}
+        />
 
       </View>
     )

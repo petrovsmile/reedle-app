@@ -528,6 +528,14 @@ class PushNotificationService {
       await storage.set('push_notifications_enabled', enabled.toString());
       if (enabled) {
         await this.registerDevice();
+        if (appStore.current_user) {
+          const goal = await new Request('/api/v2/reading/goals', {
+            reminder_enabled: true,
+          }, { do_not_show_error: true }).put();
+          if (goal === false) {
+            AppAlert.alert('Не удалось включить напоминания о целях', 'Уведомления разрешены. Попробуйте сохранить напоминания в настройках уведомлений.');
+          }
+        }
       } else {
         await this.client.setAutoInitEnabled(false);
       }
@@ -592,6 +600,8 @@ class PushNotificationService {
   }
 
   notificationDestination(data) {
+    if (data.action === 'statistics')
+      return ['statistics', { backTitle: 'Книги' }];
     if (data.action === 'reader' && data.book_id)
       return [
         'reader',
@@ -1089,7 +1099,188 @@ class OAuthAuthorization {
     if (closeModal) appStore.setOAuthModalShow(false);
     await persistCurrentUser(user);
     this.root.checkSubscription();
+    await progressService.flush(appStore.current_user.id);
+    progressService.loadSummary();
     push_notification_service.syncDevice();
+  }
+}
+
+class ProgressStore {
+  summary = null;
+  summary_loading = false;
+  notification = null;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setSummary(value) { this.summary = value; }
+  setSummaryLoading(value) { this.summary_loading = value; }
+  setNotification(value) { this.notification = value; }
+  dismissNotification() { this.notification = null; }
+}
+
+
+class ProgressService {
+  constructor() {
+    this.queueKey = 'reading_sessions_queue_v1';
+    this.currentSession = null;
+    this.flushing = false;
+    this.flushTimer = null;
+    this.queueOperation = Promise.resolve();
+  }
+
+  sessionId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  async queue() {
+    var value = await new Storage().get(this.queueKey, '[]');
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  start(params) {
+    if (!params || !params.owner_id) return;
+    var previous = this.currentSession;
+    if (previous && String(previous.owner_id) === String(params.owner_id) &&
+        String(previous.book_id) === String(params.book_id) &&
+        Date.now() - previous.last_activity_at <= 3600000) {
+      previous.last_activity_at = Date.now();
+      this.suspended = false;
+      return;
+    }
+    if (previous) this.finish('book_changed');
+    this.suspended = false;
+
+    var now = Date.now();
+    this.currentSession = {
+      session_id: this.sessionId(),
+      owner_id: params.owner_id,
+      book_id: params.book_id,
+      book_name: params.book_name,
+      started_at: new Date(now).toISOString(),
+      start_page: Number(params.page || 1),
+      end_page: Number(params.page || 1),
+      start_percent: Number(params.percent || 0),
+      end_percent: Number(params.percent || 0),
+      active_seconds: 0,
+      last_activity_at: now,
+    };
+  }
+
+  touch(page, percent) {
+    if (!this.currentSession || this.suspended) return;
+    var now = Date.now();
+    if (now - this.currentSession.last_activity_at > 3600000) {
+      var previous = this.currentSession;
+      this.finish('idle_timeout');
+      this.currentSession = null;
+      this.start({ owner_id: previous.owner_id, book_id: previous.book_id,
+        book_name: previous.book_name, page: page == undefined ? previous.end_page : page,
+        percent: percent == undefined ? previous.end_percent : percent });
+    }
+    var delta = Math.max(0, Math.min(90, (now - this.currentSession.last_activity_at) / 1000));
+    this.currentSession.active_seconds += delta;
+    this.currentSession.last_activity_at = now;
+    // Возврат назад не уменьшает достигнутую страницу сессии.
+    if (page != undefined && Number.isFinite(Number(page))) {
+      this.currentSession.end_page = Math.max(this.currentSession.start_page, this.currentSession.end_page, Number(page));
+    }
+    if (percent != undefined && Number.isFinite(Number(percent))) {
+      this.currentSession.end_percent = Math.max(this.currentSession.start_percent, this.currentSession.end_percent, Number(percent));
+    }
+    clearTimeout(this.flushTimer);
+    this.flushTimer = setTimeout(() => {
+      this.saveProgress('checkpoint').catch((error) => console.warn('Reading progress save failed', error));
+    }, 3000);
+  }
+
+  serializeQueue(operation) {
+    var result = this.queueOperation.then(operation);
+    this.queueOperation = result.catch(() => {});
+    return result;
+  }
+
+  async finish(reason) {
+    if (!this.currentSession) return;
+    clearTimeout(this.flushTimer);
+    this.flushTimer = null;
+    this.suspended = true;
+    return this.saveProgress(reason || 'reader_closed');
+  }
+
+  async saveProgress(reason) {
+    if (!this.currentSession) return;
+    var session = Object.assign({}, this.currentSession, {
+      finished_at: new Date(this.currentSession.last_activity_at).toISOString(),
+      finish_reason: reason
+    });
+    delete session.last_activity_at;
+    session.active_seconds = Math.floor(session.active_seconds);
+
+    // Совсем короткие случайные открытия не искажают статистику.
+    if (session.active_seconds < 3 && session.start_percent == session.end_percent) return;
+
+    await this.serializeQueue(async () => {
+      var queue = await this.queue();
+      queue = queue.filter((item) => item.session_id !== session.session_id);
+      queue.push(session);
+      await new Storage().set(this.queueKey, JSON.stringify(queue));
+    });
+    await this.flush(session.owner_id);
+  }
+
+  flush(user_id) {
+    return this.serializeQueue(() => this.flushQueue(user_id));
+  }
+
+  async flushQueue(user_id) {
+    if (!user_id || this.flushing || !appStore.has_internet) return false;
+    this.flushing = true;
+    try {
+      var queue = await this.queue();
+      var remaining = [];
+      for (var session of queue) {
+        var ownerId = session.owner_id || session.user_id;
+        if (String(ownerId) != String(user_id)) {
+          remaining.push(session);
+          continue;
+        }
+        var payload = Object.assign({}, session);
+        delete payload.owner_id;
+        delete payload.user_id;
+        var response = await new Request('/api/v2/reading/sessions', payload, {
+          do_not_show_error: true,
+          detailed_response: true
+        }).post();
+        if (!response.ok) remaining.push(session);
+        if (!response.ok && response.status == 0) {
+          remaining = remaining.concat(queue.slice(queue.indexOf(session) + 1));
+          break;
+        }
+      }
+      await new Storage().set(this.queueKey, JSON.stringify(remaining));
+      return remaining.length == 0;
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  async loadSummary() {
+    if (!appStore.current_user) return null;
+    progressStore.setSummaryLoading(true);
+    var response = await new Request('/api/v2/reading/statistics/summary', {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }, { do_not_show_error: true }).get();
+    progressStore.setSummaryLoading(false);
+    if (response === false) return null;
+    progressStore.setSummary(response);
+    if (response.notification) progressStore.setNotification(response.notification);
+    return response;
   }
 }
 
@@ -1495,6 +1686,7 @@ class AppStore {
   }
 }
 
+
 function normalizeReaderFontSize(value) {
   var fontSize = Number(value);
   if (fontSize <= 14) return 14;
@@ -1507,6 +1699,8 @@ function readerLineHeight(value) {
 }
 
 // ==================== ReaderStore ====================
+
+
 class ReaderStore {
   fontSize = 18;
   fontFamily = 'LibreBaskerville-Regular';
@@ -1515,6 +1709,10 @@ class ReaderStore {
   backgroundColorTheme = '#ffffff';
   textColorTheme = '#000000';
   secondColorTheme = '#bbb';
+  hideWordTranslationUnderline = false;
+  hideTranslationIcons = false;
+  hideBookmarkIcons = false;
+  hideSentenceVoiceoverIcons = false;
   bookmark = false;
   page = '';
   list_words = null;
@@ -1535,6 +1733,10 @@ class ReaderStore {
     if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
     if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
     if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
+    if (settings.hideWordTranslationUnderline !== undefined) this.hideWordTranslationUnderline = settings.hideWordTranslationUnderline === true;
+    if (settings.hideTranslationIcons !== undefined) this.hideTranslationIcons = settings.hideTranslationIcons === true;
+    if (settings.hideBookmarkIcons !== undefined) this.hideBookmarkIcons = settings.hideBookmarkIcons === true;
+    if (settings.hideSentenceVoiceoverIcons !== undefined) this.hideSentenceVoiceoverIcons = settings.hideSentenceVoiceoverIcons === true;
   }
 
   setBookmark(value) { this.bookmark = value; }
@@ -2130,6 +2332,8 @@ const Text = createThemedText();
 const TextInput = createThemedTextInput();
 const AppAlert = new AppAlertService();
 const appStore = new AppStore();
+const progressStore = new ProgressStore();
+const progressService = new ProgressService();
 const readerStore = new ReaderStore();
 const downloadStore = new DownloadStore();
 const homeStore = new HomeStore();
@@ -2393,6 +2597,139 @@ const profileStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 32
   }
+});
+
+const statisticsStyles = StyleSheet.create({
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: 16,
+    paddingBottom: 48,
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  errorCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 16,
+  },
+  periodButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  metrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metricsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 18,
+  },
+  metric: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  metricWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: '50%',
+  },
+  metricValue: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '700',
+  },
+  metricLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 10,
+    borderRadius: 5,
+  },
+  chart: {
+    height: 144,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingRight: 4,
+  },
+  chartColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: 144,
+  },
+  goalProgress: {
+    marginBottom: 18,
+  },
+  goalTrack: {
+    height: 8,
+    marginTop: 10,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  chartBar: {
+    width: 20,
+    minHeight: 4,
+    borderRadius: 4,
+  },
+  field: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  input: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  button: {
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authGate: {
+    flex: 1,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 var readerScreenStyles = StyleSheet.create({
@@ -3700,6 +4037,44 @@ const HomeDownloadsPanel = observer(function HomeDownloadsPanel() {
   );
 });
 
+const HomeProgressPanel = observer(function HomeProgressPanel(props) {
+  var user = appStore.current_user;
+  var summary = progressStore.summary || {};
+  var today = summary.today || {};
+  var goal = summary.goal || {};
+  var goalMinutes = Number(goal.reading_minutes_per_day || 15);
+  var minutes = Number(today.minutes || 0);
+  var progress = Math.min(100, Math.round(minutes / Math.max(1, goalMinutes) * 100));
+  var notice = progressStore.notification || summary.notification;
+
+  if (!user) {
+    return (
+      <TouchableOpacity onPress={() => props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сохраняйте свой прогресс</Text>
+        <Text style={{ marginTop: 6, color: appThemeStore.colors.mutedText, lineHeight: 20 }}>Войдите, чтобы видеть время чтения, серии дней и персональные цели.</Text>
+        <Text style={{ marginTop: 10, color: app_theme_colors.red, fontWeight: '600' }}>Открыть статистику →</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сегодня</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
+      </View>
+      <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+        <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
+      </View>
+      {notice ? (
+        <Text style={{ marginTop: 12, color: appThemeStore.colors.text, lineHeight: 20 }}>{notice.message || notice.title}</Text>
+      ) : (
+        <Text style={{ marginTop: 12, color: appThemeStore.colors.mutedText }}>{progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.'}</Text>
+      )}
+    </TouchableOpacity>
+  );
+});
+
 const Home = observer(class Home extends React.Component {
   constructor(props) {
     super(props);
@@ -3713,6 +4088,7 @@ const Home = observer(class Home extends React.Component {
       not_show_read: true,
       sort_new_book: true,
       show_only_loaded: false,
+      show_statistics: true,
       open_property: false,
       search_value: '',
     };
@@ -3721,8 +4097,12 @@ const Home = observer(class Home extends React.Component {
   }
 
   async componentDidMount() {
-    this._unsubscribeTabPress = this.props.tabs.navigation.addListener('tabPress', () => this.getBooks());
+    this._unsubscribeTabPress = this.props.tabs.navigation.addListener('tabPress', () => {
+      this.getBooks();
+      if (appStore.current_user) progressService.loadSummary();
+    });
     this._unsubscribeDownloadCompleted = downloadStore.onCompleted(() => this.filter_books());
+    if (appStore.current_user) progressService.loadSummary();
 
     var sort_new_book_default_migrated = await new Storage().get('sort_new_book_default_enabled_v1');
     if (sort_new_book_default_migrated != 'true') {
@@ -3733,10 +4113,12 @@ const Home = observer(class Home extends React.Component {
     var not_show_read = await new Storage().get('not_show_read', 'false')
     var sort_new_book = await new Storage().get('sort_new_book', 'true');
     var show_only_loaded = await new Storage().get('show_only_loaded', 'false');
+    var show_statistics = await new Storage().get('show_statistics', 'true');
     this.setState({
       not_show_read: not_show_read === 'true',
       sort_new_book: sort_new_book === 'true',
       show_only_loaded: show_only_loaded === 'true',
+      show_statistics: show_statistics === 'true',
     }, () => {
       this.getBooks();
     });
@@ -3971,6 +4353,11 @@ const Home = observer(class Home extends React.Component {
     });
   }
 
+  setPropertyShowStatistics(value) {
+    this.setState({ show_statistics: value });
+    AsyncStorage.setItem('show_statistics', value.toString());
+  }
+
   setPropertyShowOnlyLoaded() {
 
     AppMetrica.reportEvent('showOnlyLoaded', { value: !this.state.show_only_loaded });
@@ -4105,7 +4492,7 @@ const Home = observer(class Home extends React.Component {
 
               </View>
 
-              <View style={[homeStyles.properties_point, { marginBottom: 0 }]}>
+              <View style={homeStyles.properties_point}>
 
                 <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Показать только скачанные</Text>
 
@@ -4120,44 +4507,53 @@ const Home = observer(class Home extends React.Component {
 
               </View>
 
+              <View style={[homeStyles.properties_point, { marginBottom: 0 }]}>
+                <Text style={[homeStyles.properties_point_text, { color: appThemeStore.colors.text }]}>Отображать статистику</Text>
+                <Switch
+                  accessibilityLabel="Отображать статистику"
+                  trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }}
+                  thumbColor="#aaa"
+                  activeThumbColor="#aaa"
+                  ios_backgroundColor={appThemeStore.colors.backgroundLight}
+                  onValueChange={(value) => this.setPropertyShowStatistics(value)}
+                  value={this.state.show_statistics}
+                />
+              </View>
+
             </View>
           }
 
         </View>
 
-        <React.Fragment>
-          {this.state.do_not_find == true &&
-            <View style={{ marginTop: 104 }}>
+        <FlatList
+          style={{ flex: 1, marginTop: -8, zIndex: 0, paddingTop: 8 }}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
+          }
+          showsHorizontalScrollIndicator={false}
+          scrollIndicatorInsets={{ right: 1 }}
+          removeClippedSubviews={true}
+          contentContainerStyle={{ paddingBottom: 104 }}
+          data={visibleBooks}
+          ListHeaderComponent={this.state.show_statistics ? () => <HomeProgressPanel navigation={this.props.stack.navigation} /> : null}
+          renderItem={(book) => <Book
+            books_percents={appStore.books_percents}
+            book={book}
+            onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
+              book_id: book_id,
+              color: color,
+            })}
+          />}
+          keyExtractor={(book) => String(book.id)}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
+          )}
+          ListEmptyComponent={() => this.state.do_not_find ? (
+            <View style={{ marginTop: 72 }}>
               <Text style={{ textAlign: 'center', fontSize: 18, color: '#aaa' }}>Книги не найдены :(</Text>
             </View>
-          }
-          {this.state.do_not_find == false &&
-            <FlatList
-              style={{ flex: 1, marginTop: -8, zIndex: 0, paddingTop: 8 }}
-              refreshControl={
-                <RefreshControl refreshing={false} onRefresh={() => this.getBooks()} />
-              }
-              showsHorizontalScrollIndicator={false}
-              scrollIndicatorInsets={{ right: 1 }}
-              removeClippedSubviews={true}
-              contentContainerStyle={{ paddingBottom: 104 }}
-              data={visibleBooks}
-              renderItem={(book) => <Book
-                books_percents={appStore.books_percents}
-                book={book}
-                onPress={(book_id, color) => this.props.stack.navigation.navigate('show', {
-                  book_id: book_id,
-                  color: color,
-                })}
-              />}
-              keyExtractor={(book) => String(book.id)}
-              ItemSeparatorComponent={() => (
-                <View style={{ height: 1, marginLeft: 16, marginRight: 16, backgroundColor: appThemeStore.colors.border }} />
-              )}
-              ListEmptyComponent={() => <PreviewBooks />}
-            />
-          }
-        </React.Fragment>
+          ) : <PreviewBooks />}
+        />
 
       </View>
     )
@@ -4549,6 +4945,8 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+    await progressService.flush(appStore.current_user.id);
+    progressService.loadSummary();
         push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
@@ -4584,6 +4982,8 @@ class Auth extends React.Component {
         await persistCurrentUser(response);
 
         await root_app.checkSubscription();
+    await progressService.flush(appStore.current_user.id);
+    progressService.loadSummary();
         push_notification_service.syncDevice();
         if (this.props.onSuccess) await this.props.onSuccess(response);
       }
@@ -4783,6 +5183,11 @@ class NotificationSettings extends React.Component {
       loaded: false,
       saving: false,
       notifications_enabled: false,
+      goals_loaded: false,
+      goals_saving: false,
+      reminder_enabled: false,
+      reminder_hour: 19,
+      reminder_minute: 0,
     };
   }
 
@@ -4800,15 +5205,22 @@ class NotificationSettings extends React.Component {
       'push_notifications_enabled',
       'false',
     );
+    const goals = appStore.current_user
+      ? await new Request('/api/v2/reading/goals', {}, { do_not_show_error: true }).get()
+      : false;
     if (this.is_screen_mounted)
       this.setState({
+        goals_loaded: goals !== false,
+        reminder_enabled: goals !== false && goals.reminder_enabled === true,
+        reminder_hour: goals !== false ? Number(goals.reminder_hour ?? 19) : 19,
+        reminder_minute: goals !== false ? Number(goals.reminder_minute ?? 0) : 0,
         loaded: true,
         notifications_enabled: enabled === 'true',
       });
   }
 
   async saveNotifications(enabled) {
-    if (this.state.saving) return;
+    if (this.state.saving || this.state.goals_saving) return;
     this.setState({
       saving: true,
     });
@@ -4825,16 +5237,60 @@ class NotificationSettings extends React.Component {
       } else {
         await push_notification_service.disable();
       }
-      if (this.is_screen_mounted)
-        this.setState({
-          notifications_enabled: enabled,
-        });
+      await this.load();
     } finally {
       if (this.is_screen_mounted)
         this.setState({
           saving: false,
         });
     }
+  }
+
+  async saveGoalNotifications() {
+    if (!this.state.notifications_enabled || !this.state.goals_loaded || this.state.goals_saving || this.state.saving) return;
+    this.setState({ goals_saving: true });
+    try {
+      const response = await new Request('/api/v2/reading/goals', {
+        reminder_enabled: this.state.reminder_enabled,
+        reminder_hour: this.state.reminder_hour,
+        reminder_minute: this.state.reminder_minute,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }, { do_not_show_error: true }).put();
+      AppAlert.alert(response === false ? 'Не удалось сохранить напоминания' : 'Напоминания сохранены');
+    } finally {
+      if (this.is_screen_mounted) this.setState({ goals_saving: false });
+    }
+  }
+
+  renderGoalNotifications() {
+    const disabled = !this.state.notifications_enabled || !this.state.goals_loaded || this.state.saving || this.state.goals_saving;
+    const time_disabled = disabled || !this.state.reminder_enabled;
+    return (
+      <View style={{ marginTop: 24, padding: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 12, backgroundColor: appThemeStore.colors.surface }}>
+        <Text style={{ color: appThemeStore.colors.text, fontSize: 18, fontWeight: '600' }}>Напоминания о целях</Text>
+        {!this.state.notifications_enabled && <Text style={{ marginTop: 8, color: appThemeStore.colors.mutedText }}>Включите push-уведомления, чтобы настроить напоминания.</Text>}
+        {!this.state.goals_loaded && <Text style={{ marginTop: 8, color: appThemeStore.colors.mutedText }}>{appStore.current_user ? 'Не удалось загрузить настройки напоминаний.' : 'Войдите, чтобы настроить напоминания о целях.'}</Text>}
+        <View accessibilityState={{ disabled }} style={{ opacity: disabled ? 0.45 : 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+            <Text style={{ flex: 1, color: appThemeStore.colors.text }}>Напоминать о цели</Text>
+            <Switch accessibilityLabel="Напоминать о цели" disabled={disabled} value={this.state.reminder_enabled} onValueChange={value => this.setState({ reminder_enabled: value })} trackColor={{ false: appThemeStore.colors.backgroundLight, true: app_theme_colors.red }} />
+          </View>
+          <Text style={{ marginTop: 16, color: appThemeStore.colors.text }}>Время напоминания</Text>
+          <View pointerEvents={time_disabled ? 'none' : 'auto'} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, opacity: !disabled && time_disabled ? 0.45 : 1 }}>
+            <Picker accessibilityLabel="Часы" enabled={!time_disabled} selectedValue={this.state.reminder_hour} onValueChange={value => this.setState({ reminder_hour: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
+              {Array.from({ length: 24 }, (_, hour) => <Picker.Item key={hour} label={String(hour).padStart(2, '0')} value={hour} />)}
+            </Picker>
+            <Text style={{ color: appThemeStore.colors.text, marginHorizontal: Platform.OS === 'web' ? 8 : 0 }}>:</Text>
+            <Picker accessibilityLabel="Минуты" enabled={!time_disabled} selectedValue={this.state.reminder_minute} onValueChange={value => this.setState({ reminder_minute: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
+              {Array.from({ length: 60 }, (_, minute) => <Picker.Item key={minute} label={String(minute).padStart(2, '0')} value={minute} />)}
+            </Picker>
+          </View>
+          <TouchableOpacity disabled={disabled} onPress={() => this.saveGoalNotifications()} style={{ marginTop: 16, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: app_theme_colors.red }}>
+            {this.state.goals_saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить напоминания</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   showPermissionError() {
@@ -4937,6 +5393,7 @@ class NotificationSettings extends React.Component {
                   <ActivityIndicator color={app_theme_colors.red} />
                 ) : (
                   <Switch
+                    disabled={this.state.goals_saving}
                     value={this.state.notifications_enabled}
                     onValueChange={value => this.saveNotifications(value)}
                     trackColor={{
@@ -4958,6 +5415,7 @@ class NotificationSettings extends React.Component {
                 момент.
               </Text>
             </View>
+            {this.renderGoalNotifications()}
           </View>
         </ScrollView>
       </AppSafeAreaView>
@@ -5099,6 +5557,7 @@ const Profile = observer(class Profile extends React.Component {
                 {this.renderMenuItem('Изменить пароль', () => this.props.stack.navigation.navigate('profile_password'))}
               </React.Fragment>
             }
+            {current_user != false && this.renderMenuItem('Статистика и цели', () => this.props.root_stack.navigation.navigate('statistics', { backTitle: 'Профиль' }))}
             {this.renderMenuItem('Уведомления', () => this.props.root_stack.navigation.navigate('notification_settings', { backTitle: 'Профиль' }))}
             {this.renderMenuItem('Память', () => this.props.stack.navigation.navigate('profile_memory'))}
             {this.renderMenuItem('Цветовая схема', () => this.props.stack.navigation.navigate('profile_settings'), true)}
@@ -5241,6 +5700,8 @@ const ProfileDetails = observer(
         },
       ).delete();
       await clearAuthenticationState();
+      progressStore.setSummary(null);
+      progressStore.dismissNotification();
     }
     render() {
       var current_user = appStore.current_user;
@@ -5716,7 +6177,11 @@ class ProfileSettings extends React.Component {
       translate_icon_size: 24,
       backgroundColorTheme: appThemeStore.colors.background,
       textColorTheme: appThemeStore.colors.text,
-      secondColorTheme: appThemeStore.colors.second
+      secondColorTheme: appThemeStore.colors.second,
+      hideWordTranslationUnderline: false,
+      hideTranslationIcons: false,
+      hideBookmarkIcons: false,
+      hideSentenceVoiceoverIcons: false
     };
   }
 
@@ -5738,6 +6203,10 @@ class ProfileSettings extends React.Component {
     settings.backgroundColorTheme = appThemeStore.colors.background;
     settings.textColorTheme = appThemeStore.colors.text;
     settings.secondColorTheme = appThemeStore.colors.second;
+    settings.hideWordTranslationUnderline = settings.hideWordTranslationUnderline === true;
+    settings.hideTranslationIcons = settings.hideTranslationIcons === true;
+    settings.hideBookmarkIcons = settings.hideBookmarkIcons === true;
+    settings.hideSentenceVoiceoverIcons = settings.hideSentenceVoiceoverIcons === true;
     if (this._mounted) this.setState(Object.assign({}, settings, { loaded: true }));
   }
 
@@ -5766,40 +6235,430 @@ class ProfileSettings extends React.Component {
     this.saveSettings({ backgroundColorTheme: backgroundColor, textColorTheme: textColor, secondColorTheme: secondColor });
   }
 
-  previewTextAlign() {
-    return ({ 'flex-start': 'left', 'flex-end': 'right', center: 'center', 'space-evenly': 'justify' })[this.state.textAlign] || 'left';
+  renderPreviewSentence(words, sentenceIndex) {
+    return (
+      <React.Fragment key={'sentence_' + sentenceIndex}>
+        {!this.state.hideSentenceVoiceoverIcons &&
+          <View style={{ height: this.state.translate_icon_size, marginTop: 8, marginRight: 8, justifyContent: 'center' }}>
+            <AppIcon icon={VolumeIcon} size={this.state.translate_icon_size} color={this.state.textColorTheme} />
+          </View>
+        }
+        {words.map((word, wordIndex) =>
+          <View
+            key={'word_' + sentenceIndex + '_' + wordIndex}
+            style={{
+              height: this.state.translate_icon_size,
+              marginTop: 8,
+              marginRight: 8,
+              borderBottomWidth: this.state.hideWordTranslationUnderline ? 0 : 2,
+              borderBottomColor: this.state.secondColorTheme
+            }}>
+            <Text style={{ fontSize: this.state.fontSize, lineHeight: this.state.translate_icon_size, fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
+              {word}
+            </Text>
+          </View>
+        )}
+        {!this.state.hideTranslationIcons &&
+          <View style={{ height: this.state.translate_icon_size, marginTop: 8, marginRight: 8, justifyContent: 'center' }}>
+            <AppIcon icon={EllipsisVerticalIcon} size={this.state.translate_icon_size} color={app_theme_colors.red} />
+          </View>
+        }
+      </React.Fragment>
+    );
+  }
+
+  renderPreviewParagraph(number, sentences, bookmarked) {
+    return (
+      <View key={'paragraph_' + number} style={{ marginTop: 8, marginBottom: 16, flexDirection: 'row' }}>
+        {!this.state.hideBookmarkIcons &&
+          <View style={{ width: 40, paddingRight: 8, alignItems: 'center' }}>
+            <Text style={{ fontSize: 18, lineHeight: 24, fontFamily: 'Times', color: bookmarked ? app_theme_colors.red : this.state.secondColorTheme }}>{number}</Text>
+            <AppIcon
+              icon={BookmarkIcon}
+              size={24}
+              color={bookmarked ? app_theme_colors.red : this.state.secondColorTheme}
+              fill={bookmarked ? app_theme_colors.red : 'none'}
+              style={{ marginTop: 8 }}
+            />
+          </View>
+        }
+        <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', paddingLeft: this.state.hideBookmarkIcons ? 16 : 0, justifyContent: this.state.textAlign }}>
+          {sentences.map((words, sentenceIndex) => this.renderPreviewSentence(words, number + '_' + sentenceIndex))}
+          {!this.state.hideTranslationIcons &&
+            <View style={{ height: this.state.translate_icon_size, marginTop: 8, marginRight: 8, justifyContent: 'center' }}>
+              <AppIcon icon={EllipsisIcon} size={this.state.translate_icon_size} color={app_theme_colors.red} />
+            </View>
+          }
+        </View>
+      </View>
+    );
   }
 
   render() {
     if (!this.state.loaded) return <ActivityIndicator style={{ flex: 1 }} color={appThemeStore.colors.mutedText} />;
     var previewParagraphs = [
-      'The Little Prince',
-      'It is only with the heart that one can see rightly; what is essential is invisible to the eye.',
-      'The morning was quiet, and a pale golden light stretched across the fields. A small bird landed nearby and listened to the wind.',
-      'He opened the old book and continued reading. Every page carried him farther from the room and closer to a new adventure.',
-      'When evening came, the stars appeared one by one. Their soft light reminded him that even a long journey begins with a single step.',
-      'The road continued beyond the hill, turning gently toward the distant town. He smiled and walked on without looking back.'
+      [
+        ['It', 'is', 'only', 'with', 'the', 'heart', 'that', 'one', 'can', 'see', 'rightly;', 'what', 'is', 'essential', 'is', 'invisible', 'to', 'the', 'eye.']
+      ],
+      [
+        ['The', 'morning', 'was', 'quiet,', 'and', 'a', 'pale', 'golden', 'light', 'stretched', 'across', 'the', 'fields.'],
+        ['A', 'small', 'bird', 'landed', 'nearby', 'and', 'listened', 'to', 'the', 'wind.']
+      ],
+      [
+        ['He', 'opened', 'the', 'old', 'book', 'and', 'continued', 'reading.'],
+        ['Every', 'page', 'carried', 'him', 'farther', 'from', 'the', 'room', 'and', 'closer', 'to', 'a', 'new', 'adventure.']
+      ],
+      [
+        ['When', 'evening', 'came,', 'the', 'stars', 'appeared', 'one', 'by', 'one.'],
+        ['Their', 'soft', 'light', 'reminded', 'him', 'that', 'even', 'a', 'long', 'journey', 'begins', 'with', 'a', 'single', 'step.']
+      ],
+      [
+        ['The', 'road', 'continued', 'beyond', 'the', 'hill,', 'turning', 'gently', 'toward', 'the', 'distant', 'town.'],
+        ['He', 'smiled', 'and', 'walked', 'on', 'without', 'looking', 'back.']
+      ]
     ];
     return (
       <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения</Text>
-          <View style={{ minHeight: 624, position: 'relative', padding: 24, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
-            {previewParagraphs.map((paragraph, index) =>
-              <Text key={index} style={{ marginBottom: 16, fontSize: this.state.fontSize, lineHeight: readerLineHeight(this.state.fontSize), fontFamily: this.state.fontFamily, color: this.state.textColorTheme, textAlign: this.previewTextAlign() }}>
-                {paragraph}
+          <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения в ридере</Text>
+            <View style={{ minHeight: 624, position: 'relative', paddingVertical: 16, paddingRight: 16, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
+              <Text style={{ marginTop: 8, marginBottom: 8, paddingLeft: 40, fontSize: this.state.fontSize, lineHeight: readerLineHeight(this.state.fontSize), fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
+                The Little Prince
+              </Text>
+              {this.renderPreviewParagraph(12, previewParagraphs[0], true)}
+              {this.renderPreviewParagraph(13, previewParagraphs[1], false)}
+              {this.renderPreviewParagraph(14, previewParagraphs[2], false)}
+              {this.renderPreviewParagraph(15, previewParagraphs[3], false)}
+              {this.renderPreviewParagraph(16, previewParagraphs[4], false)}
+
+              <View style={{ position: 'absolute', right: 8, top: 8, width: 216, zIndex: 5 }}>
+                <ReaderSettingsPanel
+                  {...this.state}
+                  changeFontSize={(type) => this.changeFontSize(type)}
+                  textAlignChange={() => this.textAlignChange()}
+                  changeColorTheme={(background, text, second) => this.changeColorTheme(background, text, second)}
+                  chanageFontFamily={(fontFamily) => this.saveSettings({ fontFamily: fontFamily })}
+                  changeVisibilitySetting={(settingName, value) => this.saveSettings({ [settingName]: value === true })}
+                />
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </AppSafeAreaView>
+    );
+  }
+}
+
+class Statistics extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      loading: true,
+      notifications_enabled: true,
+      refreshing: false,
+      saving: false,
+      auth_modal: false,
+      period: 'week',
+      load_error: false,
+      statistics: null,
+      goals: {
+        reading_minutes_per_day: '15',
+        reading_days_per_week: '5',
+        books_per_month: '1',
+      }
+    };
+    this._loadRequestId = 0;
+  }
+
+  componentDidMount() {
+    this._unsubscribeFocus = this.props.stack.navigation.addListener('focus', () => this.load());
+    this.load();
+  }
+
+  componentWillUnmount() {
+    if (this._unsubscribeFocus) this._unsubscribeFocus();
+  }
+
+  async load(refreshing, requestedPeriod) {
+    const notifications_enabled = await storage.get('push_notifications_enabled', 'false');
+    this.setState({ notifications_enabled: notifications_enabled === 'true' });
+    var user = appStore.current_user;
+    if (!user) {
+      this.setState({ loading: false, refreshing: false, statistics: null });
+      return;
+    }
+    var period = requestedPeriod || this.state.period;
+    var requestId = ++this._loadRequestId;
+    this.setState({ loading: refreshing !== true, refreshing: refreshing === true, load_error: false });
+    var params = {
+      period: period,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    var results = await Promise.all([
+      new Request('/api/v2/reading/statistics', params, { do_not_show_error: true }).get(),
+      new Request('/api/v2/reading/goals', {}, { do_not_show_error: true }).get()
+    ]);
+    if (requestId !== this._loadRequestId) return;
+    var statistics = results[0] === false ? null : results[0];
+    var goals = results[1] === false ? this.state.goals : Object.assign({}, this.state.goals, results[1]);
+    ['reading_minutes_per_day', 'reading_days_per_week', 'books_per_month'].forEach((key) => {
+      goals[key] = String(goals[key]);
+    });
+    this.setState({ statistics: statistics, goals: goals, period: period, load_error: statistics === null, loading: false, refreshing: false });
+  }
+
+  setPeriod(period) {
+    if (period == this.state.period) return;
+    this.setState({ period: period }, () => this.load(false, period));
+  }
+
+  number(value, min, max) {
+    var result = parseInt(value, 10);
+    if (!Number.isFinite(result)) result = min;
+    return Math.max(min, Math.min(max, result));
+  }
+
+  async saveGoals() {
+    if (this.state.saving) return;
+    var user = appStore.current_user;
+    if (!user) return;
+    var goals = {
+      reading_minutes_per_day: this.number(this.state.goals.reading_minutes_per_day, 1, 240),
+      reading_days_per_week: this.number(this.state.goals.reading_days_per_week, 1, 7),
+      books_per_month: this.number(this.state.goals.books_per_month, 1, 30),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    this.setState({ saving: true });
+    var response = await new Request('/api/v2/reading/goals', goals, { do_not_show_error: true }).put();
+    this.setState({ saving: false });
+    if (response === false) {
+      AppAlert.alert('Не удалось сохранить цели', 'Проверьте подключение к интернету и попробуйте снова.');
+      return;
+    }
+    AppAlert.alert('Цели сохранены');
+    await progressService.loadSummary();
+    this.load(true);
+  }
+
+  setGoal(key, value) {
+    this.setState({ goals: Object.assign({}, this.state.goals, { [key]: value }) });
+  }
+
+  renderAuthGate() {
+    return (
+      <View style={statisticsStyles.authGate}>
+        <Text style={[{ fontSize: 24, fontWeight: '700', textAlign: 'center' }, { color: appThemeStore.colors.text }]}>Ваш прогресс заслуживает внимания</Text>
+        <Text style={[{ marginTop: 16, fontSize: 16, lineHeight: 24, textAlign: 'center' }, { color: appThemeStore.colors.mutedText }]}>Зарегистрируйтесь, чтобы сохранять историю чтения на сервере, видеть серии и достигать личных целей на всех устройствах.</Text>
+        <TouchableOpacity onPress={() => this.setState({ auth_modal: true })} style={[statisticsStyles.button, { alignSelf: 'stretch', marginTop: 24, backgroundColor: app_theme_colors.red }]}>
+          <Text style={{ color: app_theme_colors.inverseText, fontSize: 16, fontWeight: '600' }}>Войти или зарегистрироваться</Text>
+        </TouchableOpacity>
+        <Modal
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          visible={this.state.auth_modal && appStore.current_user == false}
+          onRequestClose={() => this.setState({ auth_modal: false })}
+          onDismiss={() => this.setState({ auth_modal: false })}>
+          <Auth modal={true} close={() => this.setState({ auth_modal: false })} onSuccess={() => this.setState({ auth_modal: false }, () => this.load())} />
+        </Modal>
+      </View>
+    );
+  }
+
+  renderMetric(value, label, wrap) {
+    return (
+      <View style={[statisticsStyles.metric, wrap && statisticsStyles.metricWrap]}>
+        <Text style={[statisticsStyles.metricValue, { color: appThemeStore.colors.text }]}>{value || 0}</Text>
+        <Text style={[statisticsStyles.metricLabel, { color: appThemeStore.colors.mutedText }]}>{label}</Text>
+      </View>
+    );
+  }
+
+  formatMinutes(value) {
+    var minutes = Math.max(0, Number(value || 0));
+    if (minutes < 60) return Math.round(minutes) + ' мин';
+    var hours = Math.floor(minutes / 60);
+    var rest = Math.round(minutes % 60);
+    return rest > 0 ? hours + ' ч ' + rest + ' мин' : hours + ' ч';
+  }
+
+  periodTitle() {
+    if (this.state.period == 'month') return 'За последние 30 дней';
+    if (this.state.period == 'year') return 'За год';
+    return 'За последние 7 дней';
+  }
+
+  renderPeriodSelector() {
+    var periods = [
+      { id: 'week', title: '7 дней' },
+      { id: 'month', title: '30 дней' },
+      { id: 'year', title: 'Год' }
+    ];
+    return (
+      <View style={[statisticsStyles.periodSelector, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight }]}>
+        {periods.map((period) => {
+          var selected = this.state.period == period.id;
+          return (
+            <TouchableOpacity
+              key={period.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selected }}
+              onPress={() => this.setPeriod(period.id)}
+              style={[statisticsStyles.periodButton, selected && { backgroundColor: appThemeStore.colors.surface }]}>
+              <Text style={{ color: selected ? app_theme_colors.red : appThemeStore.colors.mutedText, fontWeight: selected ? '700' : '500' }}>{period.title}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
+
+  renderChart(days) {
+    days = Array.isArray(days) ? days : [];
+    if (days.length === 0) {
+      return <Text style={{ color: appThemeStore.colors.mutedText, lineHeight: 20 }}>Здесь появится график после первой отправленной сессии чтения.</Text>;
+    }
+    var max = Math.max(1, ...days.map(day => Number(day.minutes || 0)));
+    var columnWidth = days.length > 10 ? 34 : 42;
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={statisticsStyles.chart}>
+          {days.map((day, index) => (
+            <View key={day.date || index} style={[statisticsStyles.chartColumn, { width: columnWidth }]}>
+              <Text style={{ marginBottom: 4, fontSize: 11, color: appThemeStore.colors.mutedText }}>{Number(day.minutes || 0)}</Text>
+              <View style={[statisticsStyles.chartBar, { height: Math.max(4, 96 * Number(day.minutes || 0) / max), backgroundColor: app_theme_colors.red }]} />
+              <Text numberOfLines={1} style={{ marginTop: 8, fontSize: 11, color: appThemeStore.colors.mutedText }}>{day.label || ''}</Text>
+            </View>
+          ))}
+      </ScrollView>
+    );
+  }
+
+  renderGoalProgress(title, current, target, suffix) {
+    current = Math.max(0, Number(current || 0));
+    target = Math.max(1, Number(target || 1));
+    var percent = Math.min(100, Math.round(current / target * 100));
+    return (
+      <View style={statisticsStyles.goalProgress}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ flex: 1, color: appThemeStore.colors.text }}>{title}</Text>
+          <Text style={{ marginLeft: 12, color: appThemeStore.colors.mutedText }}>{current} из {target} {suffix}</Text>
+        </View>
+        <View style={[statisticsStyles.goalTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+          <View style={[statisticsStyles.goalFill, { width: percent + '%', backgroundColor: percent >= 100 ? app_theme_colors.success : app_theme_colors.red }]} />
+        </View>
+      </View>
+    );
+  }
+
+  renderField(label, key, suffix) {
+    return (
+      <View style={statisticsStyles.field}>
+        <Text style={[statisticsStyles.fieldLabel, { color: appThemeStore.colors.text }]}>{label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            value={this.state.goals[key]}
+            onChangeText={(value) => this.setGoal(key, value.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            style={[statisticsStyles.input, { flex: 1, color: appThemeStore.colors.text, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight }]}
+          />
+          <Text style={{ width: 96, marginLeft: 12, color: appThemeStore.colors.mutedText }}>{suffix}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  render() {
+    if (appStore.current_user == false) return this.renderAuthGate();
+    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />;
+
+    var statistics = this.state.statistics || {};
+    var today = statistics.today || {};
+    var streak = statistics.streak || {};
+    var points = statistics.points || statistics.days || [];
+    var totals = Object.assign({}, statistics.totals || {});
+    if (totals.minutes == undefined) totals.minutes = points.reduce((sum, point) => sum + Number(point.minutes || 0), 0);
+    var goalsProgress = statistics.goals_progress || {};
+    var readingDays = goalsProgress.reading_days || {};
+    var completedBooks = goalsProgress.books || {};
+    var goalMinutes = Number(this.state.goals.reading_minutes_per_day || 1);
+    var progress = Math.min(100, Math.round(Number(today.minutes || 0) / Math.max(1, goalMinutes) * 100));
+
+    return (
+      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.load(true)} />}
+          contentContainerStyle={statisticsStyles.content}>
+          {this.renderPeriodSelector()}
+
+          {this.state.load_error &&
+            <View style={[statisticsStyles.errorCard, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+              <Text style={{ color: appThemeStore.colors.text, fontWeight: '600' }}>Не удалось загрузить статистику</Text>
+              <Text style={{ marginTop: 6, color: appThemeStore.colors.mutedText }}>Проверьте подключение и попробуйте ещё раз.</Text>
+              <TouchableOpacity onPress={() => this.load(false)} style={{ marginTop: 12 }}><Text style={{ color: app_theme_colors.red, fontWeight: '600' }}>Повторить</Text></TouchableOpacity>
+            </View>
+          }
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Сегодня</Text>
+            <View style={statisticsStyles.metrics}>
+              {this.renderMetric(today.minutes, 'минут')}
+              {this.renderMetric(today.pages, 'страниц')}
+              {this.renderMetric(today.words_added, 'новых слов')}
+            </View>
+            <Text style={{ marginTop: 20, marginBottom: 8, color: appThemeStore.colors.mutedText }}>{progress}% дневной цели</Text>
+            <View style={[statisticsStyles.progressTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
+              <View style={[statisticsStyles.progressFill, { width: progress + '%', backgroundColor: app_theme_colors.red }]} />
+            </View>
+          </View>
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>{this.periodTitle()}</Text>
+            <View style={statisticsStyles.metricsWrap}>
+              {this.renderMetric(this.formatMinutes(totals.minutes), 'время чтения', true)}
+              {this.renderMetric(totals.pages, 'страниц', true)}
+              {this.renderMetric(totals.words_added, 'новых слов', true)}
+              {this.renderMetric(totals.sessions, 'сессий', true)}
+            </View>
+          </View>
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Регулярность</Text>
+            <View style={statisticsStyles.metrics}>
+              {this.renderMetric(streak.current_days, 'дней подряд')}
+              {this.renderMetric(streak.best_days, 'лучшая серия')}
+              {this.renderMetric(statistics.books_completed, 'книг завершено')}
+            </View>
+          </View>
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Активность</Text>
+            {this.renderChart(points)}
+          </View>
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Прогресс целей</Text>
+            {this.renderGoalProgress('Активные дни на этой неделе', readingDays.current, readingDays.target || this.state.goals.reading_days_per_week, 'дн.')}
+            {this.renderGoalProgress('Законченные книги в этом месяце', completedBooks.current, completedBooks.target || this.state.goals.books_per_month, 'шт.')}
+          </View>
+
+          <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
+            <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Мои цели</Text>
+            {this.renderField('Читать каждый день', 'reading_minutes_per_day', 'минут')}
+            {this.renderField('Активных дней в неделю', 'reading_days_per_week', 'дней')}
+            {this.renderField('Заканчивать за месяц', 'books_per_month', 'книг')}
+            <TouchableOpacity disabled={this.state.saving} onPress={() => this.saveGoals()} style={[statisticsStyles.button, { backgroundColor: app_theme_colors.red, opacity: this.state.saving ? 0.6 : 1 }]}>
+              {this.state.saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить цели</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => this.props.stack.navigation.navigate('notification_settings', { backTitle: 'Статистика' })} style={[statisticsStyles.button, { borderWidth: 1, borderColor: appThemeStore.colors.border, marginTop: 12 }]}>
+              <Text style={{ color: appThemeStore.colors.text, fontWeight: '600' }}>Настроить уведомления о целях</Text>
+            </TouchableOpacity>
+            {(!this.state.notifications_enabled || this.state.goals.reminder_enabled === false) && (
+              <Text style={{ marginTop: 12, color: appThemeStore.colors.mutedText, lineHeight: 20 }}>
+                <Text style={{ color: app_theme_colors.red }}>Уведомления выключены!</Text>
+                {'\nВключите их, чтобы следить за выполнением целей!'}
               </Text>
             )}
 
-            <View style={{ position: 'absolute', right: 8, top: 8, width: 216, zIndex: 5 }}>
-              <ReaderSettingsPanel
-                {...this.state}
-                changeFontSize={(type) => this.changeFontSize(type)}
-                textAlignChange={() => this.textAlignChange()}
-                changeColorTheme={(background, text, second) => this.changeColorTheme(background, text, second)}
-                chanageFontFamily={(fontFamily) => this.saveSettings({ fontFamily: fontFamily })}
-              />
-            </View>
           </View>
         </ScrollView>
       </AppSafeAreaView>
@@ -6761,27 +7620,28 @@ const Paragraph = observer(class Paragraph extends React.Component {
           </View>
         }
         <View style={{ marginTop: 16, flexDirection: 'row' }}>
-          <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={{ marginTop: 8, paddingRight: 8, paddingLeft: 16 }}>
-            <Text style={[{ fontSize: 18, fontFamily: 'Times', textAlign: 'center' }, { color: readerStore.secondColorTheme }, readerStore.bookmark == this.props.data['name'] && { color: app_theme_colors.red }]}>{this.props.data['name']}</Text>
-            <AppIcon
-              icon={BookmarkIcon}
-              size={24}
-              color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
-              fill={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : 'none'}
-              style={{ height: 24, width: 24, marginTop: 8 }}
-            />
-
-          </TouchableOpacity>
-          <View style={[{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginRight: 16 }, { justifyContent: readerStore.textAlign }]}>
+          {!readerStore.hideBookmarkIcons &&
+            <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={{ marginTop: 8, paddingRight: 8, paddingLeft: 16 }}>
+              <Text style={[{ fontSize: 18, fontFamily: 'Times', textAlign: 'center' }, { color: readerStore.secondColorTheme }, readerStore.bookmark == this.props.data['name'] && { color: app_theme_colors.red }]}>{this.props.data['name']}</Text>
+              <AppIcon
+                icon={BookmarkIcon}
+                size={24}
+                color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
+                fill={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : 'none'}
+                style={{ height: 24, width: 24, marginTop: 8 }}
+              />
+            </TouchableOpacity>
+          }
+          <View style={[{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginRight: 16, paddingLeft: readerStore.hideBookmarkIcons ? 16 : 0 }, { justifyContent: readerStore.textAlign }]}>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {this.props.voiceover && appStore.has_internet ? (
+                {!readerStore.hideSentenceVoiceoverIcons && this.props.voiceover && appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
-                ) : this.props.voiceover ? (
+                ) : !readerStore.hideSentenceVoiceoverIcons && this.props.voiceover ? (
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
@@ -6793,7 +7653,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
                             <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
@@ -6806,7 +7666,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 }
                 )}
 
-                {this.props.data['sentences'].length > 1 &&
+                {!readerStore.hideTranslationIcons && this.props.data['sentences'].length > 1 &&
                   <TouchableOpacity
                     activeOpacity={1}
                     onPress={() => this.translateText(sentence['tr'])}
@@ -6821,14 +7681,16 @@ const Paragraph = observer(class Paragraph extends React.Component {
             )}
 
 
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => this.translateText(this.state.paragraph_translate)}
-              style={readerScreenStyles.translateButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
-            </TouchableOpacity>
+            {!readerStore.hideTranslationIcons &&
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => this.translateText(this.state.paragraph_translate)}
+                style={readerScreenStyles.translateButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
+              </TouchableOpacity>
+            }
 
 
           </View>
@@ -6839,6 +7701,21 @@ const Paragraph = observer(class Paragraph extends React.Component {
 });
 
 class ReaderSettingsPanel extends React.Component {
+  renderVisibilitySetting(title, settingName) {
+    var selected = this.props[settingName] === true;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => this.props.changeVisibilitySetting(settingName, !selected)}
+        style={{ minHeight: 48, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ width: 22, height: 22, borderRadius: 4, borderWidth: 1, borderColor: selected ? app_theme_colors.red : this.props.secondColorTheme, backgroundColor: selected ? app_theme_colors.red : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+          {selected && <AppIcon icon={CheckIcon} size={16} color="#ffffff" />}
+        </View>
+        <Text style={{ flex: 1, paddingLeft: 8, fontSize: 14, lineHeight: 18, color: this.props.textColorTheme }}>{title}</Text>
+      </TouchableOpacity>
+    );
+  }
+
   renderColorButton(backgroundColor, textColor, secondColor) {
     var selected = this.props.backgroundColorTheme == backgroundColor;
     return (
@@ -6864,7 +7741,7 @@ class ReaderSettingsPanel extends React.Component {
   render() {
     var borderColor = this.props.secondColorTheme;
     return (
-      <View style={{ width: '210px', alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
+      <View style={{ width: 210, alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: borderColor, backgroundColor: this.props.backgroundColorTheme, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', borderBottomColor: borderColor, borderBottomWidth: 1 }}>
           <View style={{ flex: 2, height: 56, flexDirection: 'row', position: 'relative', borderRightWidth: 1, borderRightColor: borderColor }}>
             <TouchableOpacity
@@ -6906,6 +7783,13 @@ class ReaderSettingsPanel extends React.Component {
           {this.renderFontButton('Arial', 'Arial')}
           {this.renderFontButton('Verdana', 'Verdana')}
         </View>
+
+        <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderTopWidth: 1, borderTopColor: borderColor }}>
+          {this.renderVisibilitySetting('Скрыть подчеркивание слов с переводом', 'hideWordTranslationUnderline')}
+          {this.renderVisibilitySetting('Скрыть иконки перевода предложений и абзацев', 'hideTranslationIcons')}
+          {this.renderVisibilitySetting('Скрыть иконки закладок', 'hideBookmarkIcons')}
+          {this.renderVisibilitySetting('Скрыть иконки озвучки предложений', 'hideSentenceVoiceoverIcons')}
+        </View>
       </View>
     );
   }
@@ -6921,16 +7805,19 @@ class ReaderSettings extends React.Component {
         onRequestClose={() => this.props.closeSettings && this.props.closeSettings()}
         statusBarTranslucent={true}>
         <AppSafeAreaView style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}>
-        <TouchableOpacity
-          activeOpacity={1}
-          style={{ flex: 1 }}
-          onPress={() => this.props.closeSettings && this.props.closeSettings()}>
-          <TouchableWithoutFeedback onPress={() => { }}>
-            <View style={{ position: 'absolute', right: 8, top: 40, width: 216 }}>
-              <ReaderSettingsPanel {...this.props} />
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ flex: 1, paddingVertical: 16, alignItems: 'flex-end' }}
+            onPress={() => this.props.closeSettings && this.props.closeSettings()}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <ScrollView
+                style={{ width: 226, maxHeight: '100%' }}
+                contentContainerStyle={{ paddingHorizontal: 8 }}
+                showsVerticalScrollIndicator={true}>
+                <ReaderSettingsPanel {...this.props} />
+              </ScrollView>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
         </AppSafeAreaView>
       </Modal>
     );
@@ -6967,6 +7854,10 @@ const Reader = observer(class Reader extends React.Component {
       backgroundColorTheme: false,
       textColorTheme: false,
       secondColorTheme: false,
+      hideWordTranslationUnderline: false,
+      hideTranslationIcons: false,
+      hideBookmarkIcons: false,
+      hideSentenceVoiceoverIcons: false,
 
       showTraining: false,
 
@@ -7034,6 +7925,10 @@ const Reader = observer(class Reader extends React.Component {
         textColorTheme: '#000000',
         secondColorTheme: '#bbb',
         fontFamily: 'LibreBaskerville-Regular',
+        hideWordTranslationUnderline: false,
+        hideTranslationIcons: false,
+        hideBookmarkIcons: false,
+        hideSentenceVoiceoverIcons: false,
       }
       new Storage().set('themeReaderSettings', JSON.stringify(settings));
     } else {
@@ -7043,6 +7938,10 @@ const Reader = observer(class Reader extends React.Component {
     settings['backgroundColorTheme'] = appThemeStore.colors.background;
     settings['textColorTheme'] = appThemeStore.colors.text;
     settings['secondColorTheme'] = appThemeStore.colors.second;
+    settings['hideWordTranslationUnderline'] = settings['hideWordTranslationUnderline'] === true;
+    settings['hideTranslationIcons'] = settings['hideTranslationIcons'] === true;
+    settings['hideBookmarkIcons'] = settings['hideBookmarkIcons'] === true;
+    settings['hideSentenceVoiceoverIcons'] = settings['hideSentenceVoiceoverIcons'] === true;
 
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       this.previousBodyBackgroundColor = document.body.style.backgroundColor;
@@ -7063,6 +7962,10 @@ const Reader = observer(class Reader extends React.Component {
       textColorTheme: settings['textColorTheme'],
       secondColorTheme: settings['secondColorTheme'],
       fontFamily: settings['fontFamily'],
+      hideWordTranslationUnderline: settings['hideWordTranslationUnderline'] === true,
+      hideTranslationIcons: settings['hideTranslationIcons'] === true,
+      hideBookmarkIcons: settings['hideBookmarkIcons'] === true,
+      hideSentenceVoiceoverIcons: settings['hideSentenceVoiceoverIcons'] === true,
     });
 
     readerStore.setThemeSettings(settings);
@@ -7113,7 +8016,20 @@ const Reader = observer(class Reader extends React.Component {
       page: parseInt(page),
       pages: Object.keys(pagination).length,
     }, () => {
+      this.startProgressSession();
       this.openPage(true);
+    });
+
+    this._progressHeartbeat = setInterval(() => {
+      progressService.touch(this.state.page, this.calculatePercent());
+    }, 30000);
+
+    this._appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState == 'active') {
+        this.startProgressSession();
+      } else {
+        progressService.finish('app_background');
+      }
     });
 
     var haveTraining = await new Storage().get('haveTraining') == 'true';
@@ -7125,6 +8041,9 @@ const Reader = observer(class Reader extends React.Component {
   }
 
   componentWillUnmount() {
+    progressService.finish('reader_closed');
+    if (this._appStateSubscription) this._appStateSubscription.remove();
+    clearInterval(this._progressHeartbeat);
     if (this._appearanceThemeSubscription) this._appearanceThemeSubscription.remove();
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       if (this.unsubscribeBodyFocus) this.unsubscribeBodyFocus();
@@ -7456,9 +8375,22 @@ const Reader = observer(class Reader extends React.Component {
     appStore.setBooksPercents(Object.assign({}, appStore.books_percents, {
       [this.props.stack.route.params.book_id]: percent,
     }));
+    progressService.touch(this.state.page, percent);
 
     this.setState({
       percent: percent,
+    });
+  }
+
+  startProgressSession() {
+    var user = appStore.current_user;
+    if (!user) return;
+    progressService.start({
+      owner_id: user.id,
+      book_id: this.props.stack.route.params.book_id,
+      book_name: this.book_name_en || this.book_name,
+      page: this.state.page,
+      percent: this.calculatePercent()
     });
   }
 
@@ -7681,6 +8613,27 @@ const Reader = observer(class Reader extends React.Component {
     });
   }
 
+  async changeVisibilitySetting(settingName, value) {
+    var supportedSettings = [
+      'hideWordTranslationUnderline',
+      'hideTranslationIcons',
+      'hideBookmarkIcons',
+      'hideSentenceVoiceoverIcons'
+    ];
+    if (supportedSettings.indexOf(settingName) == -1) return;
+
+    var storedSettings = await new Storage().get('themeReaderSettings', '{}');
+    var settings = JSON.parse(storedSettings || '{}');
+    settings[settingName] = value === true;
+    await new Storage().set('themeReaderSettings', JSON.stringify(settings));
+
+    var changes = {};
+    changes[settingName] = value === true;
+    this.setState(changes);
+    readerStore.setThemeSettings(changes);
+    AppMetrica.reportEvent('changeProperty', changes);
+  }
+
 
   async goBookUp(book_id) {
     var sort_new_book = await new Storage().get('sort_new_book');
@@ -7806,7 +8759,7 @@ const Reader = observer(class Reader extends React.Component {
                 modal={true}
                 bookmark_info={true}
                 close={() => this.setState({ auth_modal: false })}
-                onSuccess={() => this.setState({ auth_modal: false })}
+                onSuccess={() => this.setState({ auth_modal: false }, () => this.startProgressSession())}
               />
             </Modal>
 
@@ -7912,6 +8865,12 @@ const Reader = observer(class Reader extends React.Component {
 
                   fontFamily={this.state.fontFamily}
                   chanageFontFamily={(fontFamily) => this.chanageFontFamily(fontFamily)}
+
+                  hideWordTranslationUnderline={this.state.hideWordTranslationUnderline}
+                  hideTranslationIcons={this.state.hideTranslationIcons}
+                  hideBookmarkIcons={this.state.hideBookmarkIcons}
+                  hideSentenceVoiceoverIcons={this.state.hideSentenceVoiceoverIcons}
+                  changeVisibilitySetting={(settingName, value) => this.changeVisibilitySetting(settingName, value)}
                 />
 
               </View>
@@ -8327,6 +9286,10 @@ const RootApp = observer(class RootApp extends React.Component {
     appStore.setConfirmConditions(confirm_val);
 
     this.checkSubscription();
+    if (appStore.current_user) {
+      await progressService.flush(appStore.current_user.id);
+      progressService.loadSummary();
+    }
 
     this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
@@ -8335,6 +9298,8 @@ const RootApp = observer(class RootApp extends React.Component {
         await this.migrateNativeAuthentication();
         if (appStore.current_user != false) {
           SyncManager.flush(appStore.current_user.id);
+          progressService.flush(appStore.current_user.id);
+          progressService.loadSummary();
         }
       }
     });
@@ -8412,6 +9377,10 @@ const RootApp = observer(class RootApp extends React.Component {
 
         if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
           this.checkSubscription();
+    if (appStore.current_user) {
+      await progressService.flush(appStore.current_user.id);
+      progressService.loadSummary();
+    }
           push_notification_service.syncDevice();
         }
         return true;
@@ -8803,6 +9772,12 @@ const RootApp = observer(class RootApp extends React.Component {
                   {() => (
                     <Subscription root={this} />
                   )}
+                </Stack.Screen>
+                <Stack.Screen name="statistics" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Книги'),
+                  title: 'Статистика'
+                })}>
+                  {(stack) => <Statistics root={this} stack={stack} />}
                 </Stack.Screen>
                 <Stack.Screen name="notification_settings" options={({ navigation, route }) => ({
                   ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Профиль'),

@@ -153,6 +153,10 @@ const RootApp = observer(class RootApp extends React.Component {
     appStore.setConfirmConditions(confirm_val);
 
     this.checkSubscription();
+    if (appStore.current_user) {
+      await progressService.flush(appStore.current_user.id);
+      progressService.loadSummary();
+    }
 
     this._unsubNet = NetInfo.addEventListener(async state => {
       appStore.setInternet(state.isConnected);
@@ -161,6 +165,8 @@ const RootApp = observer(class RootApp extends React.Component {
         await this.migrateNativeAuthentication();
         if (appStore.current_user != false) {
           SyncManager.flush(appStore.current_user.id);
+          progressService.flush(appStore.current_user.id);
+          progressService.loadSummary();
         }
       }
     });
@@ -238,6 +244,10 @@ const RootApp = observer(class RootApp extends React.Component {
 
         if (refreshSubscription && (!previousUser || previousUser.id != response.data.id)) {
           this.checkSubscription();
+    if (appStore.current_user) {
+      await progressService.flush(appStore.current_user.id);
+      progressService.loadSummary();
+    }
           push_notification_service.syncDevice();
         }
         return true;
@@ -629,6 +639,12 @@ const RootApp = observer(class RootApp extends React.Component {
                   {() => (
                     <Subscription root={this} />
                   )}
+                </Stack.Screen>
+                <Stack.Screen name="statistics" options={({ navigation, route }) => ({
+                  ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Книги'),
+                  title: 'Статистика'
+                })}>
+                  {(stack) => <Statistics root={this} stack={stack} />}
                 </Stack.Screen>
                 <Stack.Screen name="notification_settings" options={({ navigation, route }) => ({
                   ...backButtonOptions(navigation, route.params && route.params.backTitle ? route.params.backTitle : 'Профиль'),

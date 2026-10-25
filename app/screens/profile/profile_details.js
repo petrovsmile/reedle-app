@@ -120,6 +120,8 @@ const ProfileDetails = observer(
         },
       ).delete();
       await clearAuthenticationState();
+      progressStore.setSummary(null);
+      progressStore.dismissNotification();
     }
     render() {
       var current_user = appStore.current_user;

@@ -116,6 +116,14 @@ class PushNotificationService {
       await storage.set('push_notifications_enabled', enabled.toString());
       if (enabled) {
         await this.registerDevice();
+        if (appStore.current_user) {
+          const goal = await new Request('/api/v2/reading/goals', {
+            reminder_enabled: true,
+          }, { do_not_show_error: true }).put();
+          if (goal === false) {
+            AppAlert.alert('Не удалось включить напоминания о целях', 'Уведомления разрешены. Попробуйте сохранить напоминания в настройках уведомлений.');
+          }
+        }
       } else {
         await this.client.setAutoInitEnabled(false);
       }
@@ -180,6 +188,8 @@ class PushNotificationService {
   }
 
   notificationDestination(data) {
+    if (data.action === 'statistics')
+      return ['statistics', { backTitle: 'Книги' }];
     if (data.action === 'reader' && data.book_id)
       return [
         'reader',

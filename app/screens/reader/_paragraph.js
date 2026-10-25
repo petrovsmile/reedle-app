@@ -308,27 +308,28 @@ const Paragraph = observer(class Paragraph extends React.Component {
           </View>
         }
         <View style={{ marginTop: 16, flexDirection: 'row' }}>
-          <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={{ marginTop: 8, paddingRight: 8, paddingLeft: 16 }}>
-            <Text style={[{ fontSize: 18, fontFamily: 'Times', textAlign: 'center' }, { color: readerStore.secondColorTheme }, readerStore.bookmark == this.props.data['name'] && { color: app_theme_colors.red }]}>{this.props.data['name']}</Text>
-            <AppIcon
-              icon={BookmarkIcon}
-              size={24}
-              color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
-              fill={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : 'none'}
-              style={{ height: 24, width: 24, marginTop: 8 }}
-            />
-
-          </TouchableOpacity>
-          <View style={[{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginRight: 16 }, { justifyContent: readerStore.textAlign }]}>
+          {!readerStore.hideBookmarkIcons &&
+            <TouchableOpacity onPress={() => this.addBookmark(this.props.data['name'])} style={{ marginTop: 8, paddingRight: 8, paddingLeft: 16 }}>
+              <Text style={[{ fontSize: 18, fontFamily: 'Times', textAlign: 'center' }, { color: readerStore.secondColorTheme }, readerStore.bookmark == this.props.data['name'] && { color: app_theme_colors.red }]}>{this.props.data['name']}</Text>
+              <AppIcon
+                icon={BookmarkIcon}
+                size={24}
+                color={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : readerStore.secondColorTheme}
+                fill={readerStore.bookmark == this.props.data['name'] ? app_theme_colors.red : 'none'}
+                style={{ height: 24, width: 24, marginTop: 8 }}
+              />
+            </TouchableOpacity>
+          }
+          <View style={[{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', marginRight: 16, paddingLeft: readerStore.hideBookmarkIcons ? 16 : 0 }, { justifyContent: readerStore.textAlign }]}>
             {this.props.data['sentences'].map((sentence, index) =>
               <React.Fragment key={index}>
-                {this.props.voiceover && appStore.has_internet ? (
+                {!readerStore.hideSentenceVoiceoverIcons && this.props.voiceover && appStore.has_internet ? (
                   <TouchableOpacity onPress={() => this.speakSentence(sentence, index)} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Animated.View style={this.isSpeaking(index) && { transform: [{ scale: this.scaleAnim }] }}>
                       <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color={this.isSpeaking(index) ? app_theme_colors.red : readerStore.textColorTheme} />
                     </Animated.View>
                   </TouchableOpacity>
-                ) : this.props.voiceover ? (
+                ) : !readerStore.hideSentenceVoiceoverIcons && this.props.voiceover ? (
                   <TouchableOpacity onPress={() => AppAlert.alert('Нет подключения к интернету!')} style={readerScreenStyles.speakButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <AppIcon icon={VolumeIcon} size={readerStore.translate_icon_size} color="#aaa" />
                   </TouchableOpacity>
@@ -340,7 +341,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
                             <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
@@ -353,7 +354,7 @@ const Paragraph = observer(class Paragraph extends React.Component {
                 }
                 )}
 
-                {this.props.data['sentences'].length > 1 &&
+                {!readerStore.hideTranslationIcons && this.props.data['sentences'].length > 1 &&
                   <TouchableOpacity
                     activeOpacity={1}
                     onPress={() => this.translateText(sentence['tr'])}
@@ -368,14 +369,16 @@ const Paragraph = observer(class Paragraph extends React.Component {
             )}
 
 
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => this.translateText(this.state.paragraph_translate)}
-              style={readerScreenStyles.translateButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
-            </TouchableOpacity>
+            {!readerStore.hideTranslationIcons &&
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => this.translateText(this.state.paragraph_translate)}
+                style={readerScreenStyles.translateButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <AppIcon icon={EllipsisIcon} size={readerStore.translate_icon_size} color={app_theme_colors.red} />
+              </TouchableOpacity>
+            }
 
 
           </View>
