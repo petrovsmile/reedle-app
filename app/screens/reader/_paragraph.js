@@ -297,6 +297,17 @@ const Paragraph = observer(class Paragraph extends React.Component {
     return result;
   }
 
+  wordSpacing() {
+    // U+0020 advance widths from the bundled fonts, relative to their em size.
+    const space_ratios = {
+      'Times': 0.25,
+      'Arial': 0.27783203125,
+      'LibreBaskerville-Regular': 0.287,
+      'Verdana': 0.3515625,
+    };
+    return readerStore.fontSize * (space_ratios[readerStore.fontFamily] || 0.287);
+  }
+
   render() {
 
     return (
@@ -335,19 +346,19 @@ const Paragraph = observer(class Paragraph extends React.Component {
                   </TouchableOpacity>
                 ) : null}
                 {this.displayBlocks(sentence['b']).map((block, index, blocks) => {
-                  const nextBlock = blocks[index + 1];
-                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',' || nextBlock['v'] === ';' || nextBlock['v'] === ':')) ? 4 : 8;
+                  const next_block = blocks[index + 1];
+                  const margin_right = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (next_block && (next_block['v'] === '.' || next_block['v'] === ',' || next_block['v'] === ';' || next_block['v'] === ':')) ? this.wordSpacing() / 2 : this.wordSpacing();
                   return (
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
                             <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
                       }
                       {block['w'] == undefined &&
-                        <Text style={[{ marginRight }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
+                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
                       }
                     </React.Fragment>
                   );

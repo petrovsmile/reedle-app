@@ -53,7 +53,7 @@ class Statistics extends React.Component {
     ['reading_minutes_per_day', 'reading_days_per_week', 'books_per_month'].forEach((key) => {
       goals[key] = String(goals[key]);
     });
-    this.setState({ statistics: statistics, goals: goals, period: period, load_error: statistics === null, loading: false, refreshing: false });
+    this.setState({ statistics: statistics, goals: goals, period: period, load_error: statistics === null, loading: false, refreshing: false }, () => this.scrollChartToEnd());
   }
 
   setPeriod(period) {
@@ -113,11 +113,22 @@ class Statistics extends React.Component {
     );
   }
 
+  pluralWord(value, forms) {
+    const number_value = Math.abs(Number(value) || 0);
+    if (!Number.isInteger(number_value)) return forms[1];
+    const last_two = number_value % 100;
+    const last_digit = number_value % 10;
+    if (last_two >= 11 && last_two <= 14) return forms[2];
+    if (last_digit === 1) return forms[0];
+    if (last_digit >= 2 && last_digit <= 4) return forms[1];
+    return forms[2];
+  }
+
   renderMetric(value, label, wrap) {
     return (
       <View style={[statisticsStyles.metric, wrap && statisticsStyles.metricWrap]}>
         <Text style={[statisticsStyles.metricValue, { color: appThemeStore.colors.text }]}>{value || 0}</Text>
-        <Text style={[statisticsStyles.metricLabel, { color: appThemeStore.colors.mutedText }]}>{label}</Text>
+        <Text style={[statisticsStyles.metricLabel, { color: appThemeStore.colors.mutedText }]}>{Array.isArray(label) ? this.pluralWord(value, label) : label}</Text>
       </View>
     );
   }
@@ -161,6 +172,12 @@ class Statistics extends React.Component {
     );
   }
 
+  scrollChartToEnd() {
+    if (this.activity_chart && (this.state.period === 'month' || this.state.period === 'year')) {
+      this.activity_chart.scrollToEnd({ animated: false });
+    }
+  }
+
   renderChart(days) {
     days = Array.isArray(days) ? days : [];
     if (days.length === 0) {
@@ -169,7 +186,13 @@ class Statistics extends React.Component {
     var max = Math.max(1, ...days.map(day => Number(day.minutes || 0)));
     var columnWidth = days.length > 10 ? 34 : 42;
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={statisticsStyles.chart}>
+      <ScrollView
+        ref={view => { this.activity_chart = view; }}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onLayout={() => this.scrollChartToEnd()}
+        onContentSizeChange={() => this.scrollChartToEnd()}
+        contentContainerStyle={statisticsStyles.chart}>
           {days.map((day, index) => (
             <View key={day.date || index} style={[statisticsStyles.chartColumn, { width: columnWidth }]}>
               <Text style={{ marginBottom: 4, fontSize: 11, color: appThemeStore.colors.mutedText }}>{Number(day.minutes || 0)}</Text>
@@ -209,7 +232,7 @@ class Statistics extends React.Component {
             keyboardType="number-pad"
             style={[statisticsStyles.input, { flex: 1, color: appThemeStore.colors.text, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight }]}
           />
-          <Text style={{ width: 96, marginLeft: 12, color: appThemeStore.colors.mutedText }}>{suffix}</Text>
+          <Text style={{ width: 96, marginLeft: 12, color: appThemeStore.colors.mutedText }}>{Array.isArray(suffix) ? this.pluralWord(this.state.goals[key], suffix) : suffix}</Text>
         </View>
       </View>
     );
@@ -249,9 +272,9 @@ class Statistics extends React.Component {
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Сегодня</Text>
             <View style={statisticsStyles.metrics}>
-              {this.renderMetric(today.minutes, 'минут')}
-              {this.renderMetric(today.pages, 'страниц')}
-              {this.renderMetric(today.words_added, 'новых слов')}
+              {this.renderMetric(today.minutes, ['минута', 'минуты', 'минут'])}
+              {this.renderMetric(today.pages, ['страница', 'страницы', 'страниц'])}
+              {this.renderMetric(today.words_added, ['новое слово в словаре', 'новых слова в словаре', 'новых слов в словаре'])}
             </View>
             <Text style={{ marginTop: 20, marginBottom: 8, color: appThemeStore.colors.mutedText }}>{progress}% дневной цели</Text>
             <View style={[statisticsStyles.progressTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
@@ -263,18 +286,18 @@ class Statistics extends React.Component {
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>{this.periodTitle()}</Text>
             <View style={statisticsStyles.metricsWrap}>
               {this.renderMetric(this.formatMinutes(totals.minutes), 'время чтения', true)}
-              {this.renderMetric(totals.pages, 'страниц', true)}
-              {this.renderMetric(totals.words_added, 'новых слов', true)}
-              {this.renderMetric(totals.sessions, 'сессий', true)}
+              {this.renderMetric(totals.pages, ['страница', 'страницы', 'страниц'], true)}
+              {this.renderMetric(totals.words_added, ['новое слово в словаре', 'новых слова в словаре', 'новых слов в словаре'], true)}
+              {this.renderMetric(totals.sessions, ['сессия', 'сессии', 'сессий'], true)}
             </View>
           </View>
 
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Регулярность</Text>
             <View style={statisticsStyles.metrics}>
-              {this.renderMetric(streak.current_days, 'дней подряд')}
+              {this.renderMetric(streak.current_days, ['день подряд', 'дня подряд', 'дней подряд'])}
               {this.renderMetric(streak.best_days, 'лучшая серия')}
-              {this.renderMetric(statistics.books_completed, 'книг завершено')}
+              {this.renderMetric(statistics.books_completed, ['книга завершена', 'книги завершены', 'книг завершено'])}
             </View>
           </View>
 
@@ -291,9 +314,9 @@ class Statistics extends React.Component {
 
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Мои цели</Text>
-            {this.renderField('Читать каждый день', 'reading_minutes_per_day', 'минут')}
-            {this.renderField('Активных дней в неделю', 'reading_days_per_week', 'дней')}
-            {this.renderField('Заканчивать за месяц', 'books_per_month', 'книг')}
+            {this.renderField('Читать каждый день', 'reading_minutes_per_day', ['минуту', 'минуты', 'минут'])}
+            {this.renderField('Активных дней в неделю', 'reading_days_per_week', ['день', 'дня', 'дней'])}
+            {this.renderField('Заканчивать за месяц', 'books_per_month', ['книгу', 'книги', 'книг'])}
             <TouchableOpacity disabled={this.state.saving} onPress={() => this.saveGoals()} style={[statisticsStyles.button, { backgroundColor: app_theme_colors.red, opacity: this.state.saving ? 0.6 : 1 }]}>
               {this.state.saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить цели</Text>}
             </TouchableOpacity>

@@ -60,10 +60,37 @@ if (
           });
         });
 
+        let checking_version = false;
+        const checkPublishedVersion = async () => {
+          if (process.env.NODE_ENV !== 'production' || checking_version || reloading || document.visibilityState === 'hidden') return;
+          const bundle_pattern = /(?:^|\/)bundle\.[a-f0-9]+\.js(?:[?#]|$)/i;
+          const loaded_bundle = Array.from(document.scripts || [])
+            .map(script => new URL(script.src, window.location.href))
+            .find(url => url.origin === window.location.origin && bundle_pattern.test(url.pathname));
+          if (!loaded_bundle) return;
+          checking_version = true;
+          try {
+            const response = await fetch(scope + 'index.html?pwa_update=' + Date.now(), { cache: 'no-store' });
+            if (!response.ok) return;
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const published_bundle = Array.from(page.querySelectorAll('script[src]'))
+              .map(script => new URL(script.getAttribute('src'), new URL(scope, window.location.href)))
+              .find(url => url.origin === window.location.origin && bundle_pattern.test(url.pathname));
+            if (published_bundle && published_bundle.pathname !== loaded_bundle.pathname && !reloading) {
+              reloading = true;
+              window.location.reload();
+            }
+          } catch (error) {
+            console.warn('PWA version check failed:', error);
+          } finally {
+            checking_version = false;
+          }
+        };
         const checkForUpdate = () => {
           registration.update()
             .then(() => applyWaitingUpdate(registration))
             .catch((error) => console.warn('PWA update check failed:', error));
+          checkPublishedVersion();
         };
         checkForUpdate();
         window.addEventListener('focus', checkForUpdate);
@@ -71,7 +98,8 @@ if (
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') checkForUpdate();
         });
-        window.setInterval(checkForUpdate, 60 * 60 * 1000);
+        window.addEventListener('pageshow', checkForUpdate);
+        window.setInterval(checkForUpdate, 5 * 60 * 1000);
       })
       .catch((error) => console.error('Service worker registration failed:', error));
   };

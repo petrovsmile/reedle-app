@@ -40,6 +40,10 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
   var minutes = Number(today.minutes || 0);
   var progress = Math.min(100, Math.round(minutes / Math.max(1, goalMinutes) * 100));
   var notice = progressStore.notification || summary.notification;
+  var streak_days = Math.max(0, Math.floor(Number((summary.streak || {}).current_days) || 0));
+  var day_label = streak_days % 10 === 1 && streak_days % 100 !== 11 ? 'день' :
+    (streak_days % 10 >= 2 && streak_days % 10 <= 4 && (streak_days % 100 < 12 || streak_days % 100 > 14) ? 'дня' : 'дней');
+  var streak_text = streak_days > 0 ? streak_days + ' ' + day_label + ' подряд' : 'Начните серию чтения';
 
   if (!user) {
     return (
@@ -54,17 +58,20 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
   return (
     <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сегодня</Text>
-        <Text style={{ color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
+        <Text style={{ flex: 1, marginRight: 12, color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+        <Text style={{ flexShrink: 0, color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
       </View>
       <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
         <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
       </View>
-      {notice ? (
-        <Text style={{ marginTop: 12, color: appThemeStore.colors.text, lineHeight: 20 }}>{notice.message || notice.title}</Text>
-      ) : (
-        <Text style={{ marginTop: 12, color: appThemeStore.colors.mutedText }}>{progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.'}</Text>
-      )}
+      <View accessible={true} accessibilityLabel={streak_text} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', marginRight: 8, marginVertical: 4 }}>
+          {Array.from({ length: 7 }, (_, day_index) => (
+            <View key={day_index} style={{ width: 12, height: 12, borderRadius: 6, marginRight: 4, backgroundColor: day_index < streak_days ? app_theme_colors.red : appThemeStore.colors.backgroundLight }} />
+          ))}
+        </View>
+        <Text style={{ color: appThemeStore.colors.mutedText, lineHeight: 20 }}>{streak_text}</Text>
+      </View>
     </TouchableOpacity>
   );
 });

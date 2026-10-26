@@ -1477,6 +1477,8 @@ class Select extends React.Component {
       'select',
       {
         value: this.props.value,
+        disabled: this.props.enabled === false,
+        'aria-label': this.props.accessibilityLabel,
         onChange: (event) => this.props.onValueChange(event.target.value),
         style: style
       },
@@ -1496,6 +1498,8 @@ class Select extends React.Component {
     var selectedOption = this.selectedOption();
     return (
       <TouchableOpacity
+        disabled={this.props.enabled === false}
+        accessibilityLabel={this.props.accessibilityLabel}
         onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
         style={[{ height: 24, paddingHorizontal: 8, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, this.props.style]}>
         <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 14 }}>{selectedOption.title}</Text>
@@ -1511,6 +1515,7 @@ class Select extends React.Component {
         label={option.title}
         value={option.value}
         color={appThemeStore.colors.text}
+        style={Platform.OS === 'android' ? { backgroundColor: appThemeStore.colors.backgroundLight, color: appThemeStore.colors.text, fontSize: 14 } : undefined}
       />
     ));
   }
@@ -1557,13 +1562,15 @@ class Select extends React.Component {
 
   renderAndroid() {
     return (
-      <View style={[{ height: 32, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
+      <View style={[{ height: 56, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
         <Picker
           mode="dropdown"
           selectedValue={this.props.value}
           onValueChange={(value) => this.props.onValueChange(value)}
           dropdownIconColor={appThemeStore.colors.mutedText}
-          style={{ width: '100%', height: 32, color: appThemeStore.colors.text }}>
+          enabled={this.props.enabled !== false}
+          accessibilityLabel={this.props.accessibilityLabel}
+          style={{ width: '100%', height: 56, color: appThemeStore.colors.text }}>
           {this.renderItems()}
         </Picker>
       </View>
@@ -2383,8 +2390,8 @@ const APP_VERSION = require('./package.json').version;
 const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
 //const HOST = "https://reedle.ru"
-const HOST = "https://stage.reedle.ru"
-//const HOST = "http://localhost:3000"
+//const HOST = "https://stage.reedle.ru"
+const HOST = "http://localhost:3000"
 
 const app_theme_colors = {
   background: "#FFF",
@@ -2484,7 +2491,8 @@ const dictionaryStyles = StyleSheet.create({
     paddingLeft: 8,
     paddingRight: 8,
     borderRadius: 4,
-    height: 24
+    height: 32,
+    justifyContent: 'center'
   },
   learningContainer: {
     flex: 1,
@@ -3700,7 +3708,7 @@ class Dictionary extends React.Component {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <View>
                       <Text>Сортировать по:</Text>
-                      <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
+                      <View style={{ height: 32, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
                         <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
                           <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.border }]}>
                             <Text style={{ color: this.state.sorting_by == 'date' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 20 }}>дате добавления</Text>
@@ -3716,7 +3724,7 @@ class Dictionary extends React.Component {
                     <View style={{ width: 136, marginLeft: 16 }}>
                       <Text style={{ color: appThemeStore.colors.text, textAlign: 'right' }}>Показывать:</Text>
                       <Select
-                        style={{ marginTop: 8 }}
+                        style={{ marginTop: 8, height: 32 }}
                         value={this.state.words_filter}
                         options={[
                           { value: 'all', title: 'Все слова' },
@@ -4046,6 +4054,10 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
   var minutes = Number(today.minutes || 0);
   var progress = Math.min(100, Math.round(minutes / Math.max(1, goalMinutes) * 100));
   var notice = progressStore.notification || summary.notification;
+  var streak_days = Math.max(0, Math.floor(Number((summary.streak || {}).current_days) || 0));
+  var day_label = streak_days % 10 === 1 && streak_days % 100 !== 11 ? 'день' :
+    (streak_days % 10 >= 2 && streak_days % 10 <= 4 && (streak_days % 100 < 12 || streak_days % 100 > 14) ? 'дня' : 'дней');
+  var streak_text = streak_days > 0 ? streak_days + ' ' + day_label + ' подряд' : 'Начните серию чтения';
 
   if (!user) {
     return (
@@ -4060,17 +4072,20 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
   return (
     <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: appThemeStore.colors.text, fontSize: 16, fontWeight: '700' }}>Сегодня</Text>
-        <Text style={{ color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
+        <Text style={{ flex: 1, marginRight: 12, color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+        <Text style={{ flexShrink: 0, color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
       </View>
       <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
         <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
       </View>
-      {notice ? (
-        <Text style={{ marginTop: 12, color: appThemeStore.colors.text, lineHeight: 20 }}>{notice.message || notice.title}</Text>
-      ) : (
-        <Text style={{ marginTop: 12, color: appThemeStore.colors.mutedText }}>{progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.'}</Text>
-      )}
+      <View accessible={true} accessibilityLabel={streak_text} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', marginRight: 8, marginVertical: 4 }}>
+          {Array.from({ length: 7 }, (_, day_index) => (
+            <View key={day_index} style={{ width: 12, height: 12, borderRadius: 6, marginRight: 4, backgroundColor: day_index < streak_days ? app_theme_colors.red : appThemeStore.colors.backgroundLight }} />
+          ))}
+        </View>
+        <Text style={{ color: appThemeStore.colors.mutedText, lineHeight: 20 }}>{streak_text}</Text>
+      </View>
     </TouchableOpacity>
   );
 });
@@ -5277,13 +5292,23 @@ class NotificationSettings extends React.Component {
           </View>
           <Text style={{ marginTop: 16, color: appThemeStore.colors.text }}>Время напоминания</Text>
           <View pointerEvents={time_disabled ? 'none' : 'auto'} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, opacity: !disabled && time_disabled ? 0.45 : 1 }}>
-            <Picker accessibilityLabel="Часы" enabled={!time_disabled} selectedValue={this.state.reminder_hour} onValueChange={value => this.setState({ reminder_hour: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
-              {Array.from({ length: 24 }, (_, hour) => <Picker.Item key={hour} label={String(hour).padStart(2, '0')} value={hour} />)}
-            </Picker>
-            <Text style={{ color: appThemeStore.colors.text, marginHorizontal: Platform.OS === 'web' ? 8 : 0 }}>:</Text>
-            <Picker accessibilityLabel="Минуты" enabled={!time_disabled} selectedValue={this.state.reminder_minute} onValueChange={value => this.setState({ reminder_minute: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
-              {Array.from({ length: 60 }, (_, minute) => <Picker.Item key={minute} label={String(minute).padStart(2, '0')} value={minute} />)}
-            </Picker>
+            <Select
+              accessibilityLabel="Часы"
+              enabled={!time_disabled}
+              value={this.state.reminder_hour}
+              onValueChange={value => this.setState({ reminder_hour: Number(value) })}
+              style={{ flex: 1 }}
+              options={Array.from({ length: 24 }, (_, hour) => ({ title: String(hour).padStart(2, '0'), value: hour }))}
+            />
+            <Text style={{ color: appThemeStore.colors.text, marginHorizontal: 8 }}>:</Text>
+            <Select
+              accessibilityLabel="Минуты"
+              enabled={!time_disabled}
+              value={this.state.reminder_minute}
+              onValueChange={value => this.setState({ reminder_minute: Number(value) })}
+              style={{ flex: 1 }}
+              options={Array.from({ length: 60 }, (_, minute) => ({ title: String(minute).padStart(2, '0'), value: minute }))}
+            />
           </View>
           <TouchableOpacity disabled={disabled} onPress={() => this.saveGoalNotifications()} style={{ marginTop: 16, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: app_theme_colors.red }}>
             {this.state.goals_saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить напоминания</Text>}
@@ -5346,6 +5371,11 @@ class NotificationSettings extends React.Component {
             >
               Уведомления
             </Text>
+            {Platform.OS === 'web' && (
+              <Text style={{ marginTop: 8, color: appThemeStore.colors.mutedText, lineHeight: 20 }}>
+                Для стабильной работы уведомлений добавьте приложение на главный экран
+              </Text>
+            )}
 
             <View
               style={{
@@ -6405,7 +6435,7 @@ class Statistics extends React.Component {
     ['reading_minutes_per_day', 'reading_days_per_week', 'books_per_month'].forEach((key) => {
       goals[key] = String(goals[key]);
     });
-    this.setState({ statistics: statistics, goals: goals, period: period, load_error: statistics === null, loading: false, refreshing: false });
+    this.setState({ statistics: statistics, goals: goals, period: period, load_error: statistics === null, loading: false, refreshing: false }, () => this.scrollChartToEnd());
   }
 
   setPeriod(period) {
@@ -6465,11 +6495,22 @@ class Statistics extends React.Component {
     );
   }
 
+  pluralWord(value, forms) {
+    const number_value = Math.abs(Number(value) || 0);
+    if (!Number.isInteger(number_value)) return forms[1];
+    const last_two = number_value % 100;
+    const last_digit = number_value % 10;
+    if (last_two >= 11 && last_two <= 14) return forms[2];
+    if (last_digit === 1) return forms[0];
+    if (last_digit >= 2 && last_digit <= 4) return forms[1];
+    return forms[2];
+  }
+
   renderMetric(value, label, wrap) {
     return (
       <View style={[statisticsStyles.metric, wrap && statisticsStyles.metricWrap]}>
         <Text style={[statisticsStyles.metricValue, { color: appThemeStore.colors.text }]}>{value || 0}</Text>
-        <Text style={[statisticsStyles.metricLabel, { color: appThemeStore.colors.mutedText }]}>{label}</Text>
+        <Text style={[statisticsStyles.metricLabel, { color: appThemeStore.colors.mutedText }]}>{Array.isArray(label) ? this.pluralWord(value, label) : label}</Text>
       </View>
     );
   }
@@ -6513,6 +6554,12 @@ class Statistics extends React.Component {
     );
   }
 
+  scrollChartToEnd() {
+    if (this.activity_chart && (this.state.period === 'month' || this.state.period === 'year')) {
+      this.activity_chart.scrollToEnd({ animated: false });
+    }
+  }
+
   renderChart(days) {
     days = Array.isArray(days) ? days : [];
     if (days.length === 0) {
@@ -6521,7 +6568,13 @@ class Statistics extends React.Component {
     var max = Math.max(1, ...days.map(day => Number(day.minutes || 0)));
     var columnWidth = days.length > 10 ? 34 : 42;
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={statisticsStyles.chart}>
+      <ScrollView
+        ref={view => { this.activity_chart = view; }}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onLayout={() => this.scrollChartToEnd()}
+        onContentSizeChange={() => this.scrollChartToEnd()}
+        contentContainerStyle={statisticsStyles.chart}>
           {days.map((day, index) => (
             <View key={day.date || index} style={[statisticsStyles.chartColumn, { width: columnWidth }]}>
               <Text style={{ marginBottom: 4, fontSize: 11, color: appThemeStore.colors.mutedText }}>{Number(day.minutes || 0)}</Text>
@@ -6561,7 +6614,7 @@ class Statistics extends React.Component {
             keyboardType="number-pad"
             style={[statisticsStyles.input, { flex: 1, color: appThemeStore.colors.text, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight }]}
           />
-          <Text style={{ width: 96, marginLeft: 12, color: appThemeStore.colors.mutedText }}>{suffix}</Text>
+          <Text style={{ width: 96, marginLeft: 12, color: appThemeStore.colors.mutedText }}>{Array.isArray(suffix) ? this.pluralWord(this.state.goals[key], suffix) : suffix}</Text>
         </View>
       </View>
     );
@@ -6601,9 +6654,9 @@ class Statistics extends React.Component {
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Сегодня</Text>
             <View style={statisticsStyles.metrics}>
-              {this.renderMetric(today.minutes, 'минут')}
-              {this.renderMetric(today.pages, 'страниц')}
-              {this.renderMetric(today.words_added, 'новых слов')}
+              {this.renderMetric(today.minutes, ['минута', 'минуты', 'минут'])}
+              {this.renderMetric(today.pages, ['страница', 'страницы', 'страниц'])}
+              {this.renderMetric(today.words_added, ['новое слово в словаре', 'новых слова в словаре', 'новых слов в словаре'])}
             </View>
             <Text style={{ marginTop: 20, marginBottom: 8, color: appThemeStore.colors.mutedText }}>{progress}% дневной цели</Text>
             <View style={[statisticsStyles.progressTrack, { backgroundColor: appThemeStore.colors.backgroundLight }]}>
@@ -6615,18 +6668,18 @@ class Statistics extends React.Component {
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>{this.periodTitle()}</Text>
             <View style={statisticsStyles.metricsWrap}>
               {this.renderMetric(this.formatMinutes(totals.minutes), 'время чтения', true)}
-              {this.renderMetric(totals.pages, 'страниц', true)}
-              {this.renderMetric(totals.words_added, 'новых слов', true)}
-              {this.renderMetric(totals.sessions, 'сессий', true)}
+              {this.renderMetric(totals.pages, ['страница', 'страницы', 'страниц'], true)}
+              {this.renderMetric(totals.words_added, ['новое слово в словаре', 'новых слова в словаре', 'новых слов в словаре'], true)}
+              {this.renderMetric(totals.sessions, ['сессия', 'сессии', 'сессий'], true)}
             </View>
           </View>
 
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Регулярность</Text>
             <View style={statisticsStyles.metrics}>
-              {this.renderMetric(streak.current_days, 'дней подряд')}
+              {this.renderMetric(streak.current_days, ['день подряд', 'дня подряд', 'дней подряд'])}
               {this.renderMetric(streak.best_days, 'лучшая серия')}
-              {this.renderMetric(statistics.books_completed, 'книг завершено')}
+              {this.renderMetric(statistics.books_completed, ['книга завершена', 'книги завершены', 'книг завершено'])}
             </View>
           </View>
 
@@ -6643,9 +6696,9 @@ class Statistics extends React.Component {
 
           <View style={[statisticsStyles.card, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
             <Text style={[statisticsStyles.cardTitle, { color: appThemeStore.colors.text }]}>Мои цели</Text>
-            {this.renderField('Читать каждый день', 'reading_minutes_per_day', 'минут')}
-            {this.renderField('Активных дней в неделю', 'reading_days_per_week', 'дней')}
-            {this.renderField('Заканчивать за месяц', 'books_per_month', 'книг')}
+            {this.renderField('Читать каждый день', 'reading_minutes_per_day', ['минуту', 'минуты', 'минут'])}
+            {this.renderField('Активных дней в неделю', 'reading_days_per_week', ['день', 'дня', 'дней'])}
+            {this.renderField('Заканчивать за месяц', 'books_per_month', ['книгу', 'книги', 'книг'])}
             <TouchableOpacity disabled={this.state.saving} onPress={() => this.saveGoals()} style={[statisticsStyles.button, { backgroundColor: app_theme_colors.red, opacity: this.state.saving ? 0.6 : 1 }]}>
               {this.state.saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить цели</Text>}
             </TouchableOpacity>
@@ -7609,6 +7662,17 @@ const Paragraph = observer(class Paragraph extends React.Component {
     return result;
   }
 
+  wordSpacing() {
+    // U+0020 advance widths from the bundled fonts, relative to their em size.
+    const space_ratios = {
+      'Times': 0.25,
+      'Arial': 0.27783203125,
+      'LibreBaskerville-Regular': 0.287,
+      'Verdana': 0.3515625,
+    };
+    return readerStore.fontSize * (space_ratios[readerStore.fontFamily] || 0.287);
+  }
+
   render() {
 
     return (
@@ -7647,19 +7711,19 @@ const Paragraph = observer(class Paragraph extends React.Component {
                   </TouchableOpacity>
                 ) : null}
                 {this.displayBlocks(sentence['b']).map((block, index, blocks) => {
-                  const nextBlock = blocks[index + 1];
-                  const marginRight = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (nextBlock && (nextBlock['v'] === '.' || nextBlock['v'] === ',' || nextBlock['v'] === ';' || nextBlock['v'] === ':')) ? 4 : 8;
+                  const next_block = blocks[index + 1];
+                  const margin_right = block['v'] === '.' || block['v'] === "'" || block['v'] === '"' || block['v'] === '?' || block['v'] === '!' || (next_block && (next_block['v'] === '.' || next_block['v'] === ',' || next_block['v'] === ';' || next_block['v'] === ':')) ? this.wordSpacing() / 2 : this.wordSpacing();
                   return (
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
                             <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
                       }
                       {block['w'] == undefined &&
-                        <Text style={[{ marginRight }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
+                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
                       }
                     </React.Fragment>
                   );
@@ -10280,6 +10344,7 @@ const Subscription = observer(class Subscription extends React.Component {
       auth_modal: false,
       load_sync_button: false,
       api_prices: {},
+      sale_description: '',
     }
 
     // Fallback prices used when API is unavailable
@@ -10290,11 +10355,31 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async componentDidMount() {
+    this.is_mounted = true;
+    await Promise.all([this.LoadPrices(), this.LoadSale()]);
+  }
+
+  componentWillUnmount() {
+    this.is_mounted = false;
+  }
+
+  async LoadSale() {
+    try {
+      const sale = await new Request(
+        '/api/v2/sales/current', {}, { do_not_show_error: true }
+      ).get();
+      const sale_description = sale && typeof sale.description === 'string'
+        ? sale.description.trim() : '';
+      if (this.is_mounted) this.setState({ sale_description });
+    } catch (_) { }
+  }
+
+  async LoadPrices() {
     try {
       const result = await new Request(
         '/api/v2/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
-      if (result) this.setState({ api_prices: result });
+      if (result && this.is_mounted) this.setState({ api_prices: result });
     } catch (e) { }
   }
 
@@ -10303,6 +10388,10 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async initPayment(subscription_id) {
+    if (!appStore.has_internet) {
+      AppAlert.alert('Нет подключения к интернету', 'Для оплаты подписки подключитесь к интернету.');
+      return;
+    }
     AppMetrica.reportEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
     if (appStore.type_payment == 'by_store') {
       this.payByStore(subscription_id);
@@ -10647,6 +10736,18 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {this.can_show_pricing() &&
               <React.Fragment>
+                {!appStore.has_internet &&
+                  <Text style={{ marginTop: 16, color: appThemeStore.colors.text, lineHeight: 20 }}>
+                    Нет подключения к интернету. Цены могут быть неактуальны. Для оплаты подключитесь к сети.
+                  </Text>
+                }
+                {appStore.has_internet && !!this.state.sale_description &&
+                  <View style={{ marginTop: 16, backgroundColor: '#FFF3B0', borderRadius: 8, padding: 16 }}>
+                    <Text style={{ color: '#332900', fontSize: 16, lineHeight: 24 }}>
+                      {this.state.sale_description}
+                    </Text>
+                  </View>
+                }
                 <View style={{ marginTop: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 8, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}

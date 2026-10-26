@@ -32,6 +32,8 @@ class Select extends React.Component {
       'select',
       {
         value: this.props.value,
+        disabled: this.props.enabled === false,
+        'aria-label': this.props.accessibilityLabel,
         onChange: (event) => this.props.onValueChange(event.target.value),
         style: style
       },
@@ -51,6 +53,8 @@ class Select extends React.Component {
     var selectedOption = this.selectedOption();
     return (
       <TouchableOpacity
+        disabled={this.props.enabled === false}
+        accessibilityLabel={this.props.accessibilityLabel}
         onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
         style={[{ height: 24, paddingHorizontal: 8, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, this.props.style]}>
         <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 14 }}>{selectedOption.title}</Text>
@@ -66,6 +70,7 @@ class Select extends React.Component {
         label={option.title}
         value={option.value}
         color={appThemeStore.colors.text}
+        style={Platform.OS === 'android' ? { backgroundColor: appThemeStore.colors.backgroundLight, color: appThemeStore.colors.text, fontSize: 14 } : undefined}
       />
     ));
   }
@@ -112,13 +117,15 @@ class Select extends React.Component {
 
   renderAndroid() {
     return (
-      <View style={[{ height: 32, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
+      <View style={[{ height: 56, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
         <Picker
           mode="dropdown"
           selectedValue={this.props.value}
           onValueChange={(value) => this.props.onValueChange(value)}
           dropdownIconColor={appThemeStore.colors.mutedText}
-          style={{ width: '100%', height: 32, color: appThemeStore.colors.text }}>
+          enabled={this.props.enabled !== false}
+          accessibilityLabel={this.props.accessibilityLabel}
+          style={{ width: '100%', height: 56, color: appThemeStore.colors.text }}>
           {this.renderItems()}
         </Picker>
       </View>

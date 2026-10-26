@@ -11,6 +11,7 @@ const Subscription = observer(class Subscription extends React.Component {
       auth_modal: false,
       load_sync_button: false,
       api_prices: {},
+      sale_description: '',
     }
 
     // Fallback prices used when API is unavailable
@@ -21,11 +22,31 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async componentDidMount() {
+    this.is_mounted = true;
+    await Promise.all([this.LoadPrices(), this.LoadSale()]);
+  }
+
+  componentWillUnmount() {
+    this.is_mounted = false;
+  }
+
+  async LoadSale() {
+    try {
+      const sale = await new Request(
+        '/api/v2/sales/current', {}, { do_not_show_error: true }
+      ).get();
+      const sale_description = sale && typeof sale.description === 'string'
+        ? sale.description.trim() : '';
+      if (this.is_mounted) this.setState({ sale_description });
+    } catch (_) { }
+  }
+
+  async LoadPrices() {
     try {
       const result = await new Request(
         '/api/v2/subscriptions/prices', {}, { do_not_show_error: true }
       ).get();
-      if (result) this.setState({ api_prices: result });
+      if (result && this.is_mounted) this.setState({ api_prices: result });
     } catch (e) { }
   }
 
@@ -34,6 +55,10 @@ const Subscription = observer(class Subscription extends React.Component {
   }
 
   async initPayment(subscription_id) {
+    if (!appStore.has_internet) {
+      AppAlert.alert('Нет подключения к интернету', 'Для оплаты подписки подключитесь к интернету.');
+      return;
+    }
     AppMetrica.reportEvent('initPayment', { type_payment: appStore.type_payment, subscription_id: subscription_id });
     if (appStore.type_payment == 'by_store') {
       this.payByStore(subscription_id);
@@ -378,6 +403,18 @@ const Subscription = observer(class Subscription extends React.Component {
 
             {this.can_show_pricing() &&
               <React.Fragment>
+                {!appStore.has_internet &&
+                  <Text style={{ marginTop: 16, color: appThemeStore.colors.text, lineHeight: 20 }}>
+                    Нет подключения к интернету. Цены могут быть неактуальны. Для оплаты подключитесь к сети.
+                  </Text>
+                }
+                {appStore.has_internet && !!this.state.sale_description &&
+                  <View style={{ marginTop: 16, backgroundColor: '#FFF3B0', borderRadius: 8, padding: 16 }}>
+                    <Text style={{ color: '#332900', fontSize: 16, lineHeight: 24 }}>
+                      {this.state.sale_description}
+                    </Text>
+                  </View>
+                }
                 <View style={{ marginTop: 16, borderWidth: 1, borderColor: appThemeStore.colors.border, borderRadius: 8, overflow: isCompact ? 'hidden' : 'visible' }}>
 
                   {/* 1 месяц */}

@@ -9,7 +9,8 @@ const dictionaryStyles = StyleSheet.create({
     paddingLeft: 8,
     paddingRight: 8,
     borderRadius: 4,
-    height: 24
+    height: 32,
+    justifyContent: 'center'
   },
   learningContainer: {
     flex: 1,

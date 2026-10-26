@@ -208,6 +208,46 @@ async function checkPage(production, controlled) {
   handlers.controllerchange();
   assert.equal(reloads, production ? 1 : 0);
 }
+async function checkPublishedVersion(published_name, online = true) {
+  const handlers = {};
+  const document_handlers = {};
+  let reloads = 0;
+  let requests = 0;
+  const location = { pathname: '/app/books/1', href: 'https://example.test/app/books/1', origin: 'https://example.test', reload: () => { reloads++; } };
+  const document = {
+    readyState: 'complete', visibilityState: 'visible',
+    scripts: [{ src: 'https://example.test/app/bundle.aaaaaaaa.js' }],
+    addEventListener: (name, handler) => { document_handlers[name] = handler; },
+  };
+  const source = fs.readFileSync('index.web.js', 'utf8');
+  vm.runInNewContext(source.slice(source.indexOf('\nif (\n')), {
+    process: { env: { NODE_ENV: 'production' } },
+    window: { location, addEventListener: (name, handler) => { handlers[name] = handler; }, setInterval: () => {} },
+    document,
+    navigator: { serviceWorker: { controller: {}, addEventListener: () => {}, register: async () => ({ update: async () => {}, addEventListener: () => {} }) } },
+    fetch: async (url, options) => {
+      requests++;
+      assert(url.startsWith('/app/index.html?pwa_update='));
+      assert.equal(options.cache, 'no-store');
+      if (!online) throw new Error('Offline');
+      return { ok: true, text: async () => '<html></html>' };
+    },
+    DOMParser: class { parseFromString() { return { querySelectorAll: () => published_name ? [{ getAttribute: () => published_name }] : [] }; } },
+    URL, console: { warn: () => {}, error: console.error },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const expected = online && published_name === 'bundle.bbbbbbbb.js' ? 1 : 0;
+  assert.equal(reloads, expected);
+  handlers.pageshow();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reloads, expected, 'Only one reload per page');
+  const previous_requests = requests;
+  document.visibilityState = 'hidden';
+  document_handlers.visibilitychange();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests, previous_requests, 'Hidden pages do not check the published version');
+}
+
 function checkForegroundClient() {
   const handlers = {};
   const context = vm.createContext({ document: { visibilityState: 'visible' }, navigator: { serviceWorker: {
@@ -233,6 +273,10 @@ function checkForegroundClient() {
   assert.equal(opened[0].data.book_id, '15');
 }
 (async () => {
+  await checkPublishedVersion('bundle.bbbbbbbb.js');
+  await checkPublishedVersion('bundle.aaaaaaaa.js');
+  await checkPublishedVersion(null);
+  await checkPublishedVersion('bundle.bbbbbbbb.js', false);
   checkForegroundClient();
   await checkWorker(false);
   await checkWorker(true);

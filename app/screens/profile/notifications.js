@@ -99,13 +99,23 @@ class NotificationSettings extends React.Component {
           </View>
           <Text style={{ marginTop: 16, color: appThemeStore.colors.text }}>Время напоминания</Text>
           <View pointerEvents={time_disabled ? 'none' : 'auto'} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, opacity: !disabled && time_disabled ? 0.45 : 1 }}>
-            <Picker accessibilityLabel="Часы" enabled={!time_disabled} selectedValue={this.state.reminder_hour} onValueChange={value => this.setState({ reminder_hour: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
-              {Array.from({ length: 24 }, (_, hour) => <Picker.Item key={hour} label={String(hour).padStart(2, '0')} value={hour} />)}
-            </Picker>
-            <Text style={{ color: appThemeStore.colors.text, marginHorizontal: Platform.OS === 'web' ? 8 : 0 }}>:</Text>
-            <Picker accessibilityLabel="Минуты" enabled={!time_disabled} selectedValue={this.state.reminder_minute} onValueChange={value => this.setState({ reminder_minute: Number(value) })} style={[{ flex: 1, height: 32, color: appThemeStore.colors.text }, Platform.OS === 'web' && { outlineStyle: 'none', borderWidth: 1, borderStyle: 'solid', borderColor: appThemeStore.colors.border, borderRadius: 8, backgroundColor: appThemeStore.colors.surface, paddingHorizontal: 10, cursor: time_disabled ? 'default' : 'pointer' }]} >
-              {Array.from({ length: 60 }, (_, minute) => <Picker.Item key={minute} label={String(minute).padStart(2, '0')} value={minute} />)}
-            </Picker>
+            <Select
+              accessibilityLabel="Часы"
+              enabled={!time_disabled}
+              value={this.state.reminder_hour}
+              onValueChange={value => this.setState({ reminder_hour: Number(value) })}
+              style={{ flex: 1 }}
+              options={Array.from({ length: 24 }, (_, hour) => ({ title: String(hour).padStart(2, '0'), value: hour }))}
+            />
+            <Text style={{ color: appThemeStore.colors.text, marginHorizontal: 8 }}>:</Text>
+            <Select
+              accessibilityLabel="Минуты"
+              enabled={!time_disabled}
+              value={this.state.reminder_minute}
+              onValueChange={value => this.setState({ reminder_minute: Number(value) })}
+              style={{ flex: 1 }}
+              options={Array.from({ length: 60 }, (_, minute) => ({ title: String(minute).padStart(2, '0'), value: minute }))}
+            />
           </View>
           <TouchableOpacity disabled={disabled} onPress={() => this.saveGoalNotifications()} style={{ marginTop: 16, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: app_theme_colors.red }}>
             {this.state.goals_saving ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>Сохранить напоминания</Text>}
@@ -168,6 +178,11 @@ class NotificationSettings extends React.Component {
             >
               Уведомления
             </Text>
+            {Platform.OS === 'web' && (
+              <Text style={{ marginTop: 8, color: appThemeStore.colors.mutedText, lineHeight: 20 }}>
+                Для стабильной работы уведомлений добавьте приложение на главный экран
+              </Text>
+            )}
 
             <View
               style={{

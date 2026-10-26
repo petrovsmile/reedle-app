@@ -466,7 +466,7 @@ class Dictionary extends React.Component {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <View>
                       <Text>Сортировать по:</Text>
-                      <View style={{ height: 24, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
+                      <View style={{ height: 32, flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
                         <TouchableOpacity onPress={() => this.set_sorting_by('date')}>
                           <View style={[dictionaryStyles.button_sorting, { backgroundColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.backgroundLight, borderColor: this.state.sorting_by == 'date' ? app_theme_colors.red : appThemeStore.colors.border }]}>
                             <Text style={{ color: this.state.sorting_by == 'date' ? '#FFF' : appThemeStore.colors.text, fontSize: 12, lineHeight: 20 }}>дате добавления</Text>
@@ -482,7 +482,7 @@ class Dictionary extends React.Component {
                     <View style={{ width: 136, marginLeft: 16 }}>
                       <Text style={{ color: appThemeStore.colors.text, textAlign: 'right' }}>Показывать:</Text>
                       <Select
-                        style={{ marginTop: 8 }}
+                        style={{ marginTop: 8, height: 32 }}
                         value={this.state.words_filter}
                         options={[
                           { value: 'all', title: 'Все слова' },
