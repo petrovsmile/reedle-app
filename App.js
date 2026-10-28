@@ -53,6 +53,30 @@ class AdvertisingConfig {
   }
 }
 
+class AppAlertService {
+  handler = null;
+
+  alert(title, message, buttons, on_shown) {
+    if (this.handler) {
+      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
+      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: modalButtons,
+        on_shown: on_shown
+      });
+    }
+  }
+
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
+      { text: 'Отмена', style: 'cancel' }
+    ]);
+  }
+}
+
 class AppAlertModal extends React.Component {
   constructor(props) {
     super(props);
@@ -114,30 +138,6 @@ class AppAlertModal extends React.Component {
         </AppSafeAreaView>
       </Modal>
     );
-  }
-}
-
-class AppAlertService {
-  handler = null;
-
-  alert(title, message, buttons, on_shown) {
-    if (this.handler) {
-      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
-      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
-      this.handler({
-        title: title || '',
-        message: message || '',
-        buttons: modalButtons,
-        on_shown: on_shown
-      });
-    }
-  }
-
-  confirm(title, message, onConfirm, confirmText) {
-    this.alert(title, message, [
-      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
-      { text: 'Отмена', style: 'cancel' }
-    ]);
   }
 }
 
@@ -324,655 +324,6 @@ function createThemedTextInput() {
   }));
 }
 
-class NotificationReceiptService {
-  constructor() {
-    this.queue = Promise.resolve();
-  }
-
-  record(data, event) {
-    if (!data || !data.notification_id || !data.receipt_token) return Promise.resolve();
-    const receipt = {
-      notification_id: String(data.notification_id),
-      receipt_token: data.receipt_token,
-      event: event,
-    };
-    return this.schedule(async () => {
-      const pending = await this.pendingReceipts();
-      const key = this.receiptKey(receipt);
-      if (!pending.some(item => this.receiptKey(item) === key)) pending.push(receipt);
-      await storage.set('notification_receipts', JSON.stringify(pending));
-      await this.sendPendingReceipts();
-    });
-  }
-
-  receiptKey(receipt) {
-    return receipt.notification_id + ':' + receipt.event;
-  }
-
-  async pendingReceipts() {
-    return JSON.parse(await storage.get('notification_receipts', '[]'));
-  }
-
-  schedule(work) {
-    this.queue = this.queue.catch(() => {}).then(work).catch(error => {
-      console.warn('Unable to synchronize notification events:', error.message);
-    });
-    return this.queue;
-  }
-
-  flush() {
-    return this.schedule(() => this.sendPendingReceipts());
-  }
-
-  async sendPendingReceipts() {
-    const pending = await this.pendingReceipts();
-    for (const receipt of pending.slice()) {
-      try {
-        if (Platform.OS === 'web') {
-          const registration = await navigator.serviceWorker.getRegistration();
-          if (!registration || !registration.active) break;
-          // Wait for durable storage in the worker before removing the page copy.
-          await new Promise((resolve, reject) => {
-            const channel = new MessageChannel();
-            const timeout = setTimeout(() => { channel.port1.close(); reject(new Error('Receipt storage timed out')); }, 10000);
-            channel.port1.onmessage = event => {
-              clearTimeout(timeout);
-              channel.port1.close();
-              if (event.data && event.data.saved) resolve();
-              else reject(new Error('Receipt storage failed'));
-            };
-            registration.active.postMessage({ type: 'REEDLE_NOTIFICATION_EVENT', receipt }, [channel.port2]);
-          });
-        } else {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
-          let response;
-          try {
-            response = await fetch(HOST + '/api/v2/notifications/' + encodeURIComponent(receipt.notification_id) + '/events', {
-              method: 'POST', credentials: 'omit', signal: controller.signal,
-              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt),
-            });
-          } finally {
-            clearTimeout(timeout);
-          }
-          if (!response.ok && ![400, 401, 404, 422].includes(response.status)) break;
-        }
-        pending.splice(pending.findIndex(item => this.receiptKey(item) === this.receiptKey(receipt)), 1);
-        await storage.set('notification_receipts', JSON.stringify(pending));
-      } catch (_) {
-        break;
-      }
-    }
-    if (Platform.OS === 'web') {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration && registration.active) registration.active.postMessage({ type: 'REEDLE_RETRY_NOTIFICATION_EVENTS' });
-    }
-  }
-}
-
-class PushNotificationService {
-  constructor(client, registration, receipts) {
-    this.client = client;
-    this.registration = registration;
-    this.receipts = receipts;
-    this.root = null;
-    this.subscriptions = [];
-  }
-
-  async initialize(root) {
-    this.root = root;
-    if (!this.client) return;
-    this.subscriptions = [
-      this.client.onMessage(message => this.showForegroundMessage(message).catch(error => {
-        console.warn('Unable to show foreground notification:', error);
-      })),
-      this.client.onNotificationOpenedApp(message => this.open(message)),
-      this.client.onTokenRefresh(token => this.sendToken(token)),
-    ];
-    if (this.subscribeForegroundNotificationOpened) {
-      this.subscriptions.push(this.subscribeForegroundNotificationOpened(message => this.open(message)));
-      const foreground_notification = await this.foreground_notifications.getInitialNotification();
-      if (foreground_notification) setTimeout(() => this.open(foreground_notification), 500);
-    }
-    const initial_notification = await this.client.getInitialNotification();
-    if (initial_notification)
-      setTimeout(() => this.open(initial_notification), 500);
-  }
-
-  async showForegroundMessage(message) {
-    // The web service worker already displays the browser notification and records delivery.
-    if (this.client && this.client.platform === 'web') return;
-    if (!message.notification) return;
-    const { title, body } = message.notification;
-    const data = message.data || {};
-    if (this.foreground_notifications) {
-      const shown = await this.foreground_notifications.showNotification(title || 'Reedle', body || '', data);
-      if (!shown) return;
-    }
-    // iOS presents remote notifications through the Firebase foreground options.
-    await this.receipts.record(data, 'delivered');
-  }
-
-  async requestPermissionOnStartup() {
-    if (!this.client) return;
-    if ((await storage.get('push_notifications_enabled')) === 'false')
-      return;
-    if (
-      (await storage.get('push_permission_prompt_shown', 'false')) ===
-      'true'
-    )
-      return;
-    if (this.client.platform === 'web') {
-      await this.requestWebPermissionOnStartup();
-      return;
-    }
-    await storage.set('push_permission_prompt_shown', 'true');
-    await this.enable();
-  }
-
-  async requestWebPermissionOnStartup() {
-    try {
-      this.client.ensureSupported();
-    } catch (_) {
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      await this.enable();
-      return;
-    }
-    if (Notification.permission !== 'default') return;
-    await storage.set('push_permission_prompt_shown', 'true');
-    // Browsers require a click to display the system permission prompt.
-    AppAlert.alert(
-      'Уведомления Reedle',
-      'Разрешить приложению отправлять уведомления?',
-      [
-        {
-          text: 'Не сейчас',
-          style: 'cancel',
-        },
-        {
-          text: 'Разрешить',
-          onPress: () => this.enable(),
-        },
-      ],
-    );
-  }
-
-  dispose() {
-    this.subscriptions.forEach(unsubscribe => unsubscribe());
-    this.subscriptions = [];
-    if (this.client && this.client.dispose) this.client.dispose();
-  }
-
-  async requestPermission() {
-    if (this.requestNotificationPermission && !(await this.requestNotificationPermission())) return 0;
-    if (this.client.platform !== 'web') {
-      await this.client.setAutoInitEnabled(true);
-    }
-    // On web this call must happen before any await, directly from the click.
-    return this.client.requestPermission();
-  }
-
-  async registerDevice() {
-    await this.client.registerDeviceForRemoteMessages();
-    const token = await this.client.getToken();
-    await this.sendToken(token);
-  }
-
-  async enable() {
-    if (!this.client) return false;
-    try {
-      const permission = await this.requestPermission();
-      const enabled = permission === 1 || permission === 2;
-      await storage.set('push_notifications_enabled', enabled.toString());
-      if (enabled) {
-        await this.registerDevice();
-        if (appStore.current_user) {
-          const goal = await new Request('/api/v2/reading/goals', {
-            reminder_enabled: true,
-          }, { do_not_show_error: true }).put();
-          if (goal === false) {
-            AppAlert.alert('Не удалось включить напоминания о целях', 'Уведомления разрешены. Попробуйте сохранить напоминания в настройках уведомлений.');
-          }
-        }
-      } else {
-        await this.client.setAutoInitEnabled(false);
-      }
-      return enabled;
-    } catch (error) {
-      console.warn('Unable to enable push notifications:', error);
-      return false;
-    }
-  }
-
-  async disable() {
-    await storage.set('push_notifications_enabled', 'false');
-    try {
-      await this.registration.disable();
-    } catch (_) { }
-    if (this.client) {
-      try {
-        await this.client.deleteToken();
-        await this.client.setAutoInitEnabled(false);
-      } catch (error) {
-        console.warn('Unable to disable push notifications:', error);
-      }
-    }
-    await this.registration.clearRegistration();
-  }
-
-  async syncDevice() {
-    await this.receipts.flush();
-    if (!this.client || !appStore.has_internet) {
-      return;
-    }
-    try {
-      const enabled = await storage.get('push_notifications_enabled');
-      const browser_permission_granted =
-        this.client.platform === 'web' &&
-        typeof Notification !== 'undefined' &&
-        Notification.permission === 'granted';
-      if (enabled !== 'true' && (!browser_permission_granted || enabled === 'false')) {
-        return;
-      }
-
-      await this.client.setAutoInitEnabled(true);
-      await this.registerDevice();
-      await storage.set('push_notifications_enabled', 'true');
-    } catch (error) {
-      console.warn('Unable to synchronize push token:', error);
-    }
-  }
-
-  async sendToken(token) {
-    return this.registration.register(token);
-  }
-
-  async detachCurrentUser() {
-    const detached = await this.registration.detachUser();
-    // Do not leave account notifications attached to a device after logout.
-    if (!detached) await this.disable();
-  }
-
-  errorCode() {
-    return this.client && this.client.last_error_code;
-  }
-
-  notificationDestination(data) {
-    if (data.action === 'statistics')
-      return ['statistics', { backTitle: 'Книги' }];
-    if (data.action === 'reader' && data.book_id)
-      return [
-        'reader',
-        {
-          book_id: data.book_id,
-        },
-      ];
-    if (data.action === 'book' && data.book_id)
-      return [
-        'show',
-        {
-          book_id: data.book_id,
-        },
-      ];
-    if (data.action === 'article' && data.article_code)
-      return [
-        'article',
-        {
-          code: data.article_code,
-        },
-      ];
-    if (data.action === 'subscription')
-      return [
-        'subscription',
-        {
-          backTitle: 'Книги',
-        },
-      ];
-    return ['home'];
-  }
-
-  open(message, attempt = 0) {
-    if (attempt === 0) this.receipts.record(message && message.data, 'opened');
-    if (!this.root || !this.root.navigationRef.current) {
-      if (attempt < 5) setTimeout(() => this.open(message, attempt + 1), 500);
-      return;
-    }
-    const data = message && message.data ? message.data : {};
-    this.root.navigationRef.current.navigate(
-      ...this.notificationDestination(data),
-    );
-  }
-}
-
-class UserDeviceRegistration {
-  constructor(client) {
-    this.client = client;
-    this.registration_queue = Promise.resolve();
-  }
-
-  platform() {
-    return (this.client && this.client.platform) || Platform.OS;
-  }
-
-  async subscriptionPayload() {
-    if (!this.client || !this.client.registrationPayload) return {};
-    return this.client.registrationPayload();
-  }
-
-  async register(token) {
-    if (!token) return;
-    // Startup, reconnect and token refresh must reuse the first registration key.
-    this.registration_queue = this.registration_queue
-      .catch(() => {})
-      .then(() => this.saveRegistration(token));
-    return this.registration_queue;
-  }
-
-  async saveRegistration(token) {
-    const response = await new Request(
-      '/api/v2/user_devices',
-      {
-        token,
-        registration_key: await storage.get(
-          'user_device_registration_key',
-        ),
-        platform: this.platform(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        app_version: APP_VERSION,
-        ...(await this.subscriptionPayload()),
-      },
-      {
-        do_not_show_error: true,
-      },
-    ).post();
-    if (response === false) {
-      if (this.client && this.client.platform === 'web')
-        this.client.last_error_code = 'registration_failed';
-      throw new Error('Unable to register notification device');
-    }
-    await storage.set('user_device_token', token);
-    await storage.set('user_device_id', response.id.toString());
-    if (response.registration_key) {
-      await storage.set(
-        'user_device_registration_key',
-        response.registration_key,
-      );
-    }
-    return true;
-  }
-
-  async disable() {
-    const token = await storage.get('user_device_token');
-    if (!token) return;
-    await new Request(
-      '/api/v2/user_devices',
-      {
-        token,
-        registration_key: await storage.get(
-          'user_device_registration_key',
-        ),
-      },
-      {
-        do_not_show_error: true,
-      },
-    ).delete();
-  }
-
-  async clearRegistration() {
-    await storage.remove('user_device_token');
-    await storage.remove('user_device_id');
-    // Keep the key so the same token can be enabled again after opting out.
-  }
-
-  async detachUser() {
-    await this.registration_queue.catch(() => {});
-    const token = await storage.get('user_device_token');
-    if (!token) return true;
-    const registration_key = await storage.get(
-      'user_device_registration_key',
-    );
-    if (!registration_key) return false;
-    const response = await new Request(
-      '/api/v2/user_devices',
-      {
-        token,
-        registration_key: registration_key,
-        platform: this.platform(),
-        detach: true,
-        ...(await this.subscriptionPayload()),
-      },
-      {
-        do_not_show_error: true,
-      },
-    ).post();
-    return response !== false;
-  }
-}
-
-class WebPushMessagingClient {
-  constructor() {
-    this.platform = 'web';
-    this.last_error_code = null;
-    this.message_handlers = new Set();
-    this.opened_handlers = new Set();
-    this.handleServiceWorkerMessage = event => {
-      const message = event.data || {};
-      if (message.type === 'REEDLE_NOTIFICATION_RECEIVED') {
-        if (document.visibilityState !== 'visible') return;
-        this.message_handlers.forEach(handler =>
-          handler({ notification: message.notification, data: message.data || {} }),
-        );
-        return;
-      }
-      if (message.type != 'REEDLE_NOTIFICATION_OPENED') return;
-      this.opened_handlers.forEach(handler =>
-        handler({
-          data: message.data || {},
-        }),
-      );
-    };
-    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener(
-        'message',
-        this.handleServiceWorkerMessage,
-      );
-    }
-  }
-
-  isIos() {
-    if (typeof navigator === 'undefined') return false;
-    return (
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-    );
-  }
-
-  isStandalone() {
-    if (typeof window === 'undefined') return false;
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      navigator.standalone === true
-    );
-  }
-
-  ensureSupported() {
-    this.last_error_code = null;
-    if (
-      typeof window === 'undefined' ||
-      !window.isSecureContext ||
-      !('serviceWorker' in navigator) ||
-      !('PushManager' in window) ||
-      !('Notification' in window)
-    ) {
-      this.last_error_code = 'unsupported';
-      throw new Error('Web Push is not supported');
-    }
-    if (this.isIos() && !this.isStandalone()) {
-      this.last_error_code = 'install_required';
-      throw new Error('Install the PWA before enabling notifications');
-    }
-  }
-
-  onMessage(handler) {
-    this.message_handlers.add(handler);
-    return () => this.message_handlers.delete(handler);
-  }
-
-  onNotificationOpenedApp(handler) {
-    this.opened_handlers.add(handler);
-    return () => this.opened_handlers.delete(handler);
-  }
-
-  onTokenRefresh() {
-    return () => {};
-  }
-
-  async getInitialNotification() {
-    return null;
-  }
-
-  async setAutoInitEnabled() {}
-
-  async requestPermission() {
-    try {
-      this.ensureSupported();
-      let permission = Notification.permission;
-      if (permission === 'default')
-        permission = await Notification.requestPermission();
-      if (permission !== 'granted') this.last_error_code = 'permission_denied';
-      return permission === 'granted' ? 1 : 0;
-    } catch (error) {
-      if (!this.last_error_code) this.last_error_code = 'permission_error';
-      throw error;
-    }
-  }
-
-  async registerDeviceForRemoteMessages() {}
-
-  applicationServerKey(value) {
-    const padding = '='.repeat((4 - (value.length % 4)) % 4);
-    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const bytes = window.atob(base64);
-    return Uint8Array.from(bytes, character => character.charCodeAt(0));
-  }
-
-  workerScope() {
-    return (window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')) ? '/app/' : '/';
-  }
-
-  async getToken() {
-    this.ensureSupported();
-    const scope = this.workerScope();
-    const registration = await navigator.serviceWorker.register(scope + 'sw.js', {
-      scope: scope,
-      updateViaCache: 'none',
-    });
-    // ready may already be resolved to the website's worker at /sw.js.
-    // Subscribe to the registration returned for the application's exact scope.
-    if (!registration.active) {
-      const worker = registration.installing || registration.waiting;
-      if (!worker) throw new Error('Notification service worker is unavailable');
-      await new Promise((resolve, reject) => {
-        function handleStateChange() {
-          if (worker.state === 'activated') {
-            worker.removeEventListener('statechange', handleStateChange);
-            resolve();
-          } else if (worker.state === 'redundant') {
-            worker.removeEventListener('statechange', handleStateChange);
-            reject(new Error('Notification service worker installation failed'));
-          } else if (worker.state === 'installed') {
-            worker.postMessage({ type: 'SKIP_WAITING' });
-          }
-        }
-        worker.addEventListener('statechange', handleStateChange);
-        handleStateChange();
-      });
-    }
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      const public_key = await this.loadPublicKey();
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.applicationServerKey(public_key),
-      });
-    }
-    this.subscription = subscription;
-    return subscription.endpoint;
-  }
-
-  async loadPublicKey() {
-    const result = await new Request(
-      '/api/v2/user_devices/vapid_public_key',
-      {},
-      {
-        do_not_show_error: true,
-        detailed_response: true,
-      },
-    ).get();
-    const response = result && result.data;
-    if (result && result.ok && response && response.public_key)
-      return response.public_key;
-    if (response && response.error === 'Web Push is not configured') {
-      this.last_error_code = 'server_not_configured';
-    } else if (result && result.status === 401) {
-      this.last_error_code = 'authentication_required';
-    } else {
-      this.last_error_code = 'public_key_failed';
-    }
-    console.warn('Unable to obtain Web Push public key:', {
-      status: result && result.status,
-      reason: this.last_error_code,
-    });
-    throw new Error(
-      'Unable to obtain VAPID public key: ' + this.last_error_code,
-    );
-  }
-
-  async registrationPayload() {
-    let subscription = this.subscription;
-    if (!subscription) {
-      const registration = await this.currentRegistration();
-      subscription = registration ? await registration.pushManager.getSubscription() : null;
-    }
-    return subscription
-      ? {
-          subscription: subscription.toJSON(),
-        }
-      : {};
-  }
-
-  async currentRegistration() {
-    const scope = this.workerScope();
-    const registration = await navigator.serviceWorker.getRegistration(scope);
-    return registration && registration.scope === new URL(scope, window.location.origin).href
-      ? registration
-      : null;
-  }
-
-  async deleteToken() {
-    if (!('serviceWorker' in navigator)) return;
-    const registration = await this.currentRegistration();
-    const subscription = registration
-      ? await registration.pushManager.getSubscription()
-      : null;
-    if (subscription) await subscription.unsubscribe();
-    this.subscription = null;
-  }
-
-  dispose() {
-    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
-      navigator.serviceWorker.removeEventListener(
-        'message',
-        this.handleServiceWorkerMessage,
-      );
-    }
-    this.message_handlers.clear();
-    this.opened_handlers.clear();
-  }
-}
-
 class OAuthAuthorization {
   constructor(root) {
     this.root = root;
@@ -1104,22 +455,6 @@ class OAuthAuthorization {
     push_notification_service.syncDevice();
   }
 }
-
-class ProgressStore {
-  summary = null;
-  summary_loading = false;
-  notification = null;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setSummary(value) { this.summary = value; }
-  setSummaryLoading(value) { this.summary_loading = value; }
-  setNotification(value) { this.notification = value; }
-  dismissNotification() { this.notification = null; }
-}
-
 
 class ProgressService {
   constructor() {
@@ -1283,6 +618,22 @@ class ProgressService {
     return response;
   }
 }
+
+class ProgressStore {
+  summary = null;
+  summary_loading = false;
+  notification = null;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setSummary(value) { this.summary = value; }
+  setSummaryLoading(value) { this.summary_loading = value; }
+  setNotification(value) { this.notification = value; }
+  dismissNotification() { this.notification = null; }
+}
+
 
 let pwaCsrfToken = null;
 
@@ -2389,9 +1740,9 @@ const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
 const APP_VERSION = require('./package.json').version;
 const BOOKS_FILENAME = 'books_v2.json'
 const POLICY_VERSION = 'v6'
-//const HOST = "https://reedle.ru"
+const HOST = "https://reedle.ru"
 //const HOST = "https://stage.reedle.ru"
-const HOST = "http://localhost:3000"
+//const HOST = "http://localhost:3000"
 
 const app_theme_colors = {
   background: "#FFF",
@@ -2773,6 +2124,655 @@ const App = observer(function App() {
 });
 
 export default App;
+
+class NotificationReceiptService {
+  constructor() {
+    this.queue = Promise.resolve();
+  }
+
+  record(data, event) {
+    if (!data || !data.notification_id || !data.receipt_token) return Promise.resolve();
+    const receipt = {
+      notification_id: String(data.notification_id),
+      receipt_token: data.receipt_token,
+      event: event,
+    };
+    return this.schedule(async () => {
+      const pending = await this.pendingReceipts();
+      const key = this.receiptKey(receipt);
+      if (!pending.some(item => this.receiptKey(item) === key)) pending.push(receipt);
+      await storage.set('notification_receipts', JSON.stringify(pending));
+      await this.sendPendingReceipts();
+    });
+  }
+
+  receiptKey(receipt) {
+    return receipt.notification_id + ':' + receipt.event;
+  }
+
+  async pendingReceipts() {
+    return JSON.parse(await storage.get('notification_receipts', '[]'));
+  }
+
+  schedule(work) {
+    this.queue = this.queue.catch(() => {}).then(work).catch(error => {
+      console.warn('Unable to synchronize notification events:', error.message);
+    });
+    return this.queue;
+  }
+
+  flush() {
+    return this.schedule(() => this.sendPendingReceipts());
+  }
+
+  async sendPendingReceipts() {
+    const pending = await this.pendingReceipts();
+    for (const receipt of pending.slice()) {
+      try {
+        if (Platform.OS === 'web') {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (!registration || !registration.active) break;
+          // Wait for durable storage in the worker before removing the page copy.
+          await new Promise((resolve, reject) => {
+            const channel = new MessageChannel();
+            const timeout = setTimeout(() => { channel.port1.close(); reject(new Error('Receipt storage timed out')); }, 10000);
+            channel.port1.onmessage = event => {
+              clearTimeout(timeout);
+              channel.port1.close();
+              if (event.data && event.data.saved) resolve();
+              else reject(new Error('Receipt storage failed'));
+            };
+            registration.active.postMessage({ type: 'REEDLE_NOTIFICATION_EVENT', receipt }, [channel.port2]);
+          });
+        } else {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          let response;
+          try {
+            response = await fetch(HOST + '/api/v2/notifications/' + encodeURIComponent(receipt.notification_id) + '/events', {
+              method: 'POST', credentials: 'omit', signal: controller.signal,
+              headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt),
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
+          if (!response.ok && ![400, 401, 404, 422].includes(response.status)) break;
+        }
+        pending.splice(pending.findIndex(item => this.receiptKey(item) === this.receiptKey(receipt)), 1);
+        await storage.set('notification_receipts', JSON.stringify(pending));
+      } catch (_) {
+        break;
+      }
+    }
+    if (Platform.OS === 'web') {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration && registration.active) registration.active.postMessage({ type: 'REEDLE_RETRY_NOTIFICATION_EVENTS' });
+    }
+  }
+}
+
+class PushNotificationService {
+  constructor(client, registration, receipts) {
+    this.client = client;
+    this.registration = registration;
+    this.receipts = receipts;
+    this.root = null;
+    this.subscriptions = [];
+  }
+
+  async initialize(root) {
+    this.root = root;
+    if (!this.client) return;
+    this.subscriptions = [
+      this.client.onMessage(message => this.showForegroundMessage(message).catch(error => {
+        console.warn('Unable to show foreground notification:', error);
+      })),
+      this.client.onNotificationOpenedApp(message => this.open(message)),
+      this.client.onTokenRefresh(token => this.sendToken(token)),
+    ];
+    if (this.subscribeForegroundNotificationOpened) {
+      this.subscriptions.push(this.subscribeForegroundNotificationOpened(message => this.open(message)));
+      const foreground_notification = await this.foreground_notifications.getInitialNotification();
+      if (foreground_notification) setTimeout(() => this.open(foreground_notification), 500);
+    }
+    const initial_notification = await this.client.getInitialNotification();
+    if (initial_notification)
+      setTimeout(() => this.open(initial_notification), 500);
+  }
+
+  async showForegroundMessage(message) {
+    // The web service worker already displays the browser notification and records delivery.
+    if (this.client && this.client.platform === 'web') return;
+    if (!message.notification) return;
+    const { title, body } = message.notification;
+    const data = message.data || {};
+    if (this.foreground_notifications) {
+      const shown = await this.foreground_notifications.showNotification(title || 'Reedle', body || '', data);
+      if (!shown) return;
+    }
+    // iOS presents remote notifications through the Firebase foreground options.
+    await this.receipts.record(data, 'delivered');
+  }
+
+  async requestPermissionOnStartup() {
+    if (!this.client) return;
+    if ((await storage.get('push_notifications_enabled')) === 'false')
+      return;
+    if (
+      (await storage.get('push_permission_prompt_shown', 'false')) ===
+      'true'
+    )
+      return;
+    if (this.client.platform === 'web') {
+      await this.requestWebPermissionOnStartup();
+      return;
+    }
+    await storage.set('push_permission_prompt_shown', 'true');
+    await this.enable();
+  }
+
+  async requestWebPermissionOnStartup() {
+    try {
+      this.client.ensureSupported();
+    } catch (_) {
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      await this.enable();
+      return;
+    }
+    if (Notification.permission !== 'default') return;
+    await storage.set('push_permission_prompt_shown', 'true');
+    // Browsers require a click to display the system permission prompt.
+    AppAlert.alert(
+      'Уведомления Reedle',
+      'Разрешить приложению отправлять уведомления?',
+      [
+        {
+          text: 'Не сейчас',
+          style: 'cancel',
+        },
+        {
+          text: 'Разрешить',
+          onPress: () => this.enable(),
+        },
+      ],
+    );
+  }
+
+  dispose() {
+    this.subscriptions.forEach(unsubscribe => unsubscribe());
+    this.subscriptions = [];
+    if (this.client && this.client.dispose) this.client.dispose();
+  }
+
+  async requestPermission() {
+    if (this.requestNotificationPermission && !(await this.requestNotificationPermission())) return 0;
+    if (this.client.platform !== 'web') {
+      await this.client.setAutoInitEnabled(true);
+    }
+    // On web this call must happen before any await, directly from the click.
+    return this.client.requestPermission();
+  }
+
+  async registerDevice() {
+    await this.client.registerDeviceForRemoteMessages();
+    const token = await this.client.getToken();
+    await this.sendToken(token);
+  }
+
+  async enable() {
+    if (!this.client) return false;
+    try {
+      const permission = await this.requestPermission();
+      const enabled = permission === 1 || permission === 2;
+      await storage.set('push_notifications_enabled', enabled.toString());
+      if (enabled) {
+        await this.registerDevice();
+        if (appStore.current_user) {
+          const goal = await new Request('/api/v2/reading/goals', {
+            reminder_enabled: true,
+          }, { do_not_show_error: true }).put();
+          if (goal === false) {
+            AppAlert.alert('Не удалось включить напоминания о целях', 'Уведомления разрешены. Попробуйте сохранить напоминания в настройках уведомлений.');
+          }
+        }
+      } else {
+        await this.client.setAutoInitEnabled(false);
+      }
+      return enabled;
+    } catch (error) {
+      console.warn('Unable to enable push notifications:', error);
+      return false;
+    }
+  }
+
+  async disable() {
+    await storage.set('push_notifications_enabled', 'false');
+    try {
+      await this.registration.disable();
+    } catch (_) { }
+    if (this.client) {
+      try {
+        await this.client.deleteToken();
+        await this.client.setAutoInitEnabled(false);
+      } catch (error) {
+        console.warn('Unable to disable push notifications:', error);
+      }
+    }
+    await this.registration.clearRegistration();
+  }
+
+  async syncDevice() {
+    await this.receipts.flush();
+    if (!this.client || !appStore.has_internet) {
+      return;
+    }
+    try {
+      const enabled = await storage.get('push_notifications_enabled');
+      const browser_permission_granted =
+        this.client.platform === 'web' &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted';
+      if (enabled !== 'true' && (!browser_permission_granted || enabled === 'false')) {
+        return;
+      }
+
+      await this.client.setAutoInitEnabled(true);
+      await this.registerDevice();
+      await storage.set('push_notifications_enabled', 'true');
+    } catch (error) {
+      console.warn('Unable to synchronize push token:', error);
+    }
+  }
+
+  async sendToken(token) {
+    return this.registration.register(token);
+  }
+
+  async detachCurrentUser() {
+    const detached = await this.registration.detachUser();
+    // Do not leave account notifications attached to a device after logout.
+    if (!detached) await this.disable();
+  }
+
+  errorCode() {
+    return this.client && this.client.last_error_code;
+  }
+
+  notificationDestination(data) {
+    if (data.action === 'statistics')
+      return ['statistics', { backTitle: 'Книги' }];
+    if (data.action === 'reader' && data.book_id)
+      return [
+        'reader',
+        {
+          book_id: data.book_id,
+        },
+      ];
+    if (data.action === 'book' && data.book_id)
+      return [
+        'show',
+        {
+          book_id: data.book_id,
+        },
+      ];
+    if (data.action === 'article' && data.article_code)
+      return [
+        'article',
+        {
+          code: data.article_code,
+        },
+      ];
+    if (data.action === 'subscription')
+      return [
+        'subscription',
+        {
+          backTitle: 'Книги',
+        },
+      ];
+    return ['home'];
+  }
+
+  open(message, attempt = 0) {
+    if (attempt === 0) this.receipts.record(message && message.data, 'opened');
+    if (!this.root || !this.root.navigationRef.current) {
+      if (attempt < 5) setTimeout(() => this.open(message, attempt + 1), 500);
+      return;
+    }
+    const data = message && message.data ? message.data : {};
+    this.root.navigationRef.current.navigate(
+      ...this.notificationDestination(data),
+    );
+  }
+}
+
+class UserDeviceRegistration {
+  constructor(client) {
+    this.client = client;
+    this.registration_queue = Promise.resolve();
+  }
+
+  platform() {
+    return (this.client && this.client.platform) || Platform.OS;
+  }
+
+  async subscriptionPayload() {
+    if (!this.client || !this.client.registrationPayload) return {};
+    return this.client.registrationPayload();
+  }
+
+  async register(token) {
+    if (!token) return;
+    // Startup, reconnect and token refresh must reuse the first registration key.
+    this.registration_queue = this.registration_queue
+      .catch(() => {})
+      .then(() => this.saveRegistration(token));
+    return this.registration_queue;
+  }
+
+  async saveRegistration(token) {
+    const response = await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: await storage.get(
+          'user_device_registration_key',
+        ),
+        platform: this.platform(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        app_version: APP_VERSION,
+        ...(await this.subscriptionPayload()),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).post();
+    if (response === false) {
+      if (this.client && this.client.platform === 'web')
+        this.client.last_error_code = 'registration_failed';
+      throw new Error('Unable to register notification device');
+    }
+    await storage.set('user_device_token', token);
+    await storage.set('user_device_id', response.id.toString());
+    if (response.registration_key) {
+      await storage.set(
+        'user_device_registration_key',
+        response.registration_key,
+      );
+    }
+    return true;
+  }
+
+  async disable() {
+    const token = await storage.get('user_device_token');
+    if (!token) return;
+    await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: await storage.get(
+          'user_device_registration_key',
+        ),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).delete();
+  }
+
+  async clearRegistration() {
+    await storage.remove('user_device_token');
+    await storage.remove('user_device_id');
+    // Keep the key so the same token can be enabled again after opting out.
+  }
+
+  async detachUser() {
+    await this.registration_queue.catch(() => {});
+    const token = await storage.get('user_device_token');
+    if (!token) return true;
+    const registration_key = await storage.get(
+      'user_device_registration_key',
+    );
+    if (!registration_key) return false;
+    const response = await new Request(
+      '/api/v2/user_devices',
+      {
+        token,
+        registration_key: registration_key,
+        platform: this.platform(),
+        detach: true,
+        ...(await this.subscriptionPayload()),
+      },
+      {
+        do_not_show_error: true,
+      },
+    ).post();
+    return response !== false;
+  }
+}
+
+class WebPushMessagingClient {
+  constructor() {
+    this.platform = 'web';
+    this.last_error_code = null;
+    this.message_handlers = new Set();
+    this.opened_handlers = new Set();
+    this.handleServiceWorkerMessage = event => {
+      const message = event.data || {};
+      if (message.type === 'REEDLE_NOTIFICATION_RECEIVED') {
+        if (document.visibilityState !== 'visible') return;
+        this.message_handlers.forEach(handler =>
+          handler({ notification: message.notification, data: message.data || {} }),
+        );
+        return;
+      }
+      if (message.type != 'REEDLE_NOTIFICATION_OPENED') return;
+      this.opened_handlers.forEach(handler =>
+        handler({
+          data: message.data || {},
+        }),
+      );
+    };
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener(
+        'message',
+        this.handleServiceWorkerMessage,
+      );
+    }
+  }
+
+  isIos() {
+    if (typeof navigator === 'undefined') return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  isStandalone() {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      navigator.standalone === true
+    );
+  }
+
+  ensureSupported() {
+    this.last_error_code = null;
+    if (
+      typeof window === 'undefined' ||
+      !window.isSecureContext ||
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window) ||
+      !('Notification' in window)
+    ) {
+      this.last_error_code = 'unsupported';
+      throw new Error('Web Push is not supported');
+    }
+    if (this.isIos() && !this.isStandalone()) {
+      this.last_error_code = 'install_required';
+      throw new Error('Install the PWA before enabling notifications');
+    }
+  }
+
+  onMessage(handler) {
+    this.message_handlers.add(handler);
+    return () => this.message_handlers.delete(handler);
+  }
+
+  onNotificationOpenedApp(handler) {
+    this.opened_handlers.add(handler);
+    return () => this.opened_handlers.delete(handler);
+  }
+
+  onTokenRefresh() {
+    return () => {};
+  }
+
+  async getInitialNotification() {
+    return null;
+  }
+
+  async setAutoInitEnabled() {}
+
+  async requestPermission() {
+    try {
+      this.ensureSupported();
+      let permission = Notification.permission;
+      if (permission === 'default')
+        permission = await Notification.requestPermission();
+      if (permission !== 'granted') this.last_error_code = 'permission_denied';
+      return permission === 'granted' ? 1 : 0;
+    } catch (error) {
+      if (!this.last_error_code) this.last_error_code = 'permission_error';
+      throw error;
+    }
+  }
+
+  async registerDeviceForRemoteMessages() {}
+
+  applicationServerKey(value) {
+    const padding = '='.repeat((4 - (value.length % 4)) % 4);
+    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = window.atob(base64);
+    return Uint8Array.from(bytes, character => character.charCodeAt(0));
+  }
+
+  workerScope() {
+    return (window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')) ? '/app/' : '/';
+  }
+
+  async getToken() {
+    this.ensureSupported();
+    const scope = this.workerScope();
+    const registration = await navigator.serviceWorker.register(scope + 'sw.js', {
+      scope: scope,
+      updateViaCache: 'none',
+    });
+    // ready may already be resolved to the website's worker at /sw.js.
+    // Subscribe to the registration returned for the application's exact scope.
+    if (!registration.active) {
+      const worker = registration.installing || registration.waiting;
+      if (!worker) throw new Error('Notification service worker is unavailable');
+      await new Promise((resolve, reject) => {
+        function handleStateChange() {
+          if (worker.state === 'activated') {
+            worker.removeEventListener('statechange', handleStateChange);
+            resolve();
+          } else if (worker.state === 'redundant') {
+            worker.removeEventListener('statechange', handleStateChange);
+            reject(new Error('Notification service worker installation failed'));
+          } else if (worker.state === 'installed') {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }
+        worker.addEventListener('statechange', handleStateChange);
+        handleStateChange();
+      });
+    }
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const public_key = await this.loadPublicKey();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.applicationServerKey(public_key),
+      });
+    }
+    this.subscription = subscription;
+    return subscription.endpoint;
+  }
+
+  async loadPublicKey() {
+    const result = await new Request(
+      '/api/v2/user_devices/vapid_public_key',
+      {},
+      {
+        do_not_show_error: true,
+        detailed_response: true,
+      },
+    ).get();
+    const response = result && result.data;
+    if (result && result.ok && response && response.public_key)
+      return response.public_key;
+    if (response && response.error === 'Web Push is not configured') {
+      this.last_error_code = 'server_not_configured';
+    } else if (result && result.status === 401) {
+      this.last_error_code = 'authentication_required';
+    } else {
+      this.last_error_code = 'public_key_failed';
+    }
+    console.warn('Unable to obtain Web Push public key:', {
+      status: result && result.status,
+      reason: this.last_error_code,
+    });
+    throw new Error(
+      'Unable to obtain VAPID public key: ' + this.last_error_code,
+    );
+  }
+
+  async registrationPayload() {
+    let subscription = this.subscription;
+    if (!subscription) {
+      const registration = await this.currentRegistration();
+      subscription = registration ? await registration.pushManager.getSubscription() : null;
+    }
+    return subscription
+      ? {
+          subscription: subscription.toJSON(),
+        }
+      : {};
+  }
+
+  async currentRegistration() {
+    const scope = this.workerScope();
+    const registration = await navigator.serviceWorker.getRegistration(scope);
+    return registration && registration.scope === new URL(scope, window.location.origin).href
+      ? registration
+      : null;
+  }
+
+  async deleteToken() {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await this.currentRegistration();
+    const subscription = registration
+      ? await registration.pushManager.getSubscription()
+      : null;
+    if (subscription) await subscription.unsubscribe();
+    this.subscription = null;
+  }
+
+  dispose() {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.removeEventListener(
+        'message',
+        this.handleServiceWorkerMessage,
+      );
+    }
+    this.message_handlers.clear();
+    this.opened_handlers.clear();
+  }
+}
 
 function articleImageUrl(path) {
   if (!path) return null;
