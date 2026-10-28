@@ -53,30 +53,6 @@ class AdvertisingConfig {
   }
 }
 
-class AppAlertService {
-  handler = null;
-
-  alert(title, message, buttons, on_shown) {
-    if (this.handler) {
-      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
-      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
-      this.handler({
-        title: title || '',
-        message: message || '',
-        buttons: modalButtons,
-        on_shown: on_shown
-      });
-    }
-  }
-
-  confirm(title, message, onConfirm, confirmText) {
-    this.alert(title, message, [
-      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
-      { text: 'Отмена', style: 'cancel' }
-    ]);
-  }
-}
-
 class AppAlertModal extends React.Component {
   constructor(props) {
     super(props);
@@ -138,6 +114,30 @@ class AppAlertModal extends React.Component {
         </AppSafeAreaView>
       </Modal>
     );
+  }
+}
+
+class AppAlertService {
+  handler = null;
+
+  alert(title, message, buttons, on_shown) {
+    if (this.handler) {
+      var modalButtons = buttons && buttons.length ? buttons.slice() : [{ text: 'Понятно' }];
+      modalButtons.sort((left, right) => Number(left.style == 'cancel') - Number(right.style == 'cancel'));
+      this.handler({
+        title: title || '',
+        message: message || '',
+        buttons: modalButtons,
+        on_shown: on_shown
+      });
+    }
+  }
+
+  confirm(title, message, onConfirm, confirmText) {
+    this.alert(title, message, [
+      { text: confirmText || 'Подтвердить', style: 'destructive', onPress: onConfirm },
+      { text: 'Отмена', style: 'cancel' }
+    ]);
   }
 }
 
@@ -323,1807 +323,6 @@ function createThemedTextInput() {
     );
   }));
 }
-
-class OAuthAuthorization {
-  constructor(root) {
-    this.root = root;
-    this.webAttempt = 0;
-  }
-
-  async authorize(type) {
-    this.rememberWebLocation();
-    this.open();
-
-    await this.startWait(type);
-  }
-
-  rememberWebLocation() {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-
-    try {
-      window.localStorage.setItem(
-        'oauth_return_location',
-        window.location.pathname + window.location.search + window.location.hash
-      );
-    } catch (_) { }
-  }
-
-  open() {
-    appStore.setOAuthModalShow(true);
-  }
-
-  close() {
-    this.cancel();
-    appStore.setOAuthModalShow(false);
-  }
-
-  cancel() {
-    this.webAttempt += 1;
-  }
-
-  async startWait(type) {
-    var attempt = ++this.webAttempt;
-    var isWeb = Platform.OS === 'web';
-    var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
-    var platform = isWeb ? 'pwa' : 'app';
-    var oauthResponse = await new Request('/api/v2/oauth/redirect_url', { oauth_client: type, platform: platform }, {
-      do_not_show_error: false,
-    }).get();
-
-    if (attempt != this.webAttempt) {
-      if (oauthWindow) oauthWindow.close();
-      return;
-    }
-
-    if (!oauthResponse || oauthResponse.error != undefined || !oauthResponse.redirect_url || !oauthResponse.session_token) {
-      if (oauthWindow) oauthWindow.close();
-      return;
-    }
-
-    try {
-      if (isWeb) {
-        if (oauthWindow) {
-          oauthWindow.location.href = oauthResponse.redirect_url;
-        } else {
-          window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
-        }
-      } else {
-        await Linking.openURL(oauthResponse.redirect_url);
-      }
-    } catch (_) {
-      return;
-    }
-
-    var expiresAt = Date.now() + 5 * 60 * 1000;
-
-    while (attempt == this.webAttempt && Date.now() < expiresAt) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
-
-      var user = await new Request('/api/v2/users/by_oauth_token', {
-        token: oauthResponse.session_token,
-      }, {
-        do_not_show_error: true,
-      }).get();
-
-      if (!user || user.error != undefined) continue;
-
-      this.cancel();
-      await this.setCurrentUser(user);
-      return;
-    }
-  }
-
-  async handleURL(url) {
-    if (!url) return;
-
-    var token = '';
-    try {
-      token = new URL(url).searchParams.get('token') || '';
-    } catch (_) {
-      var tokenMatch = String(url).match(/[?&]token=([^&#/]*)/);
-      token = tokenMatch ? tokenMatch[1] : '';
-    }
-    try {
-      token = decodeURIComponent(token).trim();
-    } catch (_) {
-      token = String(token).trim();
-    }
-    if (!token) return;
-
-    var user = await new Request('/api/v2/users/by_oauth_token', {
-      token: token,
-    }).get();
-
-    if (!user || user.error != undefined) return;
-    await this.setCurrentUser(user);
-  }
-
-  async loadPwaUser() {
-    var user = await new Request('/api/v2/users/current', {}, { do_not_show_error: true }).get();
-    if (!user || user.error != undefined) return;
-    await this.setCurrentUser(user, false);
-  }
-
-  async setCurrentUser(user, closeModal = true) {
-    appStore.setCurrentUser(user);
-    if (closeModal) appStore.setOAuthModalShow(false);
-    await persistCurrentUser(user);
-    this.root.checkSubscription();
-    await progressService.flush(appStore.current_user.id);
-    progressService.loadSummary();
-    push_notification_service.syncDevice();
-  }
-}
-
-class ProgressService {
-  constructor() {
-    this.queueKey = 'reading_sessions_queue_v1';
-    this.currentSession = null;
-    this.flushing = false;
-    this.flushTimer = null;
-    this.queueOperation = Promise.resolve();
-  }
-
-  sessionId() {
-    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
-  }
-
-  async queue() {
-    var value = await new Storage().get(this.queueKey, '[]');
-    try {
-      return JSON.parse(value);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  start(params) {
-    if (!params || !params.owner_id) return;
-    var previous = this.currentSession;
-    if (previous && String(previous.owner_id) === String(params.owner_id) &&
-        String(previous.book_id) === String(params.book_id) &&
-        Date.now() - previous.last_activity_at <= 3600000) {
-      previous.last_activity_at = Date.now();
-      this.suspended = false;
-      return;
-    }
-    if (previous) this.finish('book_changed');
-    this.suspended = false;
-
-    var now = Date.now();
-    this.currentSession = {
-      session_id: this.sessionId(),
-      owner_id: params.owner_id,
-      book_id: params.book_id,
-      book_name: params.book_name,
-      started_at: new Date(now).toISOString(),
-      start_page: Number(params.page || 1),
-      end_page: Number(params.page || 1),
-      start_percent: Number(params.percent || 0),
-      end_percent: Number(params.percent || 0),
-      active_seconds: 0,
-      last_activity_at: now,
-    };
-  }
-
-  touch(page, percent) {
-    if (!this.currentSession || this.suspended) return;
-    var now = Date.now();
-    if (now - this.currentSession.last_activity_at > 3600000) {
-      var previous = this.currentSession;
-      this.finish('idle_timeout');
-      this.currentSession = null;
-      this.start({ owner_id: previous.owner_id, book_id: previous.book_id,
-        book_name: previous.book_name, page: page == undefined ? previous.end_page : page,
-        percent: percent == undefined ? previous.end_percent : percent });
-    }
-    var delta = Math.max(0, Math.min(90, (now - this.currentSession.last_activity_at) / 1000));
-    this.currentSession.active_seconds += delta;
-    this.currentSession.last_activity_at = now;
-    // Возврат назад не уменьшает достигнутую страницу сессии.
-    if (page != undefined && Number.isFinite(Number(page))) {
-      this.currentSession.end_page = Math.max(this.currentSession.start_page, this.currentSession.end_page, Number(page));
-    }
-    if (percent != undefined && Number.isFinite(Number(percent))) {
-      this.currentSession.end_percent = Math.max(this.currentSession.start_percent, this.currentSession.end_percent, Number(percent));
-    }
-    clearTimeout(this.flushTimer);
-    this.flushTimer = setTimeout(() => {
-      this.saveProgress('checkpoint').catch((error) => console.warn('Reading progress save failed', error));
-    }, 3000);
-  }
-
-  serializeQueue(operation) {
-    var result = this.queueOperation.then(operation);
-    this.queueOperation = result.catch(() => {});
-    return result;
-  }
-
-  async finish(reason) {
-    if (!this.currentSession) return;
-    clearTimeout(this.flushTimer);
-    this.flushTimer = null;
-    this.suspended = true;
-    return this.saveProgress(reason || 'reader_closed');
-  }
-
-  async saveProgress(reason) {
-    if (!this.currentSession) return;
-    var session = Object.assign({}, this.currentSession, {
-      finished_at: new Date(this.currentSession.last_activity_at).toISOString(),
-      finish_reason: reason
-    });
-    delete session.last_activity_at;
-    session.active_seconds = Math.floor(session.active_seconds);
-
-    // Совсем короткие случайные открытия не искажают статистику.
-    if (session.active_seconds < 3 && session.start_percent == session.end_percent) return;
-
-    await this.serializeQueue(async () => {
-      var queue = await this.queue();
-      queue = queue.filter((item) => item.session_id !== session.session_id);
-      queue.push(session);
-      await new Storage().set(this.queueKey, JSON.stringify(queue));
-    });
-    await this.flush(session.owner_id);
-  }
-
-  flush(user_id) {
-    return this.serializeQueue(() => this.flushQueue(user_id));
-  }
-
-  async flushQueue(user_id) {
-    if (!user_id || this.flushing || !appStore.has_internet) return false;
-    this.flushing = true;
-    try {
-      var queue = await this.queue();
-      var remaining = [];
-      for (var session of queue) {
-        var ownerId = session.owner_id || session.user_id;
-        if (String(ownerId) != String(user_id)) {
-          remaining.push(session);
-          continue;
-        }
-        var payload = Object.assign({}, session);
-        delete payload.owner_id;
-        delete payload.user_id;
-        var response = await new Request('/api/v2/reading/sessions', payload, {
-          do_not_show_error: true,
-          detailed_response: true
-        }).post();
-        if (!response.ok) remaining.push(session);
-        if (!response.ok && response.status == 0) {
-          remaining = remaining.concat(queue.slice(queue.indexOf(session) + 1));
-          break;
-        }
-      }
-      await new Storage().set(this.queueKey, JSON.stringify(remaining));
-      return remaining.length == 0;
-    } finally {
-      this.flushing = false;
-    }
-  }
-
-  async loadSummary() {
-    if (!appStore.current_user) return null;
-    progressStore.setSummaryLoading(true);
-    var response = await new Request('/api/v2/reading/statistics/summary', {
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    }, { do_not_show_error: true }).get();
-    progressStore.setSummaryLoading(false);
-    if (response === false) return null;
-    progressStore.setSummary(response);
-    if (response.notification) progressStore.setNotification(response.notification);
-    return response;
-  }
-}
-
-class ProgressStore {
-  summary = null;
-  summary_loading = false;
-  notification = null;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setSummary(value) { this.summary = value; }
-  setSummaryLoading(value) { this.summary_loading = value; }
-  setNotification(value) { this.notification = value; }
-  dismissNotification() { this.notification = null; }
-}
-
-
-let pwaCsrfToken = null;
-
-class Request {
-  constructor(url, params, options) {
-    this.url = url;
-    this.params = params;
-    if (options == undefined) {
-      this.options = {};
-    } else {
-      this.options = options;
-    }
-  }
-
-  async get() {
-    return await this.makeRequest('get');
-  }
-
-  async post() {
-    return await this.makeRequest('post');
-  }
-
-  async put() {
-    return await this.makeRequest('put');
-  }
-
-  async delete() {
-    return await this.makeRequest('delete');
-  }
-
-  AbortSignal(timeoutMs) {
-    const abortController = new AbortController();
-    setTimeout(() => abortController.abort(), timeoutMs || 0);
-
-    return abortController.signal;
-  }
-
-  async makeRequest(method) {
-    if (appStore.has_internet) {
-      let url = HOST + this.url;
-      var headers = await this.authorizationHeaders();
-
-      try {
-        if (method == 'get') {
-          var response = await axios.get(url, {
-            signal: this.AbortSignal(10_000),
-            params: this.params,
-            headers: headers,
-            withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
-          });
-        }
-
-        if (method == 'post') {
-          var response = await axios.post(url,
-            this.params,
-            {
-              signal: this.AbortSignal(10_000),
-              headers: headers,
-              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
-            }
-          );
-        }
-
-        if (method == 'put') {
-          var response = await axios.put(url,
-            this.params,
-            {
-              signal: this.AbortSignal(10_000),
-              headers: headers,
-              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
-            }
-          );
-        }
-
-        if (method == 'delete') {
-          var response = await axios.delete(url,
-            {
-              signal: this.AbortSignal(10_000),
-              headers: headers,
-              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true,
-              data: this.params
-            },
-          );
-        }
-
-
-        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
-        this.captureCsrfToken(response);
-        await this.captureAccessToken(data);
-        if (this.options.detailed_response == true) {
-          return { ok: true, status: response.status, data: data };
-        }
-        return data;
-
-      } catch (e) {
-        this.captureCsrfToken(e.response);
-        await this.handleAuthorizationError(e, headers);
-        if (this.options.do_not_show_error != true) {
-          appStore.showError('Нет подключения к серверу', this.options.desciption_error);
-        }
-        if (this.options.detailed_response == true) {
-          return {
-            ok: false,
-            status: e.response ? e.response.status : 0,
-            data: e.response && e.response.data
-              ? (e.response.data.response != undefined ? e.response.data.response : e.response.data)
-              : null
-          };
-        }
-        return false;
-      }
-
-    } else {
-      if (this.options.do_not_show_error != true) {
-        appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
-      }
-      if (this.options.detailed_response == true) {
-        return { ok: false, status: 0, data: null };
-      }
-      return false;
-    }
-  }
-
-  async authorizationHeaders() {
-    var headers = { 'X-Client-Platform': Platform.OS };
-
-    if (Platform.OS === 'web') {
-      if (pwaCsrfToken) headers['X-CSRF-Token'] = pwaCsrfToken;
-      return headers;
-    }
-
-    var accessToken = await storage.get('access_token');
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return headers;
-  }
-
-  async captureAccessToken(data) {
-    if (!data || !data.access_token) return;
-
-    if (Platform.OS !== 'web') {
-      await storage.set('access_token', data.access_token);
-    }
-    delete data.access_token;
-  }
-
-  captureCsrfToken(response) {
-    if (Platform.OS !== 'web' || !response || !response.headers) return;
-
-    var token = response.headers['x-csrf-token'];
-    if (token) pwaCsrfToken = token;
-  }
-
-  async handleAuthorizationError(error, headers) {
-    if (!error.response || error.response.status != 401) return;
-    if (!headers.Authorization && Platform.OS !== 'web') return;
-
-    await clearAuthenticationState();
-  }
-}
-
-class Select extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { visible: false, pendingValue: props.value };
-  }
-
-  selectedOption() {
-    return this.props.options.find(option => option.value == this.props.value) || this.props.options[0];
-  }
-
-  select(value) {
-    this.setState({ visible: false }, () => this.props.onValueChange(value));
-  }
-
-  renderWeb() {
-    var style = Object.assign({
-      width: '100%',
-      height: 24,
-      paddingLeft: 8,
-      paddingRight: 8,
-      borderWidth: 1,
-      borderStyle: 'solid',
-      borderColor: appThemeStore.colors.border,
-      borderRadius: 4,
-      backgroundColor: appThemeStore.colors.backgroundLight,
-      color: appThemeStore.colors.text,
-      fontSize: 12,
-      boxSizing: 'border-box'
-    }, StyleSheet.flatten(this.props.style));
-
-    return React.createElement(
-      'select',
-      {
-        value: this.props.value,
-        disabled: this.props.enabled === false,
-        'aria-label': this.props.accessibilityLabel,
-        onChange: (event) => this.props.onValueChange(event.target.value),
-        style: style
-      },
-      this.props.options.map(option => React.createElement(
-        'option',
-        {
-          key: option.value,
-          value: option.value,
-          style: { backgroundColor: appThemeStore.colors.surface, color: appThemeStore.colors.text }
-        },
-        option.title
-      ))
-    );
-  }
-
-  renderTrigger() {
-    var selectedOption = this.selectedOption();
-    return (
-      <TouchableOpacity
-        disabled={this.props.enabled === false}
-        accessibilityLabel={this.props.accessibilityLabel}
-        onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
-        style={[{ height: 24, paddingHorizontal: 8, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, this.props.style]}>
-        <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 14 }}>{selectedOption.title}</Text>
-        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 14, marginLeft: 8 }}>▼</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  renderItems() {
-    return this.props.options.map(option => (
-      <Picker.Item
-        key={option.value}
-        label={option.title}
-        value={option.value}
-        color={appThemeStore.colors.text}
-        style={Platform.OS === 'android' ? { backgroundColor: appThemeStore.colors.backgroundLight, color: appThemeStore.colors.text, fontSize: 14 } : undefined}
-      />
-    ));
-  }
-
-  renderIos() {
-    return (
-      <React.Fragment>
-        {this.renderTrigger()}
-        <Modal
-          animationType="slide"
-          presentationStyle="overFullScreen"
-          transparent={true}
-          visible={this.state.visible}
-          onRequestClose={() => this.setState({ visible: false })}>
-          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => this.setState({ visible: false })}
-            style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <TouchableWithoutFeedback onPress={() => { }}>
-              <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-                <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <TouchableOpacity onPress={() => this.setState({ visible: false })}>
-                    <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
-                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
-                  </TouchableOpacity>
-                </View>
-                <Picker
-                  selectedValue={this.state.pendingValue}
-                  onValueChange={(value) => this.setState({ pendingValue: value })}
-                  itemStyle={{ color: appThemeStore.colors.text, fontSize: 18 }}>
-                  {this.renderItems()}
-                </Picker>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
-          </AppSafeAreaView>
-        </Modal>
-      </React.Fragment>
-    );
-  }
-
-  renderAndroid() {
-    return (
-      <View style={[{ height: 56, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
-        <Picker
-          mode="dropdown"
-          selectedValue={this.props.value}
-          onValueChange={(value) => this.props.onValueChange(value)}
-          dropdownIconColor={appThemeStore.colors.mutedText}
-          enabled={this.props.enabled !== false}
-          accessibilityLabel={this.props.accessibilityLabel}
-          style={{ width: '100%', height: 56, color: appThemeStore.colors.text }}>
-          {this.renderItems()}
-        </Picker>
-      </View>
-    );
-  }
-
-  render() {
-    if (Platform.OS == 'web') return this.renderWeb();
-    if (Platform.OS == 'ios') return this.renderIos();
-    return this.renderAndroid();
-  }
-}
-
-const socialAuthIcons = {
-  "vk": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"vk\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\" class=\"svg-inline--fa fa-vk fa-w-18 fa-3x\"><path  d=\"M545 117.7c3.7-12.5 0-21.7-17.8-21.7h-58.9c-15 0-21.9 7.9-25.6 16.7 0 0-30 73.1-72.4 120.5-13.7 13.7-20 18.1-27.5 18.1-3.7 0-9.4-4.4-9.4-16.9V117.7c0-15-4.2-21.7-16.6-21.7h-92.6c-9.4 0-15 7-15 13.5 0 14.2 21.2 17.5 23.4 57.5v86.8c0 19-3.4 22.5-10.9 22.5-20 0-68.6-73.4-97.4-157.4-5.8-16.3-11.5-22.9-26.6-22.9H38.8c-16.8 0-20.2 7.9-20.2 16.7 0 15.6 20 93.1 93.1 195.5C160.4 378.1 229 416 291.4 416c37.5 0 42.1-8.4 42.1-22.9 0-66.8-3.4-73.1 15.4-73.1 8.7 0 23.7 4.4 58.7 38.1 40 40 46.6 57.9 69 57.9h58.9c16.8 0 25.3-8.4 20.4-25-11.2-34.9-86.9-106.7-90.3-111.5-8.7-11.2-6.2-16.2 0-26.2.1-.1 72-101.3 79.4-135.6z\" class=\"\"></path></svg>",
-  "ya": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"yandex\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 512\" class=\"svg-inline--fa fa-yandex fa-w-8 fa-3x\"><path d=\"M153.1 315.8L65.7 512H2l96-209.8c-45.1-22.9-75.2-64.4-75.2-141.1C22.7 53.7 90.8 0 171.7 0H254v512h-55.1V315.8h-45.8zm45.8-269.3h-29.4c-44.4 0-87.4 29.4-87.4 114.6 0 82.3 39.4 108.8 87.4 108.8h29.4V46.5z\" class=\"\"></path></svg>",
-  "google": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"google\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 488 512\" class=\"svg-inline--fa fa-google fa-w-16 fa-3x\"><path  d=\"M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z\" class=\"\"></path></svg>"
-};
-
-function SocialAuthIcon({ name }) {
-  var xml = socialAuthIcons[name].replace(
-    /\s(?:aria-hidden|focusable|data-prefix|data-icon|role|class)="[^"]*"/g,
-    ''
-  );
-
-  return <SocialAuthSvgXml xml={xml} width={24} height={24} />;
-}
-
-class Storage {
-  async get(key, default_value) {
-    var value = await AsyncStorage.getItem(key);
-    if (value == undefined || value == null || value === '') {
-      value = default_value;
-      if (default_value != undefined) {
-        await this.set(key, default_value);
-      }
-    }
-    return value;
-  }
-
-  async set(key, value) {
-    if (value == undefined) {
-      value = '';
-    }
-
-    var value = await AsyncStorage.setItem(key, value.toString());
-    return value;
-  }
-
-  async remove(key) {
-    await AsyncStorage.removeItem(key);
-  }
-}
-
-async function persistCurrentUser(user) {
-  await storage.set('current_user', JSON.stringify(user));
-}
-
-async function clearAuthenticationState() {
-
-  await storage.remove('access_token');
-  await storage.remove('current_user');
-  await storage.set('has_subscription', 'false');
-  await storage.set('subscription_info', JSON.stringify({}));
-
-  appStore.setCurrentUser(false);
-  appStore.setSubscription(false);
-  appStore.setSubscriptionInfo({});
-}
-
-// ==================== AppStore ====================
-class AppStore {
-  has_internet = true;
-  has_subscription = false;
-  subscription_info = {};
-  current_user = false;
-  confirm_conditions = null;
-  books_percents = {};
-  books_order = [];
-  error_show = false;
-  error_title = '';
-  error_description = '';
-  type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
-  show_subsription = false;
-  oauth_modal_show = false;
-
-  constructor() {
-    makeAutoObservable(this);
-    this._notification_timer = null;
-  }
-
-  setInternet(value) { this.has_internet = value; }
-  setSubscription(value) { this.has_subscription = value; }
-  setSubscriptionInfo(info) { this.subscription_info = info; }
-  setCurrentUser(user) { this.current_user = user; }
-  setConfirmConditions(value) { this.confirm_conditions = value; }
-  setBooksPercents(percents) { this.books_percents = percents; }
-  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
-  setTypePayment(value) { this.type_payment = value; }
-  setShowSubscription(value) { this.show_subsription = value; }
-  setOAuthModalShow(value) { this.oauth_modal_show = value; }
-
-  showError(title, description) {
-    this.error_show = true;
-    this.error_title = title;
-    this.error_description = description;
-    console.log(title + ' ' + description);
-    clearTimeout(this._notification_timer);
-    this._notification_timer = setTimeout(() => {
-      runInAction(() => { this.error_show = false; });
-    }, 3000);
-  }
-
-  closeError() {
-    this.error_show = false;
-  }
-
-  clearErrorTimer() {
-    clearTimeout(this._notification_timer);
-  }
-}
-
-
-function normalizeReaderFontSize(value) {
-  var fontSize = Number(value);
-  if (fontSize <= 14) return 14;
-  if (fontSize <= 16) return 16;
-  return 18;
-}
-
-function readerLineHeight(value) {
-  return normalizeReaderFontSize(value) <= 16 ? 24 : 28;
-}
-
-// ==================== ReaderStore ====================
-
-
-class ReaderStore {
-  fontSize = 18;
-  fontFamily = 'LibreBaskerville-Regular';
-  textAlign = 'flex-start';
-  translate_icon_size = 24;
-  backgroundColorTheme = '#ffffff';
-  textColorTheme = '#000000';
-  secondColorTheme = '#bbb';
-  hideWordTranslationUnderline = false;
-  hideTranslationIcons = false;
-  hideBookmarkIcons = false;
-  hideSentenceVoiceoverIcons = false;
-  bookmark = false;
-  page = '';
-  list_words = null;
-  currentSpeaking = null;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setThemeSettings(settings) {
-    // Мерджим — обновляем только те поля, которые реально пришли.
-    // Иначе при вызове вида setThemeSettings({fontFamily: 'X'}) все
-    // остальные поля стали бы undefined (баг со сбросом шрифта/размеров).
-    if (settings.fontSize !== undefined) this.fontSize = normalizeReaderFontSize(settings.fontSize);
-    if (settings.fontFamily !== undefined) this.fontFamily = settings.fontFamily;
-    if (settings.textAlign !== undefined) this.textAlign = settings.textAlign;
-    if (settings.translate_icon_size !== undefined) this.translate_icon_size = settings.translate_icon_size;
-    if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
-    if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
-    if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
-    if (settings.hideWordTranslationUnderline !== undefined) this.hideWordTranslationUnderline = settings.hideWordTranslationUnderline === true;
-    if (settings.hideTranslationIcons !== undefined) this.hideTranslationIcons = settings.hideTranslationIcons === true;
-    if (settings.hideBookmarkIcons !== undefined) this.hideBookmarkIcons = settings.hideBookmarkIcons === true;
-    if (settings.hideSentenceVoiceoverIcons !== undefined) this.hideSentenceVoiceoverIcons = settings.hideSentenceVoiceoverIcons === true;
-  }
-
-  setBookmark(value) { this.bookmark = value; }
-  setPage(value) { this.page = value; }
-  setCurrentSpeaking(value) { this.currentSpeaking = value; }
-  setListWords(words) { this.list_words = words; }
-  clearListWords() { this.list_words = null; }
-}
-
-// ==================== DownloadStore ====================
-class DownloadStore {
-  downloads = {};
-  completed = {};
-  completionListeners = [];
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  get(bookId) {
-    return this.downloads[bookId] || null;
-  }
-
-  isCompleted(bookId) {
-    return this.completed[bookId] === true;
-  }
-
-  setCompleted(bookId, completed) {
-    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
-  }
-
-  setDownload(bookId, changes) {
-    this.downloads = Object.assign({}, this.downloads, {
-      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
-    });
-  }
-
-  onCompleted(listener) {
-    this.completionListeners.push(listener);
-    return () => {
-      this.completionListeners = this.completionListeners.filter(item => item !== listener);
-    };
-  }
-
-  notifyCompleted(bookId) {
-    this.completionListeners.slice().forEach(listener => listener(bookId));
-  }
-
-  byteLength(value) {
-    var size = 0;
-    for (var index = 0; index < value.length; index++) {
-      var code = value.charCodeAt(index);
-      if (code <= 0x7f) {
-        size += 1;
-      } else if (code <= 0x7ff) {
-        size += 2;
-      } else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
-        var nextCode = value.charCodeAt(index + 1);
-        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
-          size += 4;
-          index += 1;
-        } else {
-          size += 3;
-        }
-      } else {
-        size += 3;
-      }
-    }
-    return size;
-  }
-
-  async updateBookSizes(sizes) {
-    var booksPath = file_root + '/' + BOOKS_FILENAME;
-    if (!(await RNFS.exists(booksPath))) return;
-
-    var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
-    books = books.map((book) => Object.prototype.hasOwnProperty.call(sizes, book.id)
-      ? Object.assign({}, book, { downloaded_size: sizes[book.id] })
-      : book);
-    await RNFS.writeFile(booksPath, JSON.stringify(books), 'utf8');
-  }
-
-  async calculateBookSize(bookId) {
-    var bookPath = file_root + '/books/' + bookId;
-    var words = await RNFS.readFile(bookPath + '/words.json', 'utf8');
-    var pagination = await RNFS.readFile(bookPath + '/pagination.json', 'utf8');
-    var paginationData = JSON.parse(pagination);
-    var paragraphIds = [];
-
-    Object.keys(paginationData).forEach((page) => {
-      (paginationData[page] || []).forEach((paragraphId) => {
-        if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
-      });
-    });
-
-    var size = this.byteLength(words) + this.byteLength(pagination);
-    var batchSize = 25;
-    for (var index = 0; index < paragraphIds.length; index += batchSize) {
-      var batch = paragraphIds.slice(index, index + batchSize);
-      var contents = await Promise.all(batch.map((paragraphId) =>
-        RNFS.readFile(bookPath + '/paragraphs/' + paragraphId + '.json', 'utf8')));
-      contents.forEach((value) => { size += this.byteLength(value); });
-    }
-
-    return size;
-  }
-
-  async hasBookFiles(bookId) {
-    try {
-      var bookPath = file_root + '/books/' + bookId;
-      if (!await RNFS.exists(bookPath + '/words.json')) return false;
-      if (!await RNFS.exists(bookPath + '/pagination.json')) return false;
-
-      var pagination = JSON.parse(await RNFS.readFile(bookPath + '/pagination.json', 'utf8'));
-      var paragraphIds = [];
-      Object.keys(pagination).forEach((page) => {
-        (pagination[page] || []).forEach((paragraphId) => {
-          if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
-        });
-      });
-
-      var existingParagraphs = await Promise.all(paragraphIds.map((paragraphId) =>
-        RNFS.exists(bookPath + '/paragraphs/' + paragraphId + '.json')));
-      return existingParagraphs.every(Boolean);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  async validateCompleted(bookId) {
-    var completed = await AsyncStorage.getItem('have_file_' + bookId) == 'true';
-    if (!completed) return false;
-    if (await this.hasBookFiles(bookId)) return true;
-
-    await AsyncStorage.setItem('have_file_' + bookId, '');
-    this.setCompleted(bookId, false);
-    return false;
-  }
-
-  async removeBooks(bookIds) {
-    var ids = (bookIds || []).map((bookId) => String(bookId));
-    await Promise.all(ids.map(async (bookId) => {
-      await AsyncStorage.setItem('have_file_' + bookId, '');
-      var bookDirectory = file_root + '/books/' + bookId + '/';
-      if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
-      this.setCompleted(bookId, false);
-    }));
-
-    var sizes = {};
-    ids.forEach((bookId) => { sizes[bookId] = 0; });
-    await this.updateBookSizes(sizes);
-  }
-
-  async start(book) {
-    if (!book || this.completed[book.id]) return;
-    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
-    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
-
-    this.setDownload(book.id, {
-      bookId: book.id,
-      name: book.name,
-      nameEn: book.name_en,
-      color: book.color,
-      progress: 0,
-      status: 'preparing',
-    });
-
-    AppMetrica.reportEvent('loader', { status: 'start' });
-
-    try {
-      var files = await new Request('/api/v2/books/download_list', { book_id: book.id }).get();
-      if (!files || files.length === 0) throw new Error('download_list is empty');
-
-      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
-      this.setDownload(book.id, { status: 'downloading', progress: 2 });
-      var downloadedSize = 0;
-
-      for (var index = 0; index < files.length; index++) {
-        var requestPath = files[index];
-        var response = await new Request(requestPath, {}).get();
-        if (response === false) throw new Error('Failed to download ' + requestPath);
-
-        var filePath = requestPath.replace('/result', '');
-        var fileContents = JSON.stringify(response);
-        await RNFS.writeFile(file_root + filePath, fileContents, 'utf8');
-        downloadedSize += this.byteLength(fileContents);
-
-        var progress = Math.max(2, ((index + 1) / files.length) * 100);
-        this.setDownload(book.id, { progress: progress, status: 'downloading' });
-      }
-
-      if (!await this.hasBookFiles(book.id)) throw new Error('Downloaded book files are incomplete');
-
-      await this.updateBookSizes({ [book.id]: downloadedSize });
-      await AsyncStorage.setItem('have_file_' + book.id, 'true');
-      this.setCompleted(book.id, true);
-      this.notifyCompleted(book.id);
-      this.dismiss(book.id);
-      AppMetrica.reportEvent('loader', { status: 'finish' });
-      AppMetrica.reportEvent('loader', { progress: 100 });
-    } catch (error) {
-      this.setDownload(book.id, { status: 'error', error: error.message });
-      AppMetrica.reportEvent('loader', { status: 'error' });
-    }
-  }
-
-  dismiss(bookId) {
-    var downloads = Object.assign({}, this.downloads);
-    delete downloads[bookId];
-    this.downloads = downloads;
-  }
-}
-
-// ==================== HomeStore ====================
-class HomeStore {
-  open_property = false;
-
-  constructor() {
-    makeAutoObservable(this);
-  }
-
-  setOpenProperty(value) { this.open_property = value; }
-}
-
-class SyncManager {
-  static queue_key = 'sync_operations_v1';
-  static _flush_promise = null;
-
-  static operationId() {
-    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
-  }
-
-  static entityKey(entity, payload) {
-    return entity == 'bookmark' ? payload.book_id.toString() : payload.original;
-  }
-
-  static async operations() {
-    var value = await storage.get(this.queue_key, '[]');
-    try {
-      return JSON.parse(value);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  static async enqueue(entity, action, payload, base_version) {
-    var operations = await this.operations();
-    var key = this.entityKey(entity, payload);
-    operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
-    operations.push({
-      operation_id: this.operationId(),
-      owner_id: appStore.current_user ? appStore.current_user.id : null,
-      entity: entity,
-      entity_key: key,
-      action: action,
-      payload: payload,
-      base_version: base_version,
-      created_at: new Date().toISOString()
-    });
-    await storage.set(this.queue_key, JSON.stringify(operations));
-  }
-
-  static async pendingKeys(entity) {
-    var operations = await this.operations();
-    return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
-  }
-
-  static async flush(owner_id) {
-    if (this._flush_promise != null) return this._flush_promise;
-    this._flush_promise = this._flush(owner_id).finally(() => { this._flush_promise = null; });
-    return this._flush_promise;
-  }
-
-  static async _flush(owner_id) {
-    var operations = await this.operations();
-    var startedOperationIds = operations.map(operation => operation.operation_id);
-    var remaining = [];
-
-    for (var operation of operations) {
-      var ownerId = operation.owner_id || owner_id;
-      if (String(ownerId) != String(owner_id)) {
-        remaining.push(operation);
-        continue;
-      }
-
-      var result = await this.send(operation);
-      if (!result.ok && result.status == 409 && result.data && result.data.item) {
-        operation.base_version = result.data.item.version;
-        operation.operation_id = this.operationId();
-        result = await this.send(operation);
-      }
-
-      if (result.ok) {
-        var currentOperations = await this.operations();
-        var hasNewerOperation = currentOperations.some(value =>
-          value.entity == operation.entity &&
-          value.entity_key == operation.entity_key &&
-          value.operation_id != operation.operation_id &&
-          startedOperationIds.indexOf(value.operation_id) == -1
-        );
-        if (!hasNewerOperation) await this.applyAcknowledgement(operation, result.data);
-      } else {
-        remaining.push(operation);
-        if (result.status == 0) {
-          var currentIndex = operations.indexOf(operation);
-          remaining = remaining.concat(operations.slice(currentIndex + 1));
-          break;
-        }
-      }
-    }
-
-    var currentOperations = await this.operations();
-    var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
-    remaining = remaining.concat(newlyQueued);
-    await storage.set(this.queue_key, JSON.stringify(remaining));
-    return remaining.length == 0;
-  }
-
-  static async send(operation) {
-    var url = operation.entity == 'bookmark' ? '/api/v2/bookmarks' : '/api/v2/dictionary/words';
-    var params = Object.assign({}, operation.payload, {
-      operation_id: operation.operation_id
-    });
-    if (operation.base_version != undefined && operation.base_version != null) {
-      params.base_version = operation.base_version;
-    }
-    var request = new Request(url, params, { do_not_show_error: true, detailed_response: true });
-    return operation.action == 'delete' ? request.delete() : request.post();
-  }
-
-  static async applyAcknowledgement(operation, data) {
-    var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
-    if (operation.action == 'delete') {
-      await storage.remove(key);
-      return;
-    }
-    var stored = await storage.get(key, '{}');
-    stored = JSON.parse(stored);
-    stored.version = data.version;
-    stored.updated_at = data.updated_at;
-    stored.offline = false;
-    await storage.set(key, JSON.stringify(stored));
-  }
-
-  static async syncBookmarks(owner_id) {
-    await this.migrateLegacyBookmarks();
-    await this.flush(owner_id);
-    var response = await new Request('/api/v2/bookmarks', {
-      include_deleted: true
-    }, { do_not_show_error: true, detailed_response: true }).get();
-    if (!response.ok) return null;
-
-    var pending = await this.pendingKeys('bookmark');
-    var keys = [];
-    for (var item of response.data) {
-      var entityKey = item.book.id.toString();
-      var storageKey = 'bookmark_' + entityKey;
-      if (pending.indexOf(entityKey) > -1) continue;
-      if (item.deleted_at) {
-        await storage.remove(storageKey);
-      } else {
-        await storage.set(storageKey, JSON.stringify({
-          book_id: item.book.id,
-          book_name: item.book.name,
-          page: item.page,
-          paragraph: item.paragraph,
-          version: item.version,
-          updated_at: item.updated_at,
-          offline: false
-        }));
-        keys.push(storageKey);
-      }
-    }
-    var pendingOperations = await this.operations();
-    for (var operation of pendingOperations.filter(value => value.entity == 'bookmark' && value.action == 'upsert')) {
-      keys.push('bookmark_' + operation.payload.book_id);
-    }
-    keys = Array.from(new Set(keys));
-    await storage.set('bookmarks_keys', JSON.stringify(keys));
-    return keys;
-  }
-
-  static async syncWords(owner_id) {
-    await this.migrateLegacyWords();
-    await this.flush(owner_id);
-    var response = await new Request('/api/v2/dictionary/words', {
-      include_deleted: true
-    }, { do_not_show_error: true, detailed_response: true }).get();
-    if (!response.ok) return null;
-
-    var pending = await this.pendingKeys('word');
-    var keys = [];
-    for (var item of response.data) {
-      var entityKey = item.original;
-      var storageKey = 'word_' + entityKey;
-      if (pending.indexOf(entityKey) > -1) continue;
-      if (item.deleted_at) {
-        await storage.remove(storageKey);
-      } else {
-        var localWordValue = await storage.get(storageKey);
-        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
-        await storage.set(storageKey, JSON.stringify({
-          original: item.original,
-          transcription: item.transcription,
-          translate: item.translate,
-          studied: localWord.studied === true,
-          learning_shows: Number(localWord.learning_shows || 0),
-          study_prompted: localWord.study_prompted === true,
-          created_at: item.created_at,
-          version: item.version,
-          updated_at: item.updated_at,
-          offline: false
-        }));
-        keys.push(storageKey);
-      }
-    }
-    var pendingOperations = await this.operations();
-    for (var operation of pendingOperations.filter(value => value.entity == 'word' && value.action == 'upsert')) {
-      keys.push('word_' + operation.payload.original);
-    }
-    keys = Array.from(new Set(keys));
-    await storage.set('words_keys', JSON.stringify(keys));
-    return keys;
-  }
-
-  static async migrateLegacyBookmarks() {
-    var keys = JSON.parse(await storage.get('bookmarks_keys', '[]'));
-    var pending = await this.pendingKeys('bookmark');
-    for (var key of keys) {
-      var value = await storage.get(key);
-      if (!value) continue;
-      var bookmark = JSON.parse(value);
-      if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
-        await this.enqueue('bookmark', 'upsert', {
-          book_id: bookmark.book_id,
-          page: bookmark.page,
-          paragraph: bookmark.paragraph
-        }, bookmark.version);
-      }
-    }
-  }
-
-  static async migrateLegacyWords() {
-    var keys = JSON.parse(await storage.get('words_keys', '[]'));
-    var pending = await this.pendingKeys('word');
-    for (var key of keys) {
-      var value = await storage.get(key);
-      if (!value) continue;
-      var word = JSON.parse(value);
-      if (word.offline == true && pending.indexOf(word.original) == -1) {
-        await this.enqueue('word', 'upsert', {
-          original: word.original,
-          transcription: word.transcription,
-          translate: word.translate
-        }, word.version);
-      }
-    }
-  }
-}
-
-function TranslationAdBanner() {
-  return (
-    <SafeAreaInsetsContext.Consumer>
-      {(insets) => (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets ? insets.bottom : 0, paddingLeft: insets ? insets.left : 0, paddingRight: insets ? insets.right : 0, backgroundColor: '#000' }}>
-          <View style={{ height: 50, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-            {adSizeMini && <BannerView size={adSizeMini} adRequest={{ adUnitId: AD_UNIT_BANNER }} />}
-          </View>
-        </View>
-      )}
-    </SafeAreaInsetsContext.Consumer>
-  );
-}
-
-import 'react-native-gesture-handler';
-
-import React, { useState, useEffect } from 'react';
-import type { Node } from 'react';
-import {
-  Text as NativeText,
-  View,
-  TouchableOpacity,
-  Platform,
-  ImageBackground,
-  ScrollView,
-  FlatList,
-  Dimensions,
-  Image,
-  ActivityIndicator,
-  TouchableWithoutFeedback,
-  TextInput as NativeTextInput,
-  StyleSheet,
-  Modal,
-  Button,
-  StatusBar,
-  RefreshControl,
-  Switch,
-  Vibration,
-  Linking,
-  Animated,
-  Appearance,
-  AppState,
-  NativeModules,
-  DeviceEventEmitter,
-  PermissionsAndroid
-} from 'react-native';
-
-import { WebView } from 'react-native-webview';
-import { SwipeListView } from 'react-native-swipe-list-view';
-import moment from 'moment';
-import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, SafeAreaInsetsContext, SafeAreaView as ContextSafeAreaView } from 'react-native-safe-area-context';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Slider from '@react-native-community/slider';
-import { Picker } from '@react-native-picker/picker';
-import NetInfo from '@react-native-community/netinfo';
-import RNRestart from 'react-native-restart';
-import { AnimatedCircularProgress } from 'react-native-circular-progress';
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-import { requestTrackingPermission } from 'react-native-tracking-transparency';
-import AppMetrica from '@appmetrica/react-native-analytics';
-import * as StoreReview from 'react-native-store-review';
-import { makeAutoObservable, runInAction } from 'mobx';
-import { observer } from 'mobx-react';
-import { getMessaging } from '@react-native-firebase/messaging';
-import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
-import {
-  AlignCenter as AlignCenterIcon,
-  AlignJustify as AlignJustifyIcon,
-  AlignLeft as AlignLeftIcon,
-  AlignRight as AlignRightIcon,
-  Book as BookIcon,
-  BookOpen as BookOpenIcon,
-  Bookmark as BookmarkIcon,
-  Check as CheckIcon,
-  CheckCircle as CheckCircleIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  CloudDownload as CloudDownloadIcon,
-  Download as DownloadIcon,
-  Eye as EyeIcon,
-  EyeOff as EyeOffIcon,
-  FileCheck as FileCheckIcon,
-  Menu as MenuIcon,
-  Minus as MinusIcon,
-  Newspaper as NewspaperIcon,
-  Play as PlayIcon,
-  Plus as PlusIcon,
-  RectangleHorizontal as AdvertisementIcon,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
-  SlidersHorizontal as SlidersIcon,
-  Trash2 as TrashIcon,
-  User as UserIcon,
-  Volume2 as VolumeIcon,
-  Wifi as WifiIcon,
-  WifiOff as WifiOffIcon,
-  X as CloseIcon,
-  ArrowDownToLine as ArrowDownToLineIcon,
-  BookA as BookAIcon,
-  Ellipsis as EllipsisIcon,
-  EllipsisVertical as EllipsisVerticalIcon,
-  MegaphoneOff as MegaphoneOffIcon
-} from 'lucide-react-native';
-
-var SocialAuthSvgXml = require('react-native-svg').SvgXml;
-var RNFS = require('react-native-fs');
-var file_root = RNFS.DocumentDirectoryPath;
-
-AppMetrica.activate({
-  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
-  sessionTimeout: 120,
-  firstActivationAsUpdate: false,
-});
-
-var Sound = require('react-native-sound');
-Sound = Sound.default || Sound;
-Sound.setCategory('Playback');
-
-if (Platform.OS === 'ios') {
-  Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-  Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
-}
-
-const storage = new Storage();
-const AppIcon = createAppIcon();
-const appThemeStore = new AppThemeStore();
-const Text = createThemedText();
-const TextInput = createThemedTextInput();
-const AppAlert = new AppAlertService();
-const appStore = new AppStore();
-const progressStore = new ProgressStore();
-const progressService = new ProgressService();
-const readerStore = new ReaderStore();
-const downloadStore = new DownloadStore();
-const homeStore = new HomeStore();
-let push_messaging_client = null;
-if (Platform.OS === 'web') {
-  push_messaging_client = new WebPushMessagingClient();
-} else {
-  push_messaging_client = getMessaging();
-}
-const user_device_registration = new UserDeviceRegistration(push_messaging_client);
-const notification_receipt_service = new NotificationReceiptService();
-const push_notification_service = new PushNotificationService(push_messaging_client, user_device_registration, notification_receipt_service);
-if (Platform.OS === 'android') {
-  push_notification_service.foreground_notifications = NativeModules.ForegroundNotification;
-  push_notification_service.requestNotificationPermission = async () => {
-    if (Platform.Version < 33) return true;
-    const permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-    return permission === PermissionsAndroid.RESULTS.GRANTED;
-  };
-  push_notification_service.subscribeForegroundNotificationOpened = handler => {
-    const subscription = DeviceEventEmitter.addListener('reedleNotificationOpened', handler);
-    return () => subscription.remove();
-  };
-}
-setInterval(() => notification_receipt_service.flush(), 30000);
-AppState.addEventListener('change', state => {
-  if (state === 'active') notification_receipt_service.flush();
-});
-
-// Modal content is rendered in a separate native host and therefore must own
-// its safe-area boundary instead of relying on the screen behind it.
-const AppSafeAreaView = ({ style, edges, ...props }) => (
-  <ContextSafeAreaView
-    {...props}
-    edges={Platform.OS === 'web' ? [] : edges}
-    style={[{ flex: 1 }, style]}
-  />
-);
-
-const advertisingConfig = new AdvertisingConfig(Platform.OS);
-let adSizeBig = null;
-let adSizeMini = null;
-const AD_UNIT_BANNER = advertisingConfig.bannerUnitId;
-const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
-
-const APP_VERSION = require('./package.json').version;
-const BOOKS_FILENAME = 'books_v2.json'
-const POLICY_VERSION = 'v6'
-const HOST = "https://reedle.ru"
-//const HOST = "https://stage.reedle.ru"
-//const HOST = "http://localhost:3000"
-
-const app_theme_colors = {
-  background: "#FFF",
-  backgroundLight: "#eee",
-  backgroundDarkLight: '#ddd',
-  text: "#000",
-  inverseText: "#FFF",
-  red: '#f05458',
-  success: '#75b641',
-  successText: '#57922c',
-  successBackground: '#eaf6df',
-  errorBackground: '#fdebec',
-  completed: '#0fa90f',
-  tooltipBackground: '#333',
-}
-
-const applicationStyles = StyleSheet.create({
-  save_area_view: {
-    flex: 1,
-    backgroundColor: app_theme_colors.background
-  },
-  error_request_text: {
-    color: app_theme_colors.inverseText,
-    lineHeight: 20
-  }
-});
-
-const homeStyles = StyleSheet.create({
-  properties_point: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8
-  },
-  properties_point_text: {
-    fontSize: 14,
-    lineHeight: 28,
-    color: '#444'
-  },
-  header_empty_block: {
-    width: 32,
-    height: 32
-  },
-  settings_image: {
-    width: 24,
-    height: 24
-  }
-});
-
-const bookmarksStyles = StyleSheet.create({
-  auth_into: {
-    textAlign: 'center',
-    fontSize: 18
-  }
-});
-
-const blogStyles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    minHeight: 0,
-    overflow: 'hidden',
-    backgroundColor: '#fff'
-  },
-  scrollContent: {
-    flex: 1,
-    minHeight: 0
-  },
-  infoOverlayText: {
-    color: '#fff',
-    fontSize: 14
-  },
-  look: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  empty: {
-    padding: 32,
-    textAlign: 'center',
-    color: '#777'
-  },
-  articleInfoText: {
-    color: '#aaa',
-    fontSize: 14
-  },
-  block: {
-    marginTop: 16
-  }
-});
-
-const dictionaryStyles = StyleSheet.create({
-  auth_into: {
-    textAlign: 'center',
-    fontSize: 18
-  },
-  button_sorting: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingLeft: 8,
-    paddingRight: 8,
-    borderRadius: 4,
-    height: 32,
-    justifyContent: 'center'
-  },
-  learningContainer: {
-    flex: 1,
-    padding: 16
-  },
-  learningPrimaryButton: {
-    minHeight: 48,
-    borderRadius: 8,
-    backgroundColor: app_theme_colors.red,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginTop: 16
-  },
-  learningPrimaryButtonText: {
-    color: app_theme_colors.inverseText,
-    fontSize: 16,
-    fontWeight: 'bold'
-  }
-});
-
-const profileStyles = StyleSheet.create({
-  app_info_text: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 16
-  },
-  memoryActionDisabled: {
-    opacity: 0.4
-  },
-  section: {
-    alignSelf: 'stretch',
-    padding: 16
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 40
-  },
-  authorization_form_tab: {
-    flex: 1,
-    height: 32,
-    lineHeight: 32,
-    borderRadius: 8,
-    margin: 4
-  },
-  authorization_form_tab_text: {
-    textAlign: 'center',
-    lineHeight: 32
-  },
-  form_button: {
-    height: 40,
-    backgroundColor: app_theme_colors.red,
-    borderRadius: 8
-  },
-  form_button_text: {
-    textAlign: 'center',
-    flex: 1,
-    color: app_theme_colors.inverseText,
-    lineHeight: 40
-  },
-  input_title: {
-    marginBottom: 8
-  },
-  input: {
-    height: 40,
-    borderWidth: 1,
-    borderColor: app_theme_colors.backgroundDarkLight,
-    borderRadius: 8,
-    paddingLeft: 8
-  },
-  point_input: {
-    marginBottom: 16
-  },
-  error_block: {
-    marginBottom: 8,
-    color: app_theme_colors.red
-  },
-  button_password_hide: {
-    width: 40,
-    height: 40,
-    position: 'absolute',
-    right: 0,
-    bottom: 0
-  },
-  thanks_form: {
-    padding: 32,
-    backgroundColor: app_theme_colors.backgroundLight,
-    borderRadius: 8,
-    marginTop: 16
-  },
-  thanks_form_title: {
-    textAlign: 'center',
-    fontWeight: 'bold'
-  },
-  thanks_form_button_parent: {
-    flexDirection: 'row',
-    justifyContent: 'center'
-  },
-  thanks_form_button: {
-    backgroundColor: app_theme_colors.red,
-    width: 48,
-    height: 32,
-    borderRadius: 8,
-    marginTop: 16
-  },
-  thanks_form_button_text: {
-    color: app_theme_colors.inverseText,
-    textAlign: 'center',
-    lineHeight: 32
-  }
-});
-
-const statisticsStyles = StyleSheet.create({
-  content: {
-    width: '100%',
-    maxWidth: 720,
-    alignSelf: 'center',
-    padding: 16,
-    paddingBottom: 48,
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  errorCard: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 16,
-  },
-  periodButton: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  metrics: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metricsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: 18,
-  },
-  metric: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metricWrap: {
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: '50%',
-  },
-  metricValue: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: '700',
-  },
-  metricLabel: {
-    marginTop: 4,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  progressTrack: {
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 10,
-    borderRadius: 5,
-  },
-  chart: {
-    height: 144,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingRight: 4,
-  },
-  chartColumn: {
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: 144,
-  },
-  goalProgress: {
-    marginBottom: 18,
-  },
-  goalTrack: {
-    height: 8,
-    marginTop: 10,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  goalFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  chartBar: {
-    width: 20,
-    minHeight: 4,
-    borderRadius: 4,
-  },
-  field: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    marginBottom: 8,
-    fontSize: 14,
-  },
-  input: {
-    height: 44,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  button: {
-    height: 44,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  authGate: {
-    flex: 1,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
-var readerScreenStyles = StyleSheet.create({
-  speakButton: {
-    marginTop: 8,
-    marginRight: 8
-  },
-  translateButton: {
-    marginTop: 8,
-    marginRight: 8,
-    ...(Platform.OS === 'web' ? {
-      outlineStyle: 'none'
-    } : {})
-  },
-  safeRoot: {
-    flex: 1
-  }
-});
-
-const App = observer(function App() {
-  useEffect(() => { appThemeStore.initialize(); }, []);
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body.dataset.reedleBackgroundOwner !== 'book') {
-      document.body.style.backgroundColor = appThemeStore.colors.background;
-    }
-  }, [appThemeStore.themeName]);
-
-  return (
-    <SafeAreaProvider>
-      <RootApp themeName={appThemeStore.themeName} />
-    </SafeAreaProvider>
-  );
-});
-
-export default App;
 
 class NotificationReceiptService {
   constructor() {
@@ -2773,6 +972,1808 @@ class WebPushMessagingClient {
     this.opened_handlers.clear();
   }
 }
+
+class OAuthAuthorization {
+  constructor(root) {
+    this.root = root;
+    this.webAttempt = 0;
+  }
+
+  async authorize(type) {
+    this.rememberWebLocation();
+    this.open();
+
+    await this.startWait(type);
+  }
+
+  rememberWebLocation() {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    try {
+      window.localStorage.setItem(
+        'oauth_return_location',
+        window.location.pathname + window.location.search + window.location.hash
+      );
+    } catch (_) { }
+  }
+
+  open() {
+    appStore.setOAuthModalShow(true);
+  }
+
+  close() {
+    this.cancel();
+    appStore.setOAuthModalShow(false);
+  }
+
+  cancel() {
+    this.webAttempt += 1;
+  }
+
+  async startWait(type) {
+    var attempt = ++this.webAttempt;
+    var isWeb = Platform.OS === 'web';
+    var oauthWindow = isWeb && typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    var platform = isWeb ? 'pwa' : 'app';
+    var oauthResponse = await new Request('/api/v2/oauth/redirect_url', { oauth_client: type, platform: platform }, {
+      do_not_show_error: false,
+    }).get();
+
+    if (attempt != this.webAttempt) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    if (!oauthResponse || oauthResponse.error != undefined || !oauthResponse.redirect_url || !oauthResponse.session_token) {
+      if (oauthWindow) oauthWindow.close();
+      return;
+    }
+
+    try {
+      if (isWeb) {
+        if (oauthWindow) {
+          oauthWindow.location.href = oauthResponse.redirect_url;
+        } else {
+          window.open(oauthResponse.redirect_url, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        await Linking.openURL(oauthResponse.redirect_url);
+      }
+    } catch (_) {
+      return;
+    }
+
+    var expiresAt = Date.now() + 5 * 60 * 1000;
+
+    while (attempt == this.webAttempt && Date.now() < expiresAt) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      if (attempt != this.webAttempt || Date.now() >= expiresAt) return;
+
+      var user = await new Request('/api/v2/users/by_oauth_token', {
+        token: oauthResponse.session_token,
+      }, {
+        do_not_show_error: true,
+      }).get();
+
+      if (!user || user.error != undefined) continue;
+
+      this.cancel();
+      await this.setCurrentUser(user);
+      return;
+    }
+  }
+
+  async handleURL(url) {
+    if (!url) return;
+
+    var token = '';
+    try {
+      token = new URL(url).searchParams.get('token') || '';
+    } catch (_) {
+      var tokenMatch = String(url).match(/[?&]token=([^&#/]*)/);
+      token = tokenMatch ? tokenMatch[1] : '';
+    }
+    try {
+      token = decodeURIComponent(token).trim();
+    } catch (_) {
+      token = String(token).trim();
+    }
+    if (!token) return;
+
+    var user = await new Request('/api/v2/users/by_oauth_token', {
+      token: token,
+    }).get();
+
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user);
+  }
+
+  async loadPwaUser() {
+    var user = await new Request('/api/v2/users/current', {}, { do_not_show_error: true }).get();
+    if (!user || user.error != undefined) return;
+    await this.setCurrentUser(user, false);
+  }
+
+  async setCurrentUser(user, closeModal = true) {
+    appStore.setCurrentUser(user);
+    if (closeModal) appStore.setOAuthModalShow(false);
+    await persistCurrentUser(user);
+    this.root.checkSubscription();
+    await progressService.flush(appStore.current_user.id);
+    progressService.loadSummary();
+    push_notification_service.syncDevice();
+  }
+}
+
+class ProgressStore {
+  summary = null;
+  summary_loading = false;
+  notification = null;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setSummary(value) { this.summary = value; }
+  setSummaryLoading(value) { this.summary_loading = value; }
+  setNotification(value) { this.notification = value; }
+  dismissNotification() { this.notification = null; }
+}
+
+
+class ProgressService {
+  constructor() {
+    this.queueKey = 'reading_sessions_queue_v1';
+    this.currentSession = null;
+    this.flushing = false;
+    this.flushTimer = null;
+    this.queueOperation = Promise.resolve();
+  }
+
+  sessionId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  async queue() {
+    var value = await new Storage().get(this.queueKey, '[]');
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  start(params) {
+    if (!params || !params.owner_id) return;
+    var previous = this.currentSession;
+    if (previous && String(previous.owner_id) === String(params.owner_id) &&
+        String(previous.book_id) === String(params.book_id) &&
+        Date.now() - previous.last_activity_at <= 3600000) {
+      previous.last_activity_at = Date.now();
+      this.suspended = false;
+      return;
+    }
+    if (previous) this.finish('book_changed');
+    this.suspended = false;
+
+    var now = Date.now();
+    this.currentSession = {
+      session_id: this.sessionId(),
+      owner_id: params.owner_id,
+      book_id: params.book_id,
+      book_name: params.book_name,
+      started_at: new Date(now).toISOString(),
+      start_page: Number(params.page || 1),
+      end_page: Number(params.page || 1),
+      start_percent: Number(params.percent || 0),
+      end_percent: Number(params.percent || 0),
+      active_seconds: 0,
+      last_activity_at: now,
+    };
+  }
+
+  touch(page, percent) {
+    if (!this.currentSession || this.suspended) return;
+    var now = Date.now();
+    if (now - this.currentSession.last_activity_at > 3600000) {
+      var previous = this.currentSession;
+      this.finish('idle_timeout');
+      this.currentSession = null;
+      this.start({ owner_id: previous.owner_id, book_id: previous.book_id,
+        book_name: previous.book_name, page: page == undefined ? previous.end_page : page,
+        percent: percent == undefined ? previous.end_percent : percent });
+    }
+    var delta = Math.max(0, Math.min(90, (now - this.currentSession.last_activity_at) / 1000));
+    this.currentSession.active_seconds += delta;
+    this.currentSession.last_activity_at = now;
+    // Возврат назад не уменьшает достигнутую страницу сессии.
+    if (page != undefined && Number.isFinite(Number(page))) {
+      this.currentSession.end_page = Math.max(this.currentSession.start_page, this.currentSession.end_page, Number(page));
+    }
+    if (percent != undefined && Number.isFinite(Number(percent))) {
+      this.currentSession.end_percent = Math.max(this.currentSession.start_percent, this.currentSession.end_percent, Number(percent));
+    }
+    clearTimeout(this.flushTimer);
+    this.flushTimer = setTimeout(() => {
+      this.saveProgress('checkpoint').catch((error) => console.warn('Reading progress save failed', error));
+    }, 3000);
+  }
+
+  serializeQueue(operation) {
+    var result = this.queueOperation.then(operation);
+    this.queueOperation = result.catch(() => {});
+    return result;
+  }
+
+  async finish(reason) {
+    if (!this.currentSession) return;
+    clearTimeout(this.flushTimer);
+    this.flushTimer = null;
+    this.suspended = true;
+    return this.saveProgress(reason || 'reader_closed');
+  }
+
+  async saveProgress(reason) {
+    if (!this.currentSession) return;
+    var session = Object.assign({}, this.currentSession, {
+      finished_at: new Date(this.currentSession.last_activity_at).toISOString(),
+      finish_reason: reason
+    });
+    delete session.last_activity_at;
+    session.active_seconds = Math.floor(session.active_seconds);
+
+    // Совсем короткие случайные открытия не искажают статистику.
+    if (session.active_seconds < 3 && session.start_percent == session.end_percent) return;
+
+    await this.serializeQueue(async () => {
+      var queue = await this.queue();
+      queue = queue.filter((item) => item.session_id !== session.session_id);
+      queue.push(session);
+      await new Storage().set(this.queueKey, JSON.stringify(queue));
+    });
+    await this.flush(session.owner_id);
+  }
+
+  flush(user_id) {
+    return this.serializeQueue(() => this.flushQueue(user_id));
+  }
+
+  async flushQueue(user_id) {
+    if (!user_id || this.flushing || !appStore.has_internet) return false;
+    this.flushing = true;
+    try {
+      var queue = await this.queue();
+      var remaining = [];
+      for (var session of queue) {
+        var ownerId = session.owner_id || session.user_id;
+        if (String(ownerId) != String(user_id)) {
+          remaining.push(session);
+          continue;
+        }
+        var payload = Object.assign({}, session);
+        delete payload.owner_id;
+        delete payload.user_id;
+        var response = await new Request('/api/v2/reading/sessions', payload, {
+          do_not_show_error: true,
+          detailed_response: true
+        }).post();
+        if (!response.ok) remaining.push(session);
+        if (!response.ok && response.status == 0) {
+          remaining = remaining.concat(queue.slice(queue.indexOf(session) + 1));
+          break;
+        }
+      }
+      await new Storage().set(this.queueKey, JSON.stringify(remaining));
+      return remaining.length == 0;
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  async loadSummary() {
+    if (!appStore.current_user) return null;
+    progressStore.setSummaryLoading(true);
+    var response = await new Request('/api/v2/reading/statistics/summary', {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }, { do_not_show_error: true }).get();
+    progressStore.setSummaryLoading(false);
+    if (response === false) return null;
+    progressStore.setSummary(response);
+    if (response.notification) progressStore.setNotification(response.notification);
+    return response;
+  }
+}
+
+let pwaCsrfToken = null;
+
+class Request {
+  constructor(url, params, options) {
+    this.url = url;
+    this.params = params;
+    if (options == undefined) {
+      this.options = {};
+    } else {
+      this.options = options;
+    }
+  }
+
+  async get() {
+    return await this.makeRequest('get');
+  }
+
+  async post() {
+    return await this.makeRequest('post');
+  }
+
+  async put() {
+    return await this.makeRequest('put');
+  }
+
+  async delete() {
+    return await this.makeRequest('delete');
+  }
+
+  AbortSignal(timeoutMs) {
+    const abortController = new AbortController();
+    setTimeout(() => abortController.abort(), timeoutMs || 0);
+
+    return abortController.signal;
+  }
+
+  async makeRequest(method) {
+    if (appStore.has_internet) {
+      let url = HOST + this.url;
+      var headers = await this.authorizationHeaders();
+
+      try {
+        if (method == 'get') {
+          var response = await axios.get(url, {
+            signal: this.AbortSignal(10_000),
+            params: this.params,
+            headers: headers,
+            withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
+          });
+        }
+
+        if (method == 'post') {
+          var response = await axios.post(url,
+            this.params,
+            {
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
+            }
+          );
+        }
+
+        if (method == 'put') {
+          var response = await axios.put(url,
+            this.params,
+            {
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true
+            }
+          );
+        }
+
+        if (method == 'delete') {
+          var response = await axios.delete(url,
+            {
+              signal: this.AbortSignal(10_000),
+              headers: headers,
+              withCredentials: Platform.OS === 'web' || this.options.with_credentials === true,
+              data: this.params
+            },
+          );
+        }
+
+
+        var data = response.data['response'] != undefined ? response.data['response'] : response.data;
+        this.captureCsrfToken(response);
+        await this.captureAccessToken(data);
+        if (this.options.detailed_response == true) {
+          return { ok: true, status: response.status, data: data };
+        }
+        return data;
+
+      } catch (e) {
+        this.captureCsrfToken(e.response);
+        await this.handleAuthorizationError(e, headers);
+        if (this.options.do_not_show_error != true) {
+          appStore.showError('Нет подключения к серверу', this.options.desciption_error);
+        }
+        if (this.options.detailed_response == true) {
+          return {
+            ok: false,
+            status: e.response ? e.response.status : 0,
+            data: e.response && e.response.data
+              ? (e.response.data.response != undefined ? e.response.data.response : e.response.data)
+              : null
+          };
+        }
+        return false;
+      }
+
+    } else {
+      if (this.options.do_not_show_error != true) {
+        appStore.showError('Отсутствует подключение к интернету', this.options.desciption_error);
+      }
+      if (this.options.detailed_response == true) {
+        return { ok: false, status: 0, data: null };
+      }
+      return false;
+    }
+  }
+
+  async authorizationHeaders() {
+    var headers = { 'X-Client-Platform': Platform.OS };
+
+    if (Platform.OS === 'web') {
+      if (pwaCsrfToken) headers['X-CSRF-Token'] = pwaCsrfToken;
+      return headers;
+    }
+
+    var accessToken = await storage.get('access_token');
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return headers;
+  }
+
+  async captureAccessToken(data) {
+    if (!data || !data.access_token) return;
+
+    if (Platform.OS !== 'web') {
+      await storage.set('access_token', data.access_token);
+    }
+    delete data.access_token;
+  }
+
+  captureCsrfToken(response) {
+    if (Platform.OS !== 'web' || !response || !response.headers) return;
+
+    var token = response.headers['x-csrf-token'];
+    if (token) pwaCsrfToken = token;
+  }
+
+  async handleAuthorizationError(error, headers) {
+    if (!error.response || error.response.status != 401) return;
+    if (!headers.Authorization && Platform.OS !== 'web') return;
+
+    await clearAuthenticationState();
+  }
+}
+
+class Select extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { visible: false, pendingValue: props.value };
+  }
+
+  selectedOption() {
+    return this.props.options.find(option => option.value == this.props.value) || this.props.options[0];
+  }
+
+  select(value) {
+    this.setState({ visible: false }, () => this.props.onValueChange(value));
+  }
+
+  renderWeb() {
+    var style = Object.assign({
+      width: '100%',
+      height: 24,
+      paddingLeft: 8,
+      paddingRight: 8,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: appThemeStore.colors.border,
+      borderRadius: 4,
+      backgroundColor: appThemeStore.colors.backgroundLight,
+      color: appThemeStore.colors.text,
+      fontSize: 12,
+      boxSizing: 'border-box'
+    }, StyleSheet.flatten(this.props.style));
+
+    return React.createElement(
+      'select',
+      {
+        value: this.props.value,
+        disabled: this.props.enabled === false,
+        'aria-label': this.props.accessibilityLabel,
+        onChange: (event) => this.props.onValueChange(event.target.value),
+        style: style
+      },
+      this.props.options.map(option => React.createElement(
+        'option',
+        {
+          key: option.value,
+          value: option.value,
+          style: { backgroundColor: appThemeStore.colors.surface, color: appThemeStore.colors.text }
+        },
+        option.title
+      ))
+    );
+  }
+
+  renderTrigger() {
+    var selectedOption = this.selectedOption();
+    return (
+      <TouchableOpacity
+        disabled={this.props.enabled === false}
+        accessibilityLabel={this.props.accessibilityLabel}
+        onPress={() => this.setState({ visible: true, pendingValue: this.props.value })}
+        style={[{ height: 24, paddingHorizontal: 8, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, this.props.style]}>
+        <Text numberOfLines={1} style={{ color: appThemeStore.colors.text, fontSize: 14 }}>{selectedOption.title}</Text>
+        <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 14, marginLeft: 8 }}>▼</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  renderItems() {
+    return this.props.options.map(option => (
+      <Picker.Item
+        key={option.value}
+        label={option.title}
+        value={option.value}
+        color={appThemeStore.colors.text}
+        style={Platform.OS === 'android' ? { backgroundColor: appThemeStore.colors.backgroundLight, color: appThemeStore.colors.text, fontSize: 14 } : undefined}
+      />
+    ));
+  }
+
+  renderIos() {
+    return (
+      <React.Fragment>
+        {this.renderTrigger()}
+        <Modal
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          transparent={true}
+          visible={this.state.visible}
+          onRequestClose={() => this.setState({ visible: false })}>
+          <AppSafeAreaView style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => this.setState({ visible: false })}
+            style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={{ paddingBottom: 24, backgroundColor: appThemeStore.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+                <View style={{ height: 48, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: appThemeStore.colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity onPress={() => this.setState({ visible: false })}>
+                    <Text style={{ color: appThemeStore.colors.mutedText, fontSize: 16 }}>Отмена</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => this.select(this.state.pendingValue)}>
+                    <Text style={{ color: app_theme_colors.red, fontSize: 16, fontWeight: 'bold' }}>Готово</Text>
+                  </TouchableOpacity>
+                </View>
+                <Picker
+                  selectedValue={this.state.pendingValue}
+                  onValueChange={(value) => this.setState({ pendingValue: value })}
+                  itemStyle={{ color: appThemeStore.colors.text, fontSize: 18 }}>
+                  {this.renderItems()}
+                </Picker>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+          </AppSafeAreaView>
+        </Modal>
+      </React.Fragment>
+    );
+  }
+
+  renderAndroid() {
+    return (
+      <View style={[{ height: 56, borderWidth: 1, borderRadius: 8, borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.backgroundLight, justifyContent: 'center', overflow: 'hidden' }, this.props.style]}>
+        <Picker
+          mode="dropdown"
+          selectedValue={this.props.value}
+          onValueChange={(value) => this.props.onValueChange(value)}
+          dropdownIconColor={appThemeStore.colors.mutedText}
+          enabled={this.props.enabled !== false}
+          accessibilityLabel={this.props.accessibilityLabel}
+          style={{ width: '100%', height: 56, color: appThemeStore.colors.text }}>
+          {this.renderItems()}
+        </Picker>
+      </View>
+    );
+  }
+
+  render() {
+    if (Platform.OS == 'web') return this.renderWeb();
+    if (Platform.OS == 'ios') return this.renderIos();
+    return this.renderAndroid();
+  }
+}
+
+const socialAuthIcons = {
+  "vk": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"vk\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\" class=\"svg-inline--fa fa-vk fa-w-18 fa-3x\"><path  d=\"M545 117.7c3.7-12.5 0-21.7-17.8-21.7h-58.9c-15 0-21.9 7.9-25.6 16.7 0 0-30 73.1-72.4 120.5-13.7 13.7-20 18.1-27.5 18.1-3.7 0-9.4-4.4-9.4-16.9V117.7c0-15-4.2-21.7-16.6-21.7h-92.6c-9.4 0-15 7-15 13.5 0 14.2 21.2 17.5 23.4 57.5v86.8c0 19-3.4 22.5-10.9 22.5-20 0-68.6-73.4-97.4-157.4-5.8-16.3-11.5-22.9-26.6-22.9H38.8c-16.8 0-20.2 7.9-20.2 16.7 0 15.6 20 93.1 93.1 195.5C160.4 378.1 229 416 291.4 416c37.5 0 42.1-8.4 42.1-22.9 0-66.8-3.4-73.1 15.4-73.1 8.7 0 23.7 4.4 58.7 38.1 40 40 46.6 57.9 69 57.9h58.9c16.8 0 25.3-8.4 20.4-25-11.2-34.9-86.9-106.7-90.3-111.5-8.7-11.2-6.2-16.2 0-26.2.1-.1 72-101.3 79.4-135.6z\" class=\"\"></path></svg>",
+  "ya": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"yandex\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 512\" class=\"svg-inline--fa fa-yandex fa-w-8 fa-3x\"><path d=\"M153.1 315.8L65.7 512H2l96-209.8c-45.1-22.9-75.2-64.4-75.2-141.1C22.7 53.7 90.8 0 171.7 0H254v512h-55.1V315.8h-45.8zm45.8-269.3h-29.4c-44.4 0-87.4 29.4-87.4 114.6 0 82.3 39.4 108.8 87.4 108.8h29.4V46.5z\" class=\"\"></path></svg>",
+  "google": "<svg fill=\"#FFF\" aria-hidden=\"true\" focusable=\"false\" data-prefix=\"fab\" data-icon=\"google\" role=\"img\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 488 512\" class=\"svg-inline--fa fa-google fa-w-16 fa-3x\"><path  d=\"M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z\" class=\"\"></path></svg>"
+};
+
+function SocialAuthIcon({ name }) {
+  var xml = socialAuthIcons[name].replace(
+    /\s(?:aria-hidden|focusable|data-prefix|data-icon|role|class)="[^"]*"/g,
+    ''
+  );
+
+  return <SocialAuthSvgXml xml={xml} width={24} height={24} />;
+}
+
+class Storage {
+  async get(key, default_value) {
+    var value = await AsyncStorage.getItem(key);
+    if (value == undefined || value == null || value === '') {
+      value = default_value;
+      if (default_value != undefined) {
+        await this.set(key, default_value);
+      }
+    }
+    return value;
+  }
+
+  async set(key, value) {
+    if (value == undefined) {
+      value = '';
+    }
+
+    var value = await AsyncStorage.setItem(key, value.toString());
+    return value;
+  }
+
+  async remove(key) {
+    await AsyncStorage.removeItem(key);
+  }
+}
+
+async function persistCurrentUser(user) {
+  await storage.set('current_user', JSON.stringify(user));
+}
+
+async function clearAuthenticationState() {
+
+  await storage.remove('access_token');
+  await storage.remove('current_user');
+  await storage.set('has_subscription', 'false');
+  await storage.set('subscription_info', JSON.stringify({}));
+
+  appStore.setCurrentUser(false);
+  appStore.setSubscription(false);
+  appStore.setSubscriptionInfo({});
+}
+
+// ==================== AppStore ====================
+class AppStore {
+  has_internet = true;
+  has_subscription = false;
+  subscription_info = {};
+  current_user = false;
+  confirm_conditions = null;
+  books_percents = {};
+  books_order = [];
+  error_show = false;
+  error_title = '';
+  error_description = '';
+  type_payment = Platform.OS === 'ios' ? 'by_store' : 'by_yoo_kassa';
+  show_subsription = false;
+  oauth_modal_show = false;
+
+  constructor() {
+    makeAutoObservable(this);
+    this._notification_timer = null;
+  }
+
+  setInternet(value) { this.has_internet = value; }
+  setSubscription(value) { this.has_subscription = value; }
+  setSubscriptionInfo(info) { this.subscription_info = info; }
+  setCurrentUser(user) { this.current_user = user; }
+  setConfirmConditions(value) { this.confirm_conditions = value; }
+  setBooksPercents(percents) { this.books_percents = percents; }
+  setBooksOrder(bookIds) { this.books_order = Array.isArray(bookIds) ? bookIds.slice() : []; }
+  setTypePayment(value) { this.type_payment = value; }
+  setShowSubscription(value) { this.show_subsription = value; }
+  setOAuthModalShow(value) { this.oauth_modal_show = value; }
+
+  showError(title, description) {
+    this.error_show = true;
+    this.error_title = title;
+    this.error_description = description;
+    console.log(title + ' ' + description);
+    clearTimeout(this._notification_timer);
+    this._notification_timer = setTimeout(() => {
+      runInAction(() => { this.error_show = false; });
+    }, 3000);
+  }
+
+  closeError() {
+    this.error_show = false;
+  }
+
+  clearErrorTimer() {
+    clearTimeout(this._notification_timer);
+  }
+}
+
+
+function normalizeReaderFontSize(value) {
+  var fontSize = Number(value);
+  if (fontSize <= 14) return 14;
+  if (fontSize <= 16) return 16;
+  return 18;
+}
+
+// ==================== ReaderStore ====================
+
+
+class ReaderStore {
+  fontSize = 18;
+  fontFamily = 'LibreBaskerville-Regular';
+  textAlign = 'flex-start';
+  translate_icon_size = 24;
+  backgroundColorTheme = '#ffffff';
+  textColorTheme = '#000000';
+  secondColorTheme = '#bbb';
+  hideWordTranslationUnderline = false;
+  hideTranslationIcons = false;
+  hideBookmarkIcons = false;
+  hideSentenceVoiceoverIcons = false;
+  bookmark = false;
+  page = '';
+  list_words = null;
+  currentSpeaking = null;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setThemeSettings(settings) {
+    // Мерджим — обновляем только те поля, которые реально пришли.
+    // Иначе при вызове вида setThemeSettings({fontFamily: 'X'}) все
+    // остальные поля стали бы undefined (баг со сбросом шрифта/размеров).
+    if (settings.fontSize !== undefined) this.fontSize = normalizeReaderFontSize(settings.fontSize);
+    if (settings.fontFamily !== undefined) this.fontFamily = settings.fontFamily;
+    if (settings.textAlign !== undefined) this.textAlign = settings.textAlign;
+    if (settings.translate_icon_size !== undefined) this.translate_icon_size = settings.translate_icon_size;
+    if (settings.backgroundColorTheme !== undefined) this.backgroundColorTheme = settings.backgroundColorTheme;
+    if (settings.textColorTheme !== undefined) this.textColorTheme = settings.textColorTheme;
+    if (settings.secondColorTheme !== undefined) this.secondColorTheme = settings.secondColorTheme;
+    if (settings.hideWordTranslationUnderline !== undefined) this.hideWordTranslationUnderline = settings.hideWordTranslationUnderline === true;
+    if (settings.hideTranslationIcons !== undefined) this.hideTranslationIcons = settings.hideTranslationIcons === true;
+    if (settings.hideBookmarkIcons !== undefined) this.hideBookmarkIcons = settings.hideBookmarkIcons === true;
+    if (settings.hideSentenceVoiceoverIcons !== undefined) this.hideSentenceVoiceoverIcons = settings.hideSentenceVoiceoverIcons === true;
+  }
+
+  setBookmark(value) { this.bookmark = value; }
+  setPage(value) { this.page = value; }
+  setCurrentSpeaking(value) { this.currentSpeaking = value; }
+  setListWords(words) { this.list_words = words; }
+  clearListWords() { this.list_words = null; }
+}
+
+// ==================== DownloadStore ====================
+class DownloadStore {
+  downloads = {};
+  completed = {};
+  completionListeners = [];
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  get(bookId) {
+    return this.downloads[bookId] || null;
+  }
+
+  isCompleted(bookId) {
+    return this.completed[bookId] === true;
+  }
+
+  setCompleted(bookId, completed) {
+    this.completed = Object.assign({}, this.completed, { [bookId]: completed === true });
+  }
+
+  setDownload(bookId, changes) {
+    this.downloads = Object.assign({}, this.downloads, {
+      [bookId]: Object.assign({}, this.downloads[bookId] || {}, changes),
+    });
+  }
+
+  onCompleted(listener) {
+    this.completionListeners.push(listener);
+    return () => {
+      this.completionListeners = this.completionListeners.filter(item => item !== listener);
+    };
+  }
+
+  notifyCompleted(bookId) {
+    this.completionListeners.slice().forEach(listener => listener(bookId));
+  }
+
+  byteLength(value) {
+    var size = 0;
+    for (var index = 0; index < value.length; index++) {
+      var code = value.charCodeAt(index);
+      if (code <= 0x7f) {
+        size += 1;
+      } else if (code <= 0x7ff) {
+        size += 2;
+      } else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+        var nextCode = value.charCodeAt(index + 1);
+        if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
+          size += 4;
+          index += 1;
+        } else {
+          size += 3;
+        }
+      } else {
+        size += 3;
+      }
+    }
+    return size;
+  }
+
+  async updateBookSizes(sizes) {
+    var booksPath = file_root + '/' + BOOKS_FILENAME;
+    if (!(await RNFS.exists(booksPath))) return;
+
+    var books = JSON.parse(await RNFS.readFile(booksPath, 'utf8'));
+    books = books.map((book) => Object.prototype.hasOwnProperty.call(sizes, book.id)
+      ? Object.assign({}, book, { downloaded_size: sizes[book.id] })
+      : book);
+    await RNFS.writeFile(booksPath, JSON.stringify(books), 'utf8');
+  }
+
+  async calculateBookSize(bookId) {
+    var bookPath = file_root + '/books/' + bookId;
+    var words = await RNFS.readFile(bookPath + '/words.json', 'utf8');
+    var pagination = await RNFS.readFile(bookPath + '/pagination.json', 'utf8');
+    var paginationData = JSON.parse(pagination);
+    var paragraphIds = [];
+
+    Object.keys(paginationData).forEach((page) => {
+      (paginationData[page] || []).forEach((paragraphId) => {
+        if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+      });
+    });
+
+    var size = this.byteLength(words) + this.byteLength(pagination);
+    var batchSize = 25;
+    for (var index = 0; index < paragraphIds.length; index += batchSize) {
+      var batch = paragraphIds.slice(index, index + batchSize);
+      var contents = await Promise.all(batch.map((paragraphId) =>
+        RNFS.readFile(bookPath + '/paragraphs/' + paragraphId + '.json', 'utf8')));
+      contents.forEach((value) => { size += this.byteLength(value); });
+    }
+
+    return size;
+  }
+
+  async hasBookFiles(bookId) {
+    try {
+      var bookPath = file_root + '/books/' + bookId;
+      if (!await RNFS.exists(bookPath + '/words.json')) return false;
+      if (!await RNFS.exists(bookPath + '/pagination.json')) return false;
+
+      var pagination = JSON.parse(await RNFS.readFile(bookPath + '/pagination.json', 'utf8'));
+      var paragraphIds = [];
+      Object.keys(pagination).forEach((page) => {
+        (pagination[page] || []).forEach((paragraphId) => {
+          if (paragraphIds.indexOf(paragraphId) == -1) paragraphIds.push(paragraphId);
+        });
+      });
+
+      var existingParagraphs = await Promise.all(paragraphIds.map((paragraphId) =>
+        RNFS.exists(bookPath + '/paragraphs/' + paragraphId + '.json')));
+      return existingParagraphs.every(Boolean);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async validateCompleted(bookId) {
+    var completed = await AsyncStorage.getItem('have_file_' + bookId) == 'true';
+    if (!completed) return false;
+    if (await this.hasBookFiles(bookId)) return true;
+
+    await AsyncStorage.setItem('have_file_' + bookId, '');
+    this.setCompleted(bookId, false);
+    return false;
+  }
+
+  async removeBooks(bookIds) {
+    var ids = (bookIds || []).map((bookId) => String(bookId));
+    await Promise.all(ids.map(async (bookId) => {
+      await AsyncStorage.setItem('have_file_' + bookId, '');
+      var bookDirectory = file_root + '/books/' + bookId + '/';
+      if (await RNFS.exists(bookDirectory)) await RNFS.unlink(bookDirectory);
+      this.setCompleted(bookId, false);
+    }));
+
+    var sizes = {};
+    ids.forEach((bookId) => { sizes[bookId] = 0; });
+    await this.updateBookSizes(sizes);
+  }
+
+  async start(book) {
+    if (!book || this.completed[book.id]) return;
+    if (this.downloads[book.id] && this.downloads[book.id].status !== 'error') return;
+    if (this.downloads[book.id] && this.downloads[book.id].status === 'error') this.dismiss(book.id);
+
+    this.setDownload(book.id, {
+      bookId: book.id,
+      name: book.name,
+      nameEn: book.name_en,
+      color: book.color,
+      progress: 0,
+      status: 'preparing',
+    });
+
+    AppMetrica.reportEvent('loader', { status: 'start' });
+
+    try {
+      var files = await new Request('/api/v2/books/download_list', { book_id: book.id }).get();
+      if (!files || files.length === 0) throw new Error('download_list is empty');
+
+      await RNFS.mkdir(file_root + '/books/' + book.id + '/paragraphs/');
+      this.setDownload(book.id, { status: 'downloading', progress: 2 });
+      var downloadedSize = 0;
+
+      for (var index = 0; index < files.length; index++) {
+        var requestPath = files[index];
+        var response = await new Request(requestPath, {}).get();
+        if (response === false) throw new Error('Failed to download ' + requestPath);
+
+        var filePath = requestPath.replace('/result', '');
+        var fileContents = JSON.stringify(response);
+        await RNFS.writeFile(file_root + filePath, fileContents, 'utf8');
+        downloadedSize += this.byteLength(fileContents);
+
+        var progress = Math.max(2, ((index + 1) / files.length) * 100);
+        this.setDownload(book.id, { progress: progress, status: 'downloading' });
+      }
+
+      if (!await this.hasBookFiles(book.id)) throw new Error('Downloaded book files are incomplete');
+
+      await this.updateBookSizes({ [book.id]: downloadedSize });
+      await AsyncStorage.setItem('have_file_' + book.id, 'true');
+      this.setCompleted(book.id, true);
+      this.notifyCompleted(book.id);
+      this.dismiss(book.id);
+      AppMetrica.reportEvent('loader', { status: 'finish' });
+      AppMetrica.reportEvent('loader', { progress: 100 });
+    } catch (error) {
+      this.setDownload(book.id, { status: 'error', error: error.message });
+      AppMetrica.reportEvent('loader', { status: 'error' });
+    }
+  }
+
+  dismiss(bookId) {
+    var downloads = Object.assign({}, this.downloads);
+    delete downloads[bookId];
+    this.downloads = downloads;
+  }
+}
+
+// ==================== HomeStore ====================
+class HomeStore {
+  open_property = false;
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setOpenProperty(value) { this.open_property = value; }
+}
+
+class SyncManager {
+  static queue_key = 'sync_operations_v1';
+  static _flush_promise = null;
+
+  static operationId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  static entityKey(entity, payload) {
+    return entity == 'bookmark' ? payload.book_id.toString() : payload.original;
+  }
+
+  static async operations() {
+    var value = await storage.get(this.queue_key, '[]');
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static async enqueue(entity, action, payload, base_version) {
+    var operations = await this.operations();
+    var key = this.entityKey(entity, payload);
+    operations = operations.filter(operation => !(operation.entity == entity && operation.entity_key == key));
+    operations.push({
+      operation_id: this.operationId(),
+      owner_id: appStore.current_user ? appStore.current_user.id : null,
+      entity: entity,
+      entity_key: key,
+      action: action,
+      payload: payload,
+      base_version: base_version,
+      created_at: new Date().toISOString()
+    });
+    await storage.set(this.queue_key, JSON.stringify(operations));
+  }
+
+  static async pendingKeys(entity) {
+    var operations = await this.operations();
+    return operations.filter(operation => operation.entity == entity).map(operation => operation.entity_key);
+  }
+
+  static async flush(owner_id) {
+    if (this._flush_promise != null) return this._flush_promise;
+    this._flush_promise = this._flush(owner_id).finally(() => { this._flush_promise = null; });
+    return this._flush_promise;
+  }
+
+  static async _flush(owner_id) {
+    var operations = await this.operations();
+    var startedOperationIds = operations.map(operation => operation.operation_id);
+    var remaining = [];
+
+    for (var operation of operations) {
+      var ownerId = operation.owner_id || owner_id;
+      if (String(ownerId) != String(owner_id)) {
+        remaining.push(operation);
+        continue;
+      }
+
+      var result = await this.send(operation);
+      if (!result.ok && result.status == 409 && result.data && result.data.item) {
+        operation.base_version = result.data.item.version;
+        operation.operation_id = this.operationId();
+        result = await this.send(operation);
+      }
+
+      if (result.ok) {
+        var currentOperations = await this.operations();
+        var hasNewerOperation = currentOperations.some(value =>
+          value.entity == operation.entity &&
+          value.entity_key == operation.entity_key &&
+          value.operation_id != operation.operation_id &&
+          startedOperationIds.indexOf(value.operation_id) == -1
+        );
+        if (!hasNewerOperation) await this.applyAcknowledgement(operation, result.data);
+      } else {
+        remaining.push(operation);
+        if (result.status == 0) {
+          var currentIndex = operations.indexOf(operation);
+          remaining = remaining.concat(operations.slice(currentIndex + 1));
+          break;
+        }
+      }
+    }
+
+    var currentOperations = await this.operations();
+    var newlyQueued = currentOperations.filter(operation => startedOperationIds.indexOf(operation.operation_id) == -1);
+    remaining = remaining.concat(newlyQueued);
+    await storage.set(this.queue_key, JSON.stringify(remaining));
+    return remaining.length == 0;
+  }
+
+  static async send(operation) {
+    var url = operation.entity == 'bookmark' ? '/api/v2/bookmarks' : '/api/v2/dictionary/words';
+    var params = Object.assign({}, operation.payload, {
+      operation_id: operation.operation_id
+    });
+    if (operation.base_version != undefined && operation.base_version != null) {
+      params.base_version = operation.base_version;
+    }
+    var request = new Request(url, params, { do_not_show_error: true, detailed_response: true });
+    return operation.action == 'delete' ? request.delete() : request.post();
+  }
+
+  static async applyAcknowledgement(operation, data) {
+    var key = operation.entity == 'bookmark' ? 'bookmark_' + operation.payload.book_id : 'word_' + operation.payload.original;
+    if (operation.action == 'delete') {
+      await storage.remove(key);
+      return;
+    }
+    var stored = await storage.get(key, '{}');
+    stored = JSON.parse(stored);
+    stored.version = data.version;
+    stored.updated_at = data.updated_at;
+    stored.offline = false;
+    await storage.set(key, JSON.stringify(stored));
+  }
+
+  static async syncBookmarks(owner_id) {
+    await this.migrateLegacyBookmarks();
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/bookmarks', {
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('bookmark');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.book.id.toString();
+      var storageKey = 'bookmark_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await storage.remove(storageKey);
+      } else {
+        await storage.set(storageKey, JSON.stringify({
+          book_id: item.book.id,
+          book_name: item.book.name,
+          page: item.page,
+          paragraph: item.paragraph,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'bookmark' && value.action == 'upsert')) {
+      keys.push('bookmark_' + operation.payload.book_id);
+    }
+    keys = Array.from(new Set(keys));
+    await storage.set('bookmarks_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async syncWords(owner_id) {
+    await this.migrateLegacyWords();
+    await this.flush(owner_id);
+    var response = await new Request('/api/v2/dictionary/words', {
+      include_deleted: true
+    }, { do_not_show_error: true, detailed_response: true }).get();
+    if (!response.ok) return null;
+
+    var pending = await this.pendingKeys('word');
+    var keys = [];
+    for (var item of response.data) {
+      var entityKey = item.original;
+      var storageKey = 'word_' + entityKey;
+      if (pending.indexOf(entityKey) > -1) continue;
+      if (item.deleted_at) {
+        await storage.remove(storageKey);
+      } else {
+        var localWordValue = await storage.get(storageKey);
+        var localWord = localWordValue ? JSON.parse(localWordValue) : {};
+        await storage.set(storageKey, JSON.stringify({
+          original: item.original,
+          transcription: item.transcription,
+          translate: item.translate,
+          studied: localWord.studied === true,
+          learning_shows: Number(localWord.learning_shows || 0),
+          study_prompted: localWord.study_prompted === true,
+          created_at: item.created_at,
+          version: item.version,
+          updated_at: item.updated_at,
+          offline: false
+        }));
+        keys.push(storageKey);
+      }
+    }
+    var pendingOperations = await this.operations();
+    for (var operation of pendingOperations.filter(value => value.entity == 'word' && value.action == 'upsert')) {
+      keys.push('word_' + operation.payload.original);
+    }
+    keys = Array.from(new Set(keys));
+    await storage.set('words_keys', JSON.stringify(keys));
+    return keys;
+  }
+
+  static async migrateLegacyBookmarks() {
+    var keys = JSON.parse(await storage.get('bookmarks_keys', '[]'));
+    var pending = await this.pendingKeys('bookmark');
+    for (var key of keys) {
+      var value = await storage.get(key);
+      if (!value) continue;
+      var bookmark = JSON.parse(value);
+      if (bookmark.offline == true && pending.indexOf(bookmark.book_id.toString()) == -1) {
+        await this.enqueue('bookmark', 'upsert', {
+          book_id: bookmark.book_id,
+          page: bookmark.page,
+          paragraph: bookmark.paragraph
+        }, bookmark.version);
+      }
+    }
+  }
+
+  static async migrateLegacyWords() {
+    var keys = JSON.parse(await storage.get('words_keys', '[]'));
+    var pending = await this.pendingKeys('word');
+    for (var key of keys) {
+      var value = await storage.get(key);
+      if (!value) continue;
+      var word = JSON.parse(value);
+      if (word.offline == true && pending.indexOf(word.original) == -1) {
+        await this.enqueue('word', 'upsert', {
+          original: word.original,
+          transcription: word.transcription,
+          translate: word.translate
+        }, word.version);
+      }
+    }
+  }
+}
+
+function TranslationAdBanner() {
+  return (
+    <SafeAreaInsetsContext.Consumer>
+      {(insets) => (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets ? insets.bottom : 0, paddingLeft: insets ? insets.left : 0, paddingRight: insets ? insets.right : 0, backgroundColor: '#000' }}>
+          <View style={{ height: 50, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+            {adSizeMini && <BannerView size={adSizeMini} adRequest={{ adUnitId: AD_UNIT_BANNER }} />}
+          </View>
+        </View>
+      )}
+    </SafeAreaInsetsContext.Consumer>
+  );
+}
+
+import 'react-native-gesture-handler';
+
+import React, { useState, useEffect } from 'react';
+import type { Node } from 'react';
+import {
+  Text as NativeText,
+  View,
+  TouchableOpacity,
+  Platform,
+  ImageBackground,
+  ScrollView,
+  FlatList,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  TextInput as NativeTextInput,
+  StyleSheet,
+  Modal,
+  Button,
+  StatusBar,
+  RefreshControl,
+  Switch,
+  Vibration,
+  Linking,
+  Animated,
+  Appearance,
+  AppState,
+  NativeModules,
+  DeviceEventEmitter,
+  PermissionsAndroid
+} from 'react-native';
+
+import { WebView } from 'react-native-webview';
+import { SwipeListView } from 'react-native-swipe-list-view';
+import moment from 'moment';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, SafeAreaInsetsContext, SafeAreaView as ContextSafeAreaView } from 'react-native-safe-area-context';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Slider from '@react-native-community/slider';
+import { Picker } from '@react-native-picker/picker';
+import NetInfo from '@react-native-community/netinfo';
+import RNRestart from 'react-native-restart';
+import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { requestTrackingPermission } from 'react-native-tracking-transparency';
+import AppMetrica from '@appmetrica/react-native-analytics';
+import * as StoreReview from 'react-native-store-review';
+import { makeAutoObservable, runInAction } from 'mobx';
+import { observer } from 'mobx-react';
+import { getMessaging } from '@react-native-firebase/messaging';
+import { BannerView, BannerAdSize, RewardedAdLoader, MobileAds } from 'yandex-mobile-ads';
+import {
+  AlignCenter as AlignCenterIcon,
+  AlignJustify as AlignJustifyIcon,
+  AlignLeft as AlignLeftIcon,
+  AlignRight as AlignRightIcon,
+  Book as BookIcon,
+  BookOpen as BookOpenIcon,
+  Bookmark as BookmarkIcon,
+  Check as CheckIcon,
+  CheckCircle as CheckCircleIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  CloudDownload as CloudDownloadIcon,
+  Download as DownloadIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  FileCheck as FileCheckIcon,
+  Menu as MenuIcon,
+  Minus as MinusIcon,
+  Newspaper as NewspaperIcon,
+  Play as PlayIcon,
+  Plus as PlusIcon,
+  RectangleHorizontal as AdvertisementIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  SlidersHorizontal as SlidersIcon,
+  Trash2 as TrashIcon,
+  User as UserIcon,
+  Volume2 as VolumeIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  X as CloseIcon,
+  ArrowDownToLine as ArrowDownToLineIcon,
+  BookA as BookAIcon,
+  Ellipsis as EllipsisIcon,
+  EllipsisVertical as EllipsisVerticalIcon,
+  MegaphoneOff as MegaphoneOffIcon
+} from 'lucide-react-native';
+
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const is_standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  document.documentElement.toggleAttribute('data-pwa-standalone', is_standalone);
+}
+
+var SocialAuthSvgXml = require('react-native-svg').SvgXml;
+var RNFS = require('react-native-fs');
+var file_root = RNFS.DocumentDirectoryPath;
+
+AppMetrica.activate({
+  apiKey: 'c810cef0-e69a-4201-81ce-35e3d0e8ce8d',
+  sessionTimeout: 120,
+  firstActivationAsUpdate: false,
+});
+
+var Sound = require('react-native-sound');
+Sound = Sound.default || Sound;
+Sound.setCategory('Playback');
+
+if (Platform.OS === 'ios') {
+  Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+  Purchases.configure({ apiKey: 'appl_yVDGxgTAqUpWVfzJNrGMYaxmwhm' });
+}
+
+const storage = new Storage();
+const AppIcon = createAppIcon();
+const appThemeStore = new AppThemeStore();
+const Text = createThemedText();
+const TextInput = createThemedTextInput();
+const AppAlert = new AppAlertService();
+const appStore = new AppStore();
+const progressStore = new ProgressStore();
+const progressService = new ProgressService();
+const readerStore = new ReaderStore();
+const downloadStore = new DownloadStore();
+const homeStore = new HomeStore();
+let push_messaging_client = null;
+if (Platform.OS === 'web') {
+  push_messaging_client = new WebPushMessagingClient();
+} else {
+  push_messaging_client = getMessaging();
+}
+const user_device_registration = new UserDeviceRegistration(push_messaging_client);
+const notification_receipt_service = new NotificationReceiptService();
+const push_notification_service = new PushNotificationService(push_messaging_client, user_device_registration, notification_receipt_service);
+if (Platform.OS === 'android') {
+  push_notification_service.foreground_notifications = NativeModules.ForegroundNotification;
+  push_notification_service.requestNotificationPermission = async () => {
+    if (Platform.Version < 33) return true;
+    const permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    return permission === PermissionsAndroid.RESULTS.GRANTED;
+  };
+  push_notification_service.subscribeForegroundNotificationOpened = handler => {
+    const subscription = DeviceEventEmitter.addListener('reedleNotificationOpened', handler);
+    return () => subscription.remove();
+  };
+}
+setInterval(() => notification_receipt_service.flush(), 30000);
+AppState.addEventListener('change', state => {
+  if (state === 'active') notification_receipt_service.flush();
+});
+
+// Modal content is rendered in a separate native host and therefore must own
+// its safe-area boundary instead of relying on the screen behind it.
+const AppSafeAreaView = ({ style, edges, ...props }) => (
+  <ContextSafeAreaView
+    {...props}
+    edges={Platform.OS === 'web' ? [] : edges}
+    style={[{ flex: 1 }, style]}
+  />
+);
+
+const advertisingConfig = new AdvertisingConfig(Platform.OS);
+let adSizeBig = null;
+let adSizeMini = null;
+const AD_UNIT_BANNER = advertisingConfig.bannerUnitId;
+const AD_UNIT_REWARDED = advertisingConfig.rewardedUnitId;
+
+const APP_VERSION = require('./package.json').version;
+const BOOKS_FILENAME = 'books_v2.json'
+const POLICY_VERSION = 'v6'
+const HOST = "https://reedle.ru"
+//const HOST = "https://stage.reedle.ru"
+//const HOST = "http://localhost:3000"
+
+const app_theme_colors = {
+  background: "#FFF",
+  backgroundLight: "#eee",
+  backgroundDarkLight: '#ddd',
+  text: "#000",
+  inverseText: "#FFF",
+  red: '#f05458',
+  success: '#75b641',
+  successText: '#57922c',
+  successBackground: '#eaf6df',
+  errorBackground: '#fdebec',
+  completed: '#0fa90f',
+  tooltipBackground: '#333',
+}
+
+const applicationStyles = StyleSheet.create({
+  save_area_view: {
+    flex: 1,
+    backgroundColor: app_theme_colors.background
+  },
+  error_request_text: {
+    color: app_theme_colors.inverseText,
+    lineHeight: 20
+  }
+});
+
+const homeStyles = StyleSheet.create({
+  properties_point: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8
+  },
+  properties_point_text: {
+    fontSize: 14,
+    lineHeight: 28,
+    color: '#444'
+  },
+  header_empty_block: {
+    width: 32,
+    height: 32
+  },
+  settings_image: {
+    width: 24,
+    height: 24
+  }
+});
+
+const bookmarksStyles = StyleSheet.create({
+  auth_into: {
+    textAlign: 'center',
+    fontSize: 18
+  }
+});
+
+const blogStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    backgroundColor: '#fff'
+  },
+  scrollContent: {
+    flex: 1,
+    minHeight: 0
+  },
+  infoOverlayText: {
+    color: '#fff',
+    fontSize: 14
+  },
+  look: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  empty: {
+    padding: 32,
+    textAlign: 'center',
+    color: '#777'
+  },
+  articleInfoText: {
+    color: '#aaa',
+    fontSize: 14
+  },
+  block: {
+    marginTop: 16
+  }
+});
+
+const dictionaryStyles = StyleSheet.create({
+  auth_into: {
+    textAlign: 'center',
+    fontSize: 18
+  },
+  button_sorting: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingLeft: 8,
+    paddingRight: 8,
+    borderRadius: 4,
+    height: 32,
+    justifyContent: 'center'
+  },
+  learningContainer: {
+    flex: 1,
+    padding: 16
+  },
+  learningPrimaryButton: {
+    minHeight: 48,
+    borderRadius: 8,
+    backgroundColor: app_theme_colors.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 16
+  },
+  learningPrimaryButtonText: {
+    color: app_theme_colors.inverseText,
+    fontSize: 16,
+    fontWeight: 'bold'
+  }
+});
+
+const profileStyles = StyleSheet.create({
+  app_info_text: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 16
+  },
+  memoryActionDisabled: {
+    opacity: 0.4
+  },
+  section: {
+    alignSelf: 'stretch',
+    padding: 16
+  },
+  title: {
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 40
+  },
+  authorization_form_tab: {
+    flex: 1,
+    height: 32,
+    lineHeight: 32,
+    borderRadius: 8,
+    margin: 4
+  },
+  authorization_form_tab_text: {
+    textAlign: 'center',
+    lineHeight: 32
+  },
+  form_button: {
+    height: 40,
+    backgroundColor: app_theme_colors.red,
+    borderRadius: 8
+  },
+  form_button_text: {
+    textAlign: 'center',
+    flex: 1,
+    color: app_theme_colors.inverseText,
+    lineHeight: 40
+  },
+  input_title: {
+    marginBottom: 8
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: app_theme_colors.backgroundDarkLight,
+    borderRadius: 8,
+    paddingLeft: 8
+  },
+  point_input: {
+    marginBottom: 16
+  },
+  error_block: {
+    marginBottom: 8,
+    color: app_theme_colors.red
+  },
+  button_password_hide: {
+    width: 40,
+    height: 40,
+    position: 'absolute',
+    right: 0,
+    bottom: 0
+  },
+  thanks_form: {
+    padding: 32,
+    backgroundColor: app_theme_colors.backgroundLight,
+    borderRadius: 8,
+    marginTop: 16
+  },
+  thanks_form_title: {
+    textAlign: 'center',
+    fontWeight: 'bold'
+  },
+  thanks_form_button_parent: {
+    flexDirection: 'row',
+    justifyContent: 'center'
+  },
+  thanks_form_button: {
+    backgroundColor: app_theme_colors.red,
+    width: 48,
+    height: 32,
+    borderRadius: 8,
+    marginTop: 16
+  },
+  thanks_form_button_text: {
+    color: app_theme_colors.inverseText,
+    textAlign: 'center',
+    lineHeight: 32
+  }
+});
+
+const statisticsStyles = StyleSheet.create({
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: 16,
+    paddingBottom: 48,
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  errorCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 16,
+  },
+  periodButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  metrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metricsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 18,
+  },
+  metric: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  metricWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: '50%',
+  },
+  metricValue: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '700',
+  },
+  metricLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 10,
+    borderRadius: 5,
+  },
+  chart: {
+    height: 144,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingRight: 4,
+  },
+  chartColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: 144,
+  },
+  goalProgress: {
+    marginBottom: 18,
+  },
+  goalTrack: {
+    height: 8,
+    marginTop: 10,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  chartBar: {
+    width: 20,
+    minHeight: 4,
+    borderRadius: 4,
+  },
+  field: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  input: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  button: {
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authGate: {
+    flex: 1,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+var readerScreenStyles = StyleSheet.create({
+  speakButton: {
+    marginTop: 8,
+    marginRight: 8
+  },
+  translateButton: {
+    marginTop: 8,
+    marginRight: 8,
+    ...(Platform.OS === 'web' ? {
+      outlineStyle: 'none'
+    } : {})
+  },
+  safeRoot: {
+    flex: 1
+  }
+});
+
+const App = observer(function App() {
+  useEffect(() => { appThemeStore.initialize(); }, []);
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && document.body.dataset.reedleBackgroundOwner !== 'book') {
+      document.body.style.backgroundColor = appThemeStore.colors.background;
+    }
+  }, [appThemeStore.themeName]);
+
+  return (
+    <SafeAreaProvider>
+      <RootApp themeName={appThemeStore.themeName} />
+    </SafeAreaProvider>
+  );
+});
+
+export default App;
 
 function articleImageUrl(path) {
   if (!path) return null;
@@ -4071,12 +4072,12 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
 
   return (
     <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ flex: 1, marginRight: 12, color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+      <Text style={{ color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+        <View style={{ flex: 1, height: 8, marginRight: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
+        </View>
         <Text style={{ flexShrink: 0, color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
-      </View>
-      <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
-        <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
       </View>
       <View accessible={true} accessibilityLabel={streak_text} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
         <View style={{ flexDirection: 'row', marginRight: 8, marginVertical: 4 }}>
@@ -6277,7 +6278,6 @@ class ProfileSettings extends React.Component {
           <View
             key={'word_' + sentenceIndex + '_' + wordIndex}
             style={{
-              height: this.state.translate_icon_size,
               marginTop: 8,
               marginRight: 8,
               borderBottomWidth: this.state.hideWordTranslationUnderline ? 0 : 2,
@@ -6353,7 +6353,7 @@ class ProfileSettings extends React.Component {
           <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения в ридере</Text>
             <View style={{ minHeight: 624, position: 'relative', paddingVertical: 16, paddingRight: 16, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
-              <Text style={{ marginTop: 8, marginBottom: 8, paddingLeft: 40, fontSize: this.state.fontSize, lineHeight: readerLineHeight(this.state.fontSize), fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
+              <Text style={{ marginTop: 8, marginBottom: 8, paddingLeft: 40, fontSize: this.state.fontSize, lineHeight: this.state.translate_icon_size, fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
                 The Little Prince
               </Text>
               {this.renderPreviewParagraph(12, previewParagraphs[0], true)}
@@ -7717,13 +7717,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
-                            <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right }}>
+                            <Text style={{ fontSize: readerStore.fontSize, lineHeight: readerStore.translate_icon_size, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
                       }
                       {block['w'] == undefined &&
-                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
+                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, lineHeight: readerStore.translate_icon_size, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, }]}>{block['v']}</Text>
                       }
                     </React.Fragment>
                   );

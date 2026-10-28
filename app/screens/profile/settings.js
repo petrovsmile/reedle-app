@@ -79,7 +79,6 @@ class ProfileSettings extends React.Component {
           <View
             key={'word_' + sentenceIndex + '_' + wordIndex}
             style={{
-              height: this.state.translate_icon_size,
               marginTop: 8,
               marginRight: 8,
               borderBottomWidth: this.state.hideWordTranslationUnderline ? 0 : 2,
@@ -155,7 +154,7 @@ class ProfileSettings extends React.Component {
           <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения в ридере</Text>
             <View style={{ minHeight: 624, position: 'relative', paddingVertical: 16, paddingRight: 16, borderRadius: 8, borderWidth: 1, borderColor: this.state.secondColorTheme, backgroundColor: this.state.backgroundColorTheme, overflow: 'hidden' }}>
-              <Text style={{ marginTop: 8, marginBottom: 8, paddingLeft: 40, fontSize: this.state.fontSize, lineHeight: readerLineHeight(this.state.fontSize), fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
+              <Text style={{ marginTop: 8, marginBottom: 8, paddingLeft: 40, fontSize: this.state.fontSize, lineHeight: this.state.translate_icon_size, fontFamily: this.state.fontFamily, color: this.state.textColorTheme }}>
                 The Little Prince
               </Text>
               {this.renderPreviewParagraph(12, previewParagraphs[0], true)}

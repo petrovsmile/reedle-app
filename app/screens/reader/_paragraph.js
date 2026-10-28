@@ -352,13 +352,13 @@ const Paragraph = observer(class Paragraph extends React.Component {
                     <React.Fragment key={index} >
                       {block['w'] != undefined &&
                         <TouchableWithoutFeedback onPress={() => this.translateWord(block['w'])}>
-                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right, boxSizing: 'border-box', height: readerStore.translate_icon_size }}>
-                            <Text style={{ fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }}>{block['v']}</Text>
+                          <View style={{ borderBottomColor: readerStore.secondColorTheme, borderBottomWidth: readerStore.hideWordTranslationUnderline ? 0 : 2, marginTop: 8, marginRight: margin_right }}>
+                            <Text style={{ fontSize: readerStore.fontSize, lineHeight: readerStore.translate_icon_size, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, }}>{block['v']}</Text>
                           </View>
                         </TouchableWithoutFeedback>
                       }
                       {block['w'] == undefined &&
-                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, lineHeight: readerStore.translate_icon_size, }]}>{block['v']}</Text>
+                        <Text style={[{ marginRight: margin_right }, { marginTop: 8 }, { fontSize: readerStore.fontSize, lineHeight: readerStore.translate_icon_size, fontFamily: readerStore.fontFamily, color: readerStore.textColorTheme, }]}>{block['v']}</Text>
                       }
                     </React.Fragment>
                   );

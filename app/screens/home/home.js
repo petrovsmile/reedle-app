@@ -57,12 +57,12 @@ const HomeProgressPanel = observer(function HomeProgressPanel(props) {
 
   return (
     <TouchableOpacity onPress={() => notice ? push_notification_service.open({ data: notice }) : props.navigation.navigate('statistics', { backTitle: 'Книги' })} style={[{ marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 12, borderWidth: 1 }, { borderColor: appThemeStore.colors.border, backgroundColor: appThemeStore.colors.surface }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ flex: 1, marginRight: 12, color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+      <Text style={{ color: notice ? appThemeStore.colors.text : appThemeStore.colors.mutedText, lineHeight: 20 }}>{notice ? (notice.message || notice.title) : (progress >= 100 ? 'Цель выполнена — отличный результат!' : 'Даже несколько минут чтения сегодня имеют значение.')}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+        <View style={{ flex: 1, height: 8, marginRight: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
+          <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
+        </View>
         <Text style={{ flexShrink: 0, color: appThemeStore.colors.mutedText }}>{minutes} из {goalMinutes} мин.</Text>
-      </View>
-      <View style={{ height: 8, marginTop: 12, borderRadius: 4, overflow: 'hidden', backgroundColor: appThemeStore.colors.backgroundLight }}>
-        <View style={{ width: progress + '%', height: 8, borderRadius: 4, backgroundColor: app_theme_colors.red }} />
       </View>
       <View accessible={true} accessibilityLabel={streak_text} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
         <View style={{ flexDirection: 'row', marginRight: 8, marginVertical: 4 }}>

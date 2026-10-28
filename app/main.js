@@ -93,6 +93,11 @@ import {
   MegaphoneOff as MegaphoneOffIcon
 } from 'lucide-react-native';
 
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const is_standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  document.documentElement.toggleAttribute('data-pwa-standalone', is_standalone);
+}
+
 var SocialAuthSvgXml = require('react-native-svg').SvgXml;
 var RNFS = require('react-native-fs');
 var file_root = RNFS.DocumentDirectoryPath;

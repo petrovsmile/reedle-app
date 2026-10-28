@@ -58,10 +58,6 @@ function normalizeReaderFontSize(value) {
   return 18;
 }
 
-function readerLineHeight(value) {
-  return normalizeReaderFontSize(value) <= 16 ? 24 : 28;
-}
-
 // ==================== ReaderStore ====================
 
 

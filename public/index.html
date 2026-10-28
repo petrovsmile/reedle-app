@@ -52,6 +52,25 @@
       min-height: 0;
     }
 
+    @supports (-webkit-touch-callout: none) {
+        /* Keep the document stationary: only the app's inner lists scroll.
+           A real opaque fixed root also defines the top edge for WebKit. */
+        html[data-pwa-standalone],
+        html[data-pwa-standalone] body {
+          overflow: hidden;
+          overscroll-behavior: none;
+        }
+
+        html[data-pwa-standalone] #root {
+          position: fixed;
+          inset: 0;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          background-color: #fff;
+        }
+    }
+
     #pwa-splash {
       position: fixed;
       inset: 0;
