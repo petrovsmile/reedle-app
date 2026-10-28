@@ -324,6 +324,48 @@ function createThemedTextInput() {
   }));
 }
 
+// Keep the Editor.js structure and inline HTML used by the website.
+function EscapeBlogHtml(value) {
+  return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function BlogImageUrl(path, host) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (String(path).startsWith('//')) return 'https:' + path;
+  return host.replace(/\/$/, '') + '/' + String(path).replace(/^\//, '');
+}
+
+function RenderBlogList(items, ordered) {
+  var tag = ordered ? 'ol' : 'ul';
+  return '<' + tag + '>' + (items || []).map(item => {
+    var content = typeof item === 'string' ? item : (item.content || '');
+    var children = typeof item === 'object' && item.items && item.items.length ? RenderBlogList(item.items, ordered) : '';
+    return '<li>' + content + children + '</li>';
+  }).join('') + '</' + tag + '>';
+}
+
+function BuildBlogArticleHtml(article, colors, host) {
+  var content = (article.content || []).map(block => {
+    var data = block.data || {};
+    var body = '';
+    if (block.type === 'paragraph') body = '<div>' + (data.text || '') + '</div>';
+    if (block.type === 'header') body = '<h2>' + (data.text || '') + '</h2>';
+    if (block.type === 'delimiter') body = '<div class="delimiter">* * *</div>';
+    if (block.type === 'list') body = RenderBlogList(data.items, data.style === 'ordered');
+    if (block.type === 'image' && data.file && data.file.url) {
+      body = '<img src="' + EscapeBlogHtml(BlogImageUrl(data.file.url, host)) + '" alt="">' + (data.caption ? '<div class="caption">' + data.caption + '</div>' : '');
+    }
+    return body ? '<div class="block">' + body + '</div>' : '';
+  }).join('');
+  return '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src https: http: data:; style-src \'unsafe-inline\'; base-uri https: http:"><base href="' + EscapeBlogHtml(host) + '/" target="_blank"><style>' +
+    'html{color-scheme:light dark}body{margin:0;padding:16px 16px 32px;font-family:Roboto,Arial,sans-serif;font-size:16px;color:' + colors.text + ';background:' + colors.background + ';overflow-wrap:break-word}' +
+    'h1{font-size:2em;margin:.67em 0}h2{font-size:1.5em;margin:.83em 0;font-weight:bold}.block{margin-top:16px}img{max-width:100%;height:auto;border-radius:10px}.cover{width:100%}.info{display:flex;justify-content:space-between;color:#aaa;font-size:14px;margin-bottom:10px}' +
+    'a{color:#f05458}ol,ul{padding-left:24px}li{display:list-item}li>p:first-child{margin-top:0}li>p:last-child{margin-bottom:0}.delimiter{text-align:center}.caption{color:#aaa;font-size:14px;margin-top:5px}' +
+    '</style></head><body><div class="info"><span>◉ ' + EscapeBlogHtml(article.look) + '</span><span>' + EscapeBlogHtml(article.created_at) + '</span></div><h1>' + EscapeBlogHtml(article.title) + '</h1>' +
+    (article.image_url ? '<img class="cover" src="' + EscapeBlogHtml(BlogImageUrl(article.image_url, host)) + '" alt="">' : '') + content + '</body></html>';
+}
+
 class NotificationReceiptService {
   constructor() {
     this.queue = Promise.resolve();
@@ -2775,22 +2817,54 @@ const App = observer(function App() {
 
 export default App;
 
+class BlogArticle extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { article: null, loading: true };
+  }
+
+  async componentDidMount() {
+    try {
+      var article = await new Request('/api/v2/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
+      this.setState({ article: article || null, loading: false });
+    } catch (error) {
+      this.setState({ loading: false });
+      appStore.showError('Не удалось загрузить статью');
+    }
+  }
+
+  render() {
+    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />;
+    if (!this.state.article) return <Text style={blogStyles.empty}>Статья не найдена</Text>;
+
+    var article_html = BuildBlogArticleHtml(this.state.article, appThemeStore.colors, HOST);
+    return (
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+        {Platform.OS === 'web' ? React.createElement('iframe', {
+          title: this.state.article.title,
+          srcDoc: article_html,
+          sandbox: 'allow-popups allow-popups-to-escape-sandbox',
+          style: { border: 0, width: '100%', height: '100%', flex: 1, display: 'block' },
+        }) : <WebView
+          source={{ html: article_html, baseUrl: HOST }}
+          style={{ flex: 1, backgroundColor: appThemeStore.colors.background }}
+          javaScriptEnabled={false}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          onShouldStartLoadWithRequest={request => {
+            if (request.url === 'about:blank' || request.url === HOST || request.url === HOST + '/') return true;
+            if (/^https?:\/\//i.test(request.url) || /^mailto:/i.test(request.url)) Linking.openURL(request.url);
+            return false;
+          }}
+        />}
+      </AppSafeAreaView>
+    );
+  }
+}
+
 function articleImageUrl(path) {
   if (!path) return null;
   return /^https?:\/\//.test(path) ? path : HOST + path;
-}
-
-function plainArticleText(value) {
-  if (!value) return '';
-  return String(value)
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
 }
 
 function BlogEye({ color }) {
@@ -2853,12 +2927,14 @@ class Blog extends React.Component {
 
   render() {
     return (
-      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
         <SwipeListView
           style={blogStyles.scrollContent}
           data={this.state.loading || this.state.refreshing ? [] : this.state.articles}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
           contentContainerStyle={{ padding: 8, paddingBottom: 24 }}
           refreshControl={
             <RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.loadArticles(1, true)} />
@@ -2892,75 +2968,6 @@ function PreviewArticles({ rows = 3 }) {
       ))}
     </View>
   );
-}
-
-class BlogArticle extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { article: null, loading: true };
-  }
-
-  async componentDidMount() {
-    var article = await new Request('/api/v2/articles/' + encodeURIComponent(this.props.stack.route.params.code), {}, { do_not_show_error: true }).get();
-    this.setState({ article: article || null, loading: false });
-  }
-
-  renderBlock(block, index) {
-    var data = block.data || {};
-    if (block.type == 'paragraph') {
-      return <Text key={index} style={[blogStyles.block, { fontSize: 16, lineHeight: 24, color: '#222' }, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
-    }
-    if (block.type == 'header') {
-      return <Text key={index} style={[blogStyles.block, { fontSize: 18, lineHeight: 28, fontWeight: 'bold' }, { color: appThemeStore.colors.text }]}>{plainArticleText(data.text)}</Text>;
-    }
-    if (block.type == 'delimiter') {
-      return <Text key={index} style={[blogStyles.block, { textAlign: 'center', fontSize: 18, letterSpacing: 6 }, { color: appThemeStore.colors.text }]}>* * *</Text>;
-    }
-    if (block.type == 'list') {
-      return (
-        <View key={index} style={blogStyles.block}>
-          {(data.items || []).map((item, itemIndex) => (
-            <View key={itemIndex} style={{ flexDirection: 'row', paddingLeft: 8, marginBottom: 8 }}>
-              <Text style={[{ width: 24, fontSize: 16, lineHeight: 24 }, { color: appThemeStore.colors.text }]}>{data.style == 'ordered' ? (itemIndex + 1) + '.' : '•'}</Text>
-              <Text style={[{ flex: 1, fontSize: 16, lineHeight: 24 }, { color: appThemeStore.colors.text }]}>{plainArticleText(item)}</Text>
-            </View>
-          ))}
-        </View>
-      );
-    }
-    if (block.type == 'image' && data.file && data.file.url) {
-      return (
-        <View key={index} style={blogStyles.block}>
-          <Image source={{ uri: articleImageUrl(data.file.url) }} style={[{ width: '100%', height: 232, borderRadius: 8, backgroundColor: '#eee' }, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />
-          {data.caption ? <Text style={{ marginTop: 8, color: '#aaa', fontSize: 14 }}>{plainArticleText(data.caption)}</Text> : null}
-        </View>
-      );
-    }
-    return null;
-  }
-
-  render() {
-    if (this.state.loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color={appThemeStore.colors.mutedText} />;
-    if (!this.state.article) return <Text style={blogStyles.empty}>Статья не найдена</Text>;
-
-    var article = this.state.article;
-    return (
-      <AppSafeAreaView style={[blogStyles.screen, { backgroundColor: appThemeStore.colors.background }]}>
-        <ScrollView style={blogStyles.scrollContent} contentContainerStyle={{ padding: 16, paddingBottom: 104 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-            <View style={blogStyles.look}>
-              <BlogEye color="#aaa" />
-              <Text style={blogStyles.articleInfoText}>{article.look}</Text>
-            </View>
-            <Text style={blogStyles.articleInfoText}>{article.created_at}</Text>
-          </View>
-          <Text style={[{ fontSize: 18, lineHeight: 36, fontWeight: 'bold', marginBottom: 8 }, { color: appThemeStore.colors.text }]}>{article.title}</Text>
-          {article.image_url && <Image source={{ uri: articleImageUrl(article.image_url) }} style={[{ width: '100%', height: 232, borderRadius: 8, backgroundColor: '#eee', marginBottom: 8 }, { backgroundColor: appThemeStore.colors.backgroundLight }]} resizeMode="cover" />}
-          {(article.content || []).map((block, index) => this.renderBlock(block, index))}
-        </ScrollView>
-      </AppSafeAreaView>
-    );
-  }
 }
 
 class Bookmark extends React.Component {
