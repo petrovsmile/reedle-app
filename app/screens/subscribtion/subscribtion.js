@@ -249,7 +249,7 @@ const Subscription = observer(class Subscription extends React.Component {
       : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
 
     return (
-      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: appThemeStore.colors.background }}>
 
         <Modal
           animationType="slide"

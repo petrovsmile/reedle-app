@@ -255,8 +255,11 @@ class Statistics extends React.Component {
     var progress = Math.min(100, Math.round(Number(today.minutes || 0) / Math.max(1, goalMinutes) * 100));
 
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
           refreshControl={<RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.load(true)} />}
           contentContainerStyle={statisticsStyles.content}>
           {this.renderPeriodSelector()}

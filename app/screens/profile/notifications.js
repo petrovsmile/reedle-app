@@ -152,11 +152,15 @@ class NotificationSettings extends React.Component {
     }
     return (
       <AppSafeAreaView
+        edges={['left', 'right', 'bottom']}
         style={{
           backgroundColor: appThemeStore.colors.background,
         }}
       >
         <ScrollView
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
           contentContainerStyle={{
             padding: 16,
             paddingBottom: 48,

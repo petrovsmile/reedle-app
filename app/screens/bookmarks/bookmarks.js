@@ -111,7 +111,7 @@ const Bookmarks = observer(class Bookmarks extends React.Component {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -156,7 +156,7 @@ const Bookmarks = observer(class Bookmarks extends React.Component {
             }
             {this.state.do_not_find == false &&
               <FlatList
-                style={{ flex: 1, zIndex: 0, paddingTop: 8 }}
+                style={{ flex: 1, zIndex: 0, paddingTop: 16 }}
                 refreshControl={
                   <RefreshControl refreshing={false} onRefresh={() => this.getBookmarks()} />
                 }

@@ -135,7 +135,7 @@ const Show = observer(class Show extends React.Component {
   render() {
 
     return (
-      <AppSafeAreaView style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 

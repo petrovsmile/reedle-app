@@ -405,7 +405,7 @@ class Dictionary extends React.Component {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
@@ -451,7 +451,7 @@ class Dictionary extends React.Component {
             }
             {this.state.do_not_find == false && (this.state.learning ? this.renderLearning() :
               <View style={{ flex: 1, flexDirection: 'column' }}>
-                <View style={{ padding: 8 }}>
+                <View style={{ padding: 8, paddingTop: 16 }}>
 
                   {appStore.has_subscription == false &&
                     <React.Fragment>
@@ -564,7 +564,7 @@ class DictionaryLearning extends Dictionary {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         {this.renderLearning()}
       </AppSafeAreaView>
     );

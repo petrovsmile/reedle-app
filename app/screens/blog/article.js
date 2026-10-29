@@ -32,6 +32,8 @@ class BlogArticle extends React.Component {
           javaScriptEnabled={false}
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
+          contentInset={{ top: 0, right: 0, bottom: 0, left: 0 }}
           onShouldStartLoadWithRequest={request => {
             if (request.url === 'about:blank' || request.url === HOST || request.url === HOST + '/') return true;
             if (/^https?:\/\//i.test(request.url) || /^mailto:/i.test(request.url)) Linking.openURL(request.url);

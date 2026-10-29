@@ -5,6 +5,7 @@ const ProfilePassword = observer(
       if (current_user == false) return <Auth />;
       return (
         <AppSafeAreaView
+          edges={['left', 'right', 'bottom']}
           style={[
             applicationStyles.save_area_view,
             {

@@ -86,7 +86,7 @@ const Profile = observer(class Profile extends React.Component {
     var current_user = appStore.current_user;
 
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"

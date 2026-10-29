@@ -119,6 +119,7 @@ class ProfileMemory extends React.Component {
   render() {
     return (
       <AppSafeAreaView
+          edges={['left', 'right', 'bottom']}
         style={[
           applicationStyles.save_area_view,
           {

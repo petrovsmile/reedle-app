@@ -2851,6 +2851,8 @@ class BlogArticle extends React.Component {
           javaScriptEnabled={false}
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
+          contentInset={{ top: 0, right: 0, bottom: 0, left: 0 }}
           onShouldStartLoadWithRequest={request => {
             if (request.url === 'about:blank' || request.url === HOST || request.url === HOST + '/') return true;
             if (/^https?:\/\//i.test(request.url) || /^mailto:/i.test(request.url)) Linking.openURL(request.url);
@@ -3144,7 +3146,7 @@ const Bookmarks = observer(class Bookmarks extends React.Component {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
 
         <Modal
           animationType="slide"
@@ -3189,7 +3191,7 @@ const Bookmarks = observer(class Bookmarks extends React.Component {
             }
             {this.state.do_not_find == false &&
               <FlatList
-                style={{ flex: 1, zIndex: 0, paddingTop: 8 }}
+                style={{ flex: 1, zIndex: 0, paddingTop: 16 }}
                 refreshControl={
                   <RefreshControl refreshing={false} onRefresh={() => this.getBookmarks()} />
                 }
@@ -3655,7 +3657,7 @@ class Dictionary extends React.Component {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle={'overFullScreen'}
@@ -3701,7 +3703,7 @@ class Dictionary extends React.Component {
             }
             {this.state.do_not_find == false && (this.state.learning ? this.renderLearning() :
               <View style={{ flex: 1, flexDirection: 'column' }}>
-                <View style={{ padding: 8 }}>
+                <View style={{ padding: 8, paddingTop: 16 }}>
 
                   {appStore.has_subscription == false &&
                     <React.Fragment>
@@ -3814,7 +3816,7 @@ class DictionaryLearning extends Dictionary {
 
   render() {
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         {this.renderLearning()}
       </AppSafeAreaView>
     );
@@ -5353,11 +5355,15 @@ class NotificationSettings extends React.Component {
     }
     return (
       <AppSafeAreaView
+        edges={['left', 'right', 'bottom']}
         style={{
           backgroundColor: appThemeStore.colors.background,
         }}
       >
         <ScrollView
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
           contentContainerStyle={{
             padding: 16,
             paddingBottom: 48,
@@ -5549,7 +5555,7 @@ const Profile = observer(class Profile extends React.Component {
     var current_user = appStore.current_user;
 
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <Modal
           animationType="slide"
           presentationStyle="overFullScreen"
@@ -5746,6 +5752,7 @@ const ProfileDetails = observer(
       if (current_user == false) return <Auth />;
       return (
         <AppSafeAreaView
+          edges={['left', 'right', 'bottom']}
           style={[
             applicationStyles.save_area_view,
             {
@@ -5984,6 +5991,7 @@ class ProfileMemory extends React.Component {
   render() {
     return (
       <AppSafeAreaView
+          edges={['left', 'right', 'bottom']}
         style={[
           applicationStyles.save_area_view,
           {
@@ -6149,6 +6157,7 @@ const ProfilePassword = observer(
       if (current_user == false) return <Auth />;
       return (
         <AppSafeAreaView
+          edges={['left', 'right', 'bottom']}
           style={[
             applicationStyles.save_area_view,
             {
@@ -6355,7 +6364,7 @@ class ProfileSettings extends React.Component {
       ]
     ];
     return (
-      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
           <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения в ридере</Text>
@@ -6644,8 +6653,11 @@ class Statistics extends React.Component {
     var progress = Math.min(100, Math.round(Number(today.minutes || 0) / Math.max(1, goalMinutes) * 100));
 
     return (
-      <AppSafeAreaView style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={[applicationStyles.save_area_view, { backgroundColor: appThemeStore.colors.background }]}>
         <ScrollView
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
           refreshControl={<RefreshControl refreshing={this.state.refreshing} onRefresh={() => this.load(true)} />}
           contentContainerStyle={statisticsStyles.content}>
           {this.renderPeriodSelector()}
@@ -10243,7 +10255,7 @@ const Show = observer(class Show extends React.Component {
   render() {
 
     return (
-      <AppSafeAreaView style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: this.state.book.color || this.props.stack.route.params.color || '#f05458' }}>
         <TargetVersion />
         <StatusBar barStyle="light-content" />
 
@@ -10589,7 +10601,7 @@ const Subscription = observer(class Subscription extends React.Component {
       : { borderColor: appThemeStore.colors.border, borderWidth: 1, transform: [{ scale: 1.1 }], zIndex: 2 };
 
     return (
-      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: appThemeStore.colors.background }}>
 
         <Modal
           animationType="slide"

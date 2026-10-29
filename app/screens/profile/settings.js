@@ -149,7 +149,7 @@ class ProfileSettings extends React.Component {
       ]
     ];
     return (
-      <AppSafeAreaView style={{ backgroundColor: appThemeStore.colors.background }}>
+      <AppSafeAreaView edges={['left', 'right', 'bottom']} style={{ backgroundColor: appThemeStore.colors.background }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 64 }}>
           <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Пример отображения в ридере</Text>
